@@ -48,6 +48,8 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const [editingSubtitle, setEditingSubtitle] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
+  const [isRendering, setIsRendering] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
 
   // Current subtitle based on video time
   const currentSubtitle = video.subtitles?.find(
@@ -76,6 +78,21 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       videoElement.removeEventListener("pause", handlePause)
     }
   }, [])
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showExportMenu) {
+        const target = e.target as HTMLElement
+        if (!target.closest('.export-menu-container')) {
+          setShowExportMenu(false)
+        }
+      }
+    }
+
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [showExportMenu])
 
   const addMockSubtitles = async () => {
     try {
@@ -116,6 +133,46 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     } finally {
       setIsTranscribing(false)
     }
+  }
+
+  const exportSRT = () => {
+    window.open(`/api/videos/${video.id}/export/srt`, '_blank')
+    setShowExportMenu(false)
+  }
+
+  const exportVTT = () => {
+    window.open(`/api/videos/${video.id}/export/vtt`, '_blank')
+    setShowExportMenu(false)
+  }
+
+  const renderVideo = async () => {
+    setIsRendering(true)
+    setShowExportMenu(false)
+    try {
+      const response = await fetch(`/api/videos/${video.id}/render`, {
+        method: "POST"
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to render video")
+      }
+
+      const data = await response.json()
+      setVideo(data.video)
+      router.refresh()
+      alert("Video rendered successfully! Click 'Download Video' to get your file.")
+    } catch (error) {
+      console.error("Error rendering video:", error)
+      alert(error instanceof Error ? error.message : "Failed to render video")
+    } finally {
+      setIsRendering(false)
+    }
+  }
+
+  const downloadRenderedVideo = () => {
+    window.open(`/api/videos/${video.id}/render`, '_blank')
+    setShowExportMenu(false)
   }
 
   const updateSubtitleText = async (id: number, newText: string) => {
@@ -210,12 +267,84 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
             <span className="text-gray-300">{video.title}</span>
             {isSaving && <span className="text-sm text-purple-400">Saving...</span>}
             {isTranscribing && <span className="text-sm text-yellow-400">Transcribing...</span>}
+            {isRendering && <span className="text-sm text-green-400">Rendering...</span>}
           </div>
 
-          <div className="flex items-center gap-4">
-            <button className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity">
+          <div className="flex items-center gap-4 relative export-menu-container">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              disabled={!video.subtitles || (video.subtitles as any[]).length === 0}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
               Export
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </button>
+
+            {/* Export Dropdown Menu */}
+            {showExportMenu && (
+              <div className="absolute top-full right-0 mt-2 w-56 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                <div className="py-1">
+                  <button
+                    onClick={exportSRT}
+                    className="w-full text-left px-4 py-3 hover:bg-zinc-700 transition-colors flex items-center gap-3"
+                  >
+                    <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <div>
+                      <div className="font-medium">Export SRT</div>
+                      <div className="text-xs text-gray-400">Universal subtitle format</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={exportVTT}
+                    className="w-full text-left px-4 py-3 hover:bg-zinc-700 transition-colors flex items-center gap-3"
+                  >
+                    <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <div>
+                      <div className="font-medium">Export VTT</div>
+                      <div className="text-xs text-gray-400">Web video text tracks</div>
+                    </div>
+                  </button>
+
+                  <div className="border-t border-zinc-700 my-1"></div>
+
+                  {video.outputUrl ? (
+                    <button
+                      onClick={downloadRenderedVideo}
+                      className="w-full text-left px-4 py-3 hover:bg-zinc-700 transition-colors flex items-center gap-3"
+                    >
+                      <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      <div>
+                        <div className="font-medium text-green-400">Download Video</div>
+                        <div className="text-xs text-gray-400">Rendered with subtitles</div>
+                      </div>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={renderVideo}
+                      disabled={isRendering}
+                      className="w-full text-left px-4 py-3 hover:bg-zinc-700 transition-colors flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      <div>
+                        <div className="font-medium">Render Video</div>
+                        <div className="text-xs text-gray-400">Burn subtitles into video</div>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
