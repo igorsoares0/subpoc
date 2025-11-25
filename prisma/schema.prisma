@@ -1,0 +1,144 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "windows"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// User & Authentication
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String
+  emailVerified DateTime?
+  image         String?
+
+  accounts      Account[]
+  sessions      Session[]
+  videoProjects VideoProject[]
+  subscription  Subscription?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============================================
+// Subscription & Billing
+// ============================================
+
+model Subscription {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stripeCustomerId       String?  @unique
+  stripeSubscriptionId   String?  @unique
+
+  status                 String   @default("free") // free, active, canceled, past_due
+  plan                   String   @default("free") // free, basic, pro
+
+  minutesUsed            Int      @default(0)
+  minutesLimit           Int      @default(10) // free: 10, basic: 100, pro: 500
+
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+// ============================================
+// Video Projects
+// ============================================
+
+model VideoProject {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Video metadata
+  title             String   @default("Untitled Video")
+  videoUrl          String   // URL do vídeo no R2
+  duration          Float    @default(0) // duração em segundos
+  thumbnailUrl      String?
+
+  // Processing status
+  status            String   @default("uploading")
+  // Status flow: uploading -> transcribing -> ready -> rendering -> completed -> failed
+
+  // Subtitles (JSON array)
+  subtitles         Json?
+  // Estrutura: [{id: 1, start: 0, end: 3.5, text: "Hello"}]
+
+  // Subtitle style configuration (JSON)
+  subtitleStyle     Json?
+  // Estrutura: {
+  //   fontFamily: "Arial",
+  //   fontSize: 24,
+  //   color: "#FFFFFF",
+  //   backgroundColor: "#FF00FF",
+  //   backgroundOpacity: 0.7,
+  //   position: "bottom",
+  //   alignment: "center",
+  //   outline: true,
+  //   outlineColor: "#000000",
+  //   outlineWidth: 2
+  // }
+
+  // Export settings
+  format            String?  // instagram_story, instagram_feed, tiktok, youtube, original
+  trim              Json?    // {start: 10, end: 30}
+  overlays          Json?    // [{type: "image", url: "...", x: 10, y: 10, width: 100, height: 100}]
+
+  // Output
+  outputUrl         String?  // URL do vídeo renderizado final
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
