@@ -47,6 +47,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const [isPlaying, setIsPlaying] = useState(false)
   const [editingSubtitle, setEditingSubtitle] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
 
   // Current subtitle based on video time
   const currentSubtitle = video.subtitles?.find(
@@ -90,6 +91,30 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     } catch (error) {
       console.error("Error adding mock subtitles:", error)
       alert("Failed to add mock subtitles")
+    }
+  }
+
+  const transcribeVideo = async () => {
+    setIsTranscribing(true)
+    try {
+      const response = await fetch(`/api/videos/${video.id}/transcribe`, {
+        method: "POST"
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to transcribe video")
+      }
+
+      const data = await response.json()
+      setVideo(data.video)
+      router.refresh()
+      alert(`Transcription complete! ${data.subtitlesCount} subtitles generated.`)
+    } catch (error) {
+      console.error("Error transcribing video:", error)
+      alert(error instanceof Error ? error.message : "Failed to transcribe video")
+    } finally {
+      setIsTranscribing(false)
     }
   }
 
@@ -184,6 +209,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
             <span className="text-gray-400">•</span>
             <span className="text-gray-300">{video.title}</span>
             {isSaving && <span className="text-sm text-purple-400">Saving...</span>}
+            {isTranscribing && <span className="text-sm text-yellow-400">Transcribing...</span>}
           </div>
 
           <div className="flex items-center gap-4">
@@ -234,12 +260,22 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     <p className="text-sm text-gray-400 mb-4">
                       No subtitles yet.
                     </p>
-                    <button
-                      onClick={addMockSubtitles}
-                      className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-                    >
-                      Add Mock Subtitles
-                    </button>
+                    <div className="space-y-2">
+                      <button
+                        onClick={transcribeVideo}
+                        disabled={isTranscribing}
+                        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90 text-white px-4 py-2 rounded-lg text-sm transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isTranscribing ? "Transcribing..." : "🎤 Auto Transcribe"}
+                      </button>
+                      <button
+                        onClick={addMockSubtitles}
+                        disabled={isTranscribing}
+                        className="w-full bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Add Mock Subtitles
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   video.subtitles.map((sub) => (
