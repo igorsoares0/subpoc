@@ -223,9 +223,7 @@ export async function POST(
 
     const savedStyle = (video.subtitleStyle as unknown as SubtitleStyle) || {};
     console.log("Saved Style from DB:", JSON.stringify(savedStyle, null, 2));
-
     const style = { ...defaultStyle, ...savedStyle };
-    console.log("Merged Style for Rendering:", JSON.stringify(style, null, 2));
 
     // Build subtitle style from user settings
     // Use hexToFFmpegColor to ensure correct BGR format and Alpha
@@ -248,16 +246,6 @@ export async function POST(
       outlineColor = hexToFFmpegColor(style.outlineColor, 1);
       backColor = hexToFFmpegColor(style.backgroundColor ?? '#000000', backgroundOpacity);
     }
-
-    console.log("FFmpeg Color/Style Params:", {
-      primaryColor,
-      outlineColor,
-      backColor,
-      backgroundOpacity,
-      borderStyle,
-      originalBackgroundColor: style.backgroundColor,
-      mode: borderStyle === 3 ? "Opaque Box" : "Outline"
-    });
 
     const fontSize = style.fontSize;
     const outputUrl = `/uploads/rendered/${id}_rendered.mp4`;
