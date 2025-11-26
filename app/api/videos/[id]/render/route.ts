@@ -48,7 +48,7 @@ function generateSRTFile(subtitles: Subtitle[]): string {
   return srtContent
 }
 
-// Helper to convert hex color to FFmpeg color format
+// Helper to convert hex color to FFmpeg color format (ASS style: &HAABBGGRR)
 function hexToFFmpegColor(hex: string, opacity: number = 1): string {
   // Remove # if present
   hex = hex.replace('#', '')
@@ -57,7 +57,10 @@ function hexToFFmpegColor(hex: string, opacity: number = 1): string {
   const r = parseInt(hex.substring(0, 2), 16)
   const g = parseInt(hex.substring(2, 4), 16)
   const b = parseInt(hex.substring(4, 6), 16)
-  const a = Math.round(opacity * 255)
+
+  // ASS Alpha is transparency: 00 = opaque, FF = transparent
+  // So we invert the opacity: (1 - opacity)
+  const a = Math.round((1 - opacity) * 255)
 
   // FFmpeg uses format: &HAABBGGRR (note: BGR not RGB)
   const ffmpegColor = `&H${a.toString(16).padStart(2, '0').toUpperCase()}${b.toString(16).padStart(2, '0').toUpperCase()}${g.toString(16).padStart(2, '0').toUpperCase()}${r.toString(16).padStart(2, '0').toUpperCase()}`
@@ -157,15 +160,15 @@ export async function POST(
       )
     }
 
-    if (!video.subtitles || (video.subtitles as Subtitle[]).length === 0) {
+    if (!video.subtitles || (video.subtitles as unknown as Subtitle[]).length === 0) {
       return NextResponse.json(
         { error: "No subtitles to render" },
         { status: 400 }
       )
     }
 
-    const subtitles = video.subtitles as Subtitle[]
-    const style = (video.subtitleStyle as SubtitleStyle) || {
+    const subtitles = video.subtitles as unknown as Subtitle[]
+    const defaultStyle: SubtitleStyle = {
       fontFamily: "Arial",
       fontSize: 24,
       color: "#FFFFFF",
@@ -177,6 +180,9 @@ export async function POST(
       outlineColor: "#000000",
       outlineWidth: 2
     }
+
+    const savedStyle = (video.subtitleStyle as unknown as SubtitleStyle) || {}
+    const style = { ...defaultStyle, ...savedStyle }
 
     // Update status
     await prisma.videoProject.update({
@@ -225,9 +231,15 @@ export async function POST(
     console.log("Escaped SRT path for FFmpeg:", srtPathForFFmpeg)
 
     // Build subtitle style from user settings
-    const fontColor = style.color.replace('#', '')
-    const outlineColor = style.outlineColor.replace('#', '')
+    // Use hexToFFmpegColor to ensure correct BGR format and Alpha
+    const primaryColor = hexToFFmpegColor(style.color, 1)
+    const outlineColor = hexToFFmpegColor(style.outlineColor, 1)
+    const backColor = hexToFFmpegColor(style.backgroundColor, style.backgroundOpacity)
+
     const fontSize = style.fontSize
+
+    // Determine BorderStyle: 3 (Opaque Box) if background is visible, else 1 (Outline/Shadow)
+    const borderStyle = style.backgroundOpacity > 0 ? 3 : 1
 
     // Render video with FFmpeg using subtitles filter
     await new Promise<void>((resolve, reject) => {
@@ -237,7 +249,7 @@ export async function POST(
         .outputOptions([
           '-preset', 'ultrafast',
           '-crf', '23',
-          `-vf subtitles=${srtPathForFFmpeg}:force_style='FontName=${style.fontFamily},FontSize=${fontSize},PrimaryColour=&H${fontColor},OutlineColour=&H${outlineColor},Outline=${style.outlineWidth}'`
+          `-vf subtitles=${srtPathForFFmpeg}:force_style='FontName=${style.fontFamily},FontSize=${fontSize},PrimaryColour=${primaryColor},OutlineColour=${outlineColor},BackColour=${backColor},BorderStyle=${borderStyle},Outline=${style.outlineWidth}'`
         ])
         .output(outputVideoPath)
         .on("start", (commandLine) => {
