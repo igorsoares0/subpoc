@@ -167,30 +167,8 @@ export async function POST(
       )
     }
 
-    const subtitles = video.subtitles as unknown as Subtitle[]
-    const defaultStyle: SubtitleStyle = {
-      fontFamily: "Arial",
-      fontSize: 24,
-      color: "#FFFFFF",
-      backgroundColor: "#000000",
-      backgroundOpacity: 0.8,
-      position: "bottom",
-      alignment: "center",
-      outline: true,
-      outlineColor: "#000000",
-      outlineWidth: 2
-    }
-
-    const savedStyle = (video.subtitleStyle as unknown as SubtitleStyle) || {}
-    const style = { ...defaultStyle, ...savedStyle }
-
-    // Update status
-    await prisma.videoProject.update({
-      where: { id: id },
-      data: { status: "rendering" }
-    })
-
     // Generate SRT subtitle file (simpler and more reliable than ASS)
+    const subtitles = video.subtitles as unknown as Subtitle[]
     const srtContent = generateSRTFile(subtitles)
     const srtFileName = `${id}.srt`
     const srtPath = path.join(process.cwd(), "public", "uploads", "subtitles", srtFileName)
@@ -230,18 +208,60 @@ export async function POST(
 
     console.log("Escaped SRT path for FFmpeg:", srtPathForFFmpeg)
 
+    const defaultStyle: SubtitleStyle = {
+      fontFamily: "Arial",
+      fontSize: 24,
+      color: "#FFFFFF",
+      backgroundColor: "#000000",
+      backgroundOpacity: 0.8,
+      position: "bottom",
+      alignment: "center",
+      outline: true,
+      outlineColor: "#000000",
+      outlineWidth: 2
+    };
+
+    const savedStyle = (video.subtitleStyle as unknown as SubtitleStyle) || {};
+    console.log("Saved Style from DB:", JSON.stringify(savedStyle, null, 2));
+
+    const style = { ...defaultStyle, ...savedStyle };
+    console.log("Merged Style for Rendering:", JSON.stringify(style, null, 2));
+
     // Build subtitle style from user settings
     // Use hexToFFmpegColor to ensure correct BGR format and Alpha
-    const primaryColor = hexToFFmpegColor(style.color, 1)
-    const outlineColor = hexToFFmpegColor(style.outlineColor, 1)
-    const backColor = hexToFFmpegColor(style.backgroundColor, style.backgroundOpacity)
+    const primaryColor = hexToFFmpegColor(style.color, 1);
+    const backgroundOpacity = typeof style.backgroundOpacity === 'number' ? style.backgroundOpacity : 0.8;
+    const borderStyle = backgroundOpacity > 0 ? 3 : 1;
 
-    const fontSize = style.fontSize
+    let outlineColor, backColor;
 
-    // Determine BorderStyle: 3 (Opaque Box) if background is visible, else 1 (Outline/Shadow)
-    const borderStyle = style.backgroundOpacity > 0 ? 3 : 1
+    if (borderStyle === 3) {
+      // Opaque box mode (BorderStyle=3):
+      // FFmpeg/ASS uses OutlineColour for the background box color.
+      // BackColour is typically unused or for shadow in this mode.
+      outlineColor = hexToFFmpegColor(style.backgroundColor ?? '#000000', backgroundOpacity);
+      backColor = hexToFFmpegColor(style.outlineColor, 1); // Unused or fallback
+    } else {
+      // Standard outline mode (BorderStyle=1):
+      // OutlineColour is the text outline.
+      // BackColour is the shadow/background.
+      outlineColor = hexToFFmpegColor(style.outlineColor, 1);
+      backColor = hexToFFmpegColor(style.backgroundColor ?? '#000000', backgroundOpacity);
+    }
 
-    // Render video with FFmpeg using subtitles filter
+    console.log("FFmpeg Color/Style Params:", {
+      primaryColor,
+      outlineColor,
+      backColor,
+      backgroundOpacity,
+      borderStyle,
+      originalBackgroundColor: style.backgroundColor,
+      mode: borderStyle === 3 ? "Opaque Box" : "Outline"
+    });
+
+    const fontSize = style.fontSize;
+    const outputUrl = `/uploads/rendered/${id}_rendered.mp4`;
+
     await new Promise<void>((resolve, reject) => {
       ffmpeg(inputVideoPath)
         .videoCodec('libx264')
@@ -252,38 +272,28 @@ export async function POST(
           `-vf subtitles=${srtPathForFFmpeg}:force_style='FontName=${style.fontFamily},FontSize=${fontSize},PrimaryColour=${primaryColor},OutlineColour=${outlineColor},BackColour=${backColor},BorderStyle=${borderStyle},Outline=${style.outlineWidth}'`
         ])
         .output(outputVideoPath)
-        .on("start", (commandLine) => {
-          console.log("FFmpeg command:", commandLine)
+        .on('start', (commandLine) => {
+          console.log('FFmpeg command:', commandLine);
         })
-        .on("end", () => {
-          console.log("Rendering completed successfully")
-          resolve()
+        .on('end', () => {
+          console.log('Rendering completed successfully');
+          resolve();
         })
-        .on("error", (err, stdout, stderr) => {
-          console.error("FFmpeg error:", err.message)
-          console.error("FFmpeg stderr:", stderr)
-          reject(err)
+        .on('error', (err, stdout, stderr) => {
+          console.error('FFmpeg error:', err.message);
+          console.error('FFmpeg stderr:', stderr);
+          reject(err);
         })
-        .on("progress", (progress) => {
-          if (progress.percent) {
-            console.log(`Rendering progress: ${progress.percent.toFixed(1)}%`)
-          }
-        })
-        .run()
-    })
-
-    // Keep SRT file for debugging (don't delete)
-    console.log("SRT file kept at:", srtPath)
-
-    // Update video with output URL
-    const outputUrl = `/uploads/rendered/${id}_rendered.mp4`
+        .run();
+    });
+    // Update video record with output URL and status
     const updatedVideo = await prisma.videoProject.update({
       where: { id: id },
       data: {
         outputUrl: outputUrl,
         status: "completed"
       }
-    })
+    });
 
     return NextResponse.json({
       success: true,
