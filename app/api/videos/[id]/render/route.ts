@@ -128,7 +128,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
   return ass
 }
 
-// POST - Render video with burned-in subtitles
+// POST - Send video to worker for rendering
 export async function POST(
   req: Request,
   { params }: { params: { id: string } }
@@ -167,129 +167,68 @@ export async function POST(
       )
     }
 
-    // Generate SRT subtitle file (simpler and more reliable than ASS)
-    const subtitles = video.subtitles as unknown as Subtitle[]
-    const srtContent = generateSRTFile(subtitles)
-    const srtFileName = `${id}.srt`
-    const srtPath = path.join(process.cwd(), "public", "uploads", "subtitles", srtFileName)
-
-    // Ensure subtitles directory exists
-    const subtitlesDir = path.dirname(srtPath)
-    if (!fs.existsSync(subtitlesDir)) {
-      fs.mkdirSync(subtitlesDir, { recursive: true })
-    }
-
-    // Write SRT file
-    fs.writeFileSync(srtPath, srtContent, 'utf8')
-
-    console.log("SRT file content preview:")
-    console.log(srtContent.substring(0, 300))
-
-    // Paths
-    const inputVideoPath = path.join(process.cwd(), "public", video.videoUrl)
-    const outputFileName = `${id}_rendered.mp4`
-    const outputVideoPath = path.join(process.cwd(), "public", "uploads", "rendered", outputFileName)
-
-    // Ensure rendered directory exists
-    const renderedDir = path.dirname(outputVideoPath)
-    if (!fs.existsSync(renderedDir)) {
-      fs.mkdirSync(renderedDir, { recursive: true })
-    }
-
-    console.log("Input video:", inputVideoPath)
-    console.log("Output video:", outputVideoPath)
-    console.log("SRT file path:", srtPath)
-
-    // For Windows: escape path for FFmpeg subtitles filter
-    // The subtitles filter needs proper Windows path escaping
-    const srtPathForFFmpeg = srtPath
-      .replace(/\\/g, '\\\\\\\\')  // Quadruple backslash for Windows
-      .replace(/:/g, '\\\\:')      // Escape colons
-
-    console.log("Escaped SRT path for FFmpeg:", srtPathForFFmpeg)
-
-    const defaultStyle: SubtitleStyle = {
-      fontFamily: "Arial",
-      fontSize: 24,
-      color: "#FFFFFF",
-      backgroundColor: "#000000",
-      backgroundOpacity: 0.8,
-      position: "bottom",
-      alignment: "center",
-      outline: true,
-      outlineColor: "#000000",
-      outlineWidth: 2
-    };
-
-    const savedStyle = (video.subtitleStyle as unknown as SubtitleStyle) || {};
-    console.log("Saved Style from DB:", JSON.stringify(savedStyle, null, 2));
-    const style = { ...defaultStyle, ...savedStyle };
-
-    // Build subtitle style from user settings
-    // Use hexToFFmpegColor to ensure correct BGR format and Alpha
-    const primaryColor = hexToFFmpegColor(style.color, 1);
-    const backgroundOpacity = typeof style.backgroundOpacity === 'number' ? style.backgroundOpacity : 0.8;
-    const borderStyle = backgroundOpacity > 0 ? 3 : 1;
-
-    let outlineColor, backColor;
-
-    if (borderStyle === 3) {
-      // Opaque box mode (BorderStyle=3):
-      // FFmpeg/ASS uses OutlineColour for the background box color.
-      // BackColour is typically unused or for shadow in this mode.
-      outlineColor = hexToFFmpegColor(style.backgroundColor ?? '#000000', backgroundOpacity);
-      backColor = hexToFFmpegColor(style.outlineColor, 1); // Unused or fallback
-    } else {
-      // Standard outline mode (BorderStyle=1):
-      // OutlineColour is the text outline.
-      // BackColour is the shadow/background.
-      outlineColor = hexToFFmpegColor(style.outlineColor, 1);
-      backColor = hexToFFmpegColor(style.backgroundColor ?? '#000000', backgroundOpacity);
-    }
-
-    const fontSize = style.fontSize;
-    const outputUrl = `/uploads/rendered/${id}_rendered.mp4`;
-
-    await new Promise<void>((resolve, reject) => {
-      ffmpeg(inputVideoPath)
-        .videoCodec('libx264')
-        .audioCodec('copy')
-        .outputOptions([
-          '-preset', 'ultrafast',
-          '-crf', '23',
-          `-vf subtitles=${srtPathForFFmpeg}:force_style='FontName=${style.fontFamily},FontSize=${fontSize},PrimaryColour=${primaryColor},OutlineColour=${outlineColor},BackColour=${backColor},BorderStyle=${borderStyle},Outline=${style.outlineWidth}'`
-        ])
-        .output(outputVideoPath)
-        .on('start', (commandLine) => {
-          console.log('FFmpeg command:', commandLine);
-        })
-        .on('end', () => {
-          console.log('Rendering completed successfully');
-          resolve();
-        })
-        .on('error', (err, stdout, stderr) => {
-          console.error('FFmpeg error:', err.message);
-          console.error('FFmpeg stderr:', stderr);
-          reject(err);
-        })
-        .run();
-    });
-    // Update video record with output URL and status
-    const updatedVideo = await prisma.videoProject.update({
+    // Update status to rendering
+    await prisma.videoProject.update({
       where: { id: id },
-      data: {
-        outputUrl: outputUrl,
-        status: "completed"
-      }
-    });
+      data: { status: "rendering" }
+    })
+
+    // Get worker configuration
+    const workerUrl = process.env.WORKER_URL
+    const workerSecret = process.env.WORKER_SECRET
+
+    if (!workerUrl || !workerSecret) {
+      console.error("Worker not configured. Please set WORKER_URL and WORKER_SECRET")
+      throw new Error("Worker not configured")
+    }
+
+    // Construct full video URL
+    const videoUrl = video.videoUrl.startsWith('http')
+      ? video.videoUrl
+      : `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${video.videoUrl}`
+
+    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/render-complete`
+
+    console.log(`[Render] Sending video ${id} to worker`)
+    console.log(`[Render] Video URL: ${videoUrl}`)
+    console.log(`[Render] Webhook URL: ${webhookUrl}`)
+    console.log(`[Render] Subtitles count: ${(video.subtitles as unknown as Subtitle[]).length}`)
+
+    // Send job to worker
+    const response = await fetch(`${workerUrl}/render`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${workerSecret}`
+      },
+      body: JSON.stringify({
+        videoId: id,
+        videoUrl: videoUrl,
+        subtitles: video.subtitles,
+        style: video.subtitleStyle || {},
+        format: video.format || null,
+        trim: video.trim || null,
+        overlays: video.overlays || [],
+        webhookUrl: webhookUrl
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      console.error(`[Render] Worker error: ${error}`)
+      throw new Error(`Worker returned error: ${response.status}`)
+    }
+
+    const result = await response.json()
+    console.log(`[Render] Worker response:`, result)
 
     return NextResponse.json({
       success: true,
-      video: updatedVideo,
-      outputUrl: outputUrl
+      status: "processing",
+      message: "Rendering started in background"
     })
   } catch (error) {
-    console.error("Error rendering video:", error)
+    console.error("Error starting rendering:", error)
 
     // Update status to failed
     try {
@@ -303,7 +242,7 @@ export async function POST(
     }
 
     return NextResponse.json(
-      { error: "Failed to render video" },
+      { error: "Failed to start rendering" },
       { status: 500 }
     )
   }
@@ -348,6 +287,13 @@ export async function GET(
       )
     }
 
+    // Se a outputUrl é do worker, fazer proxy
+    if (video.outputUrl.startsWith('http://localhost:8000') || video.outputUrl.startsWith(process.env.WORKER_URL || '')) {
+      // Redirecionar para o worker
+      return NextResponse.redirect(video.outputUrl)
+    }
+
+    // Caso contrário, buscar arquivo local (fallback para implementação antiga)
     const videoPath = path.join(process.cwd(), "public", video.outputUrl)
 
     if (!fs.existsSync(videoPath)) {

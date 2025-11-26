@@ -50,11 +50,67 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [isRendering, setIsRendering] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
 
   // Current subtitle based on video time
-  const currentSubtitle = video.subtitles?.find(
+  const currentSubtitle = video?.subtitles?.find(
     sub => currentTime >= sub.start && currentTime < sub.end
   )
+
+  // Polling for video updates
+  const startPolling = () => {
+    // Clear any existing interval
+    if (pollingInterval) {
+      clearInterval(pollingInterval)
+    }
+
+    console.log('[Polling] Started polling for video updates...')
+
+    // Poll every 2 seconds
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/videos/${video.id}`)
+        if (response.ok) {
+          const data = await response.json()
+          const oldStatus = video.status
+          setVideo(data.video)
+
+          // Stop polling when transcription/rendering is done
+          if (data.video.status === 'ready' || data.video.status === 'completed' || data.video.status === 'failed') {
+            if (data.video.status === 'ready' && oldStatus !== 'ready') {
+              console.log('[Polling] Transcription complete! Subtitles loaded.')
+              setIsTranscribing(false)
+            }
+            if (data.video.status === 'completed' && oldStatus !== 'completed') {
+              console.log('[Polling] Rendering complete! Video ready for download.')
+              setIsRendering(false)
+            }
+            if (data.video.status === 'failed') {
+              console.error('[Polling] Processing failed.')
+              setIsRendering(false)
+              setIsTranscribing(false)
+            }
+            clearInterval(interval)
+            setPollingInterval(null)
+            console.log('[Polling] Stopped polling.')
+          }
+        }
+      } catch (error) {
+        console.error('[Polling] Error:', error)
+      }
+    }, 2000)
+
+    setPollingInterval(interval)
+  }
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval)
+      }
+    }
+  }, [pollingInterval])
 
   // Update current time
   useEffect(() => {
@@ -123,14 +179,11 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
         throw new Error(error.error || "Failed to transcribe video")
       }
 
-      const data = await response.json()
-      setVideo(data.video)
-      router.refresh()
-      alert(`Transcription complete! ${data.subtitlesCount} subtitles generated.`)
+      // Start polling for updates
+      startPolling()
     } catch (error) {
       console.error("Error transcribing video:", error)
       alert(error instanceof Error ? error.message : "Failed to transcribe video")
-    } finally {
       setIsTranscribing(false)
     }
   }
@@ -158,14 +211,11 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
         throw new Error(error.error || "Failed to render video")
       }
 
-      const data = await response.json()
-      setVideo(data.video)
-      router.refresh()
-      alert("Video rendered successfully! Click 'Download Video' to get your file.")
+      // Start polling for updates
+      startPolling()
     } catch (error) {
       console.error("Error rendering video:", error)
       alert(error instanceof Error ? error.message : "Failed to render video")
-    } finally {
       setIsRendering(false)
     }
   }
@@ -187,7 +237,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   }
 
   const updateStyle = async (newStyle: Partial<SubtitleStyle>) => {
-    const updatedStyle = { ...video.subtitleStyle, ...newStyle } as SubtitleStyle
+    const updatedStyle = { ...video?.subtitleStyle, ...newStyle } as SubtitleStyle
     setVideo({ ...video, subtitleStyle: updatedStyle })
 
     // Save to backend
@@ -233,7 +283,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     }
   }
 
-  const style = video.subtitleStyle || {
+  const style = video?.subtitleStyle || {
     fontFamily: "Montserrat",
     fontSize: 24,
     color: "#FFFF00",
@@ -264,7 +314,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
               SUPERTITLE
             </h1>
             <span className="text-gray-400">•</span>
-            <span className="text-gray-300">{video.title}</span>
+            <span className="text-gray-300">{video?.title}</span>
             {isSaving && <span className="text-sm text-purple-400">Saving...</span>}
             {isTranscribing && <span className="text-sm text-yellow-400">Transcribing...</span>}
             {isRendering && <span className="text-sm text-green-400">Rendering...</span>}
@@ -273,7 +323,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
           <div className="flex items-center gap-4 relative export-menu-container">
             <button
               onClick={() => setShowExportMenu(!showExportMenu)}
-              disabled={!video.subtitles || (video.subtitles as any[]).length === 0}
+              disabled={!video?.subtitles || (video?.subtitles as any[]).length === 0}
               className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               Export
@@ -314,7 +364,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
                   <div className="border-t border-zinc-700 my-1"></div>
 
-                  {video.outputUrl ? (
+                  {video?.outputUrl ? (
                     <button
                       onClick={downloadRenderedVideo}
                       className="w-full text-left px-4 py-3 hover:bg-zinc-700 transition-colors flex items-center gap-3"
@@ -384,7 +434,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
           <div className="flex-1 overflow-y-auto p-4">
             {activeTab === "subtitles" ? (
               <div className="space-y-4">
-                {!video.subtitles || video.subtitles.length === 0 ? (
+                {!video?.subtitles || video?.subtitles.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-sm text-gray-400 mb-4">
                       No subtitles yet.
@@ -407,7 +457,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     </div>
                   </div>
                 ) : (
-                  video.subtitles.map((sub) => (
+                  video?.subtitles?.map((sub) => (
                     <div
                       key={sub.id}
                       className={`bg-zinc-800 rounded-lg p-3 space-y-2 cursor-pointer transition-all ${
@@ -532,7 +582,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
               <div className="aspect-video bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800 relative">
                 <video
                   ref={videoRef}
-                  src={video.videoUrl}
+                  src={video?.videoUrl}
                   controls
                   className="w-full h-full"
                 >
@@ -569,7 +619,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
               {/* Progress bar */}
               <div className="mt-4">
                 <div className="text-sm text-gray-400 mb-1">
-                  {formatTime(currentTime)} / {formatTime(video.duration * 60)}
+                  {formatTime(currentTime)} / {formatTime((video?.duration || 0) * 60)}
                 </div>
               </div>
             </div>

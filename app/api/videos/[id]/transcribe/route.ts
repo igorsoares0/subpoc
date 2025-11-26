@@ -1,16 +1,8 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import OpenAI from "openai"
-import path from "path"
-import fs from "fs"
-import ffmpeg from "fluent-ffmpeg"
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
-
-// POST - Transcribe video using Whisper API
+// POST - Send video to worker for transcription
 export async function POST(
   req: Request,
   { params }: { params: { id: string } }
@@ -48,65 +40,56 @@ export async function POST(
       data: { status: "transcribing" }
     })
 
-    // Extract audio from video
-    const videoPath = path.join(process.cwd(), "public", video.videoUrl)
-    const audioPath = path.join(process.cwd(), "public", "uploads", "audio", `${id}.mp3`)
+    // Get worker configuration
+    const workerUrl = process.env.WORKER_URL
+    const workerSecret = process.env.WORKER_SECRET
 
-    // Ensure audio directory exists
-    const audioDir = path.dirname(audioPath)
-    if (!fs.existsSync(audioDir)) {
-      fs.mkdirSync(audioDir, { recursive: true })
+    if (!workerUrl || !workerSecret) {
+      console.error("Worker not configured. Please set WORKER_URL and WORKER_SECRET")
+      throw new Error("Worker not configured")
     }
 
-    // Extract audio using FFmpeg
-    await new Promise<void>((resolve, reject) => {
-      ffmpeg(videoPath)
-        .output(audioPath)
-        .audioCodec("libmp3lame")
-        .audioBitrate("128k")
-        .on("end", () => resolve())
-        .on("error", (err) => reject(err))
-        .run()
+    // Construct full video URL
+    const videoUrl = video.videoUrl.startsWith('http')
+      ? video.videoUrl
+      : `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${video.videoUrl}`
+
+    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/transcription`
+
+    console.log(`[Transcribe] Sending video ${id} to worker`)
+    console.log(`[Transcribe] Video URL: ${videoUrl}`)
+    console.log(`[Transcribe] Webhook URL: ${webhookUrl}`)
+
+    // Send job to worker
+    const response = await fetch(`${workerUrl}/transcribe`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${workerSecret}`
+      },
+      body: JSON.stringify({
+        videoId: id,
+        videoUrl: videoUrl,
+        webhookUrl: webhookUrl
+      })
     })
 
-    // Send to Whisper API
-    const audioFile = fs.createReadStream(audioPath)
+    if (!response.ok) {
+      const error = await response.text()
+      console.error(`[Transcribe] Worker error: ${error}`)
+      throw new Error(`Worker returned error: ${response.status}`)
+    }
 
-    const transcription = await openai.audio.transcriptions.create({
-      file: audioFile,
-      model: "whisper-1",
-      language: "pt", // Portuguese
-      response_format: "verbose_json", // Get timestamps
-      timestamp_granularities: ["word", "segment"]
-    })
-
-    // Clean up audio file
-    fs.unlinkSync(audioPath)
-
-    // Format transcription into subtitles
-    const subtitles = (transcription as any).segments?.map((segment: any, index: number) => ({
-      id: index + 1,
-      start: segment.start,
-      end: segment.end,
-      text: segment.text.trim()
-    })) || []
-
-    // Update video with transcribed subtitles
-    const updatedVideo = await prisma.videoProject.update({
-      where: { id: id },
-      data: {
-        subtitles: subtitles,
-        status: "ready"
-      }
-    })
+    const result = await response.json()
+    console.log(`[Transcribe] Worker response:`, result)
 
     return NextResponse.json({
       success: true,
-      video: updatedVideo,
-      subtitlesCount: subtitles.length
+      status: "processing",
+      message: "Transcription started in background"
     })
   } catch (error) {
-    console.error("Error transcribing video:", error)
+    console.error("Error starting transcription:", error)
 
     // Update status to failed
     try {
@@ -120,7 +103,7 @@ export async function POST(
     }
 
     return NextResponse.json(
-      { error: "Failed to transcribe video" },
+      { error: "Failed to start transcription" },
       { status: 500 }
     )
   }
