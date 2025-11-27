@@ -426,10 +426,10 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
         {/* Left Sidebar - Subtitle Editor */}
         <aside className="w-[350px] bg-[#1b1a1d] rounded-[10px] flex flex-col flex-shrink-0 self-stretch">
           <div className="px-6 pt-6 pb-4">
-            <h2 className="text-[17px] font-semibold mb-6 text-white">Subtitle Editor</h2>
+            <h2 className="text-[17px] font-semibold mb-6 text-white text-center">Subtitle Editor</h2>
 
             {/* Tabs */}
-            <div className="flex gap-6 border-b border-zinc-800/50 -mx-6 px-6">
+            <div className="flex gap-6 border-b border-zinc-800/50 -mx-6 px-6 justify-center">
               <button
                 onClick={() => setActiveTab("subtitles")}
                 className={`pb-3 font-medium text-[15px] transition-colors relative ${
