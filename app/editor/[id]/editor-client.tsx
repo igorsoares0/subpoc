@@ -406,7 +406,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                       disabled={isRendering}
                       className="w-full text-left px-4 py-3 hover:bg-zinc-700 transition-colors flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <svg className="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                       </svg>
                       <div>
@@ -425,14 +425,14 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       <div className="flex gap-4" style={{ height: 'calc(100vh - 60px - 72px)' }}>
         {/* Left Sidebar - Subtitle Editor */}
         <aside className="w-[350px] bg-[#1b1a1d] rounded-[10px] flex flex-col flex-shrink-0 self-stretch">
-          <div className="p-5">
-            <h2 className="text-[18px] font-medium mb-5 text-white text-center">Subtitle Editor</h2>
+          <div className="px-6 pt-6 pb-4">
+            <h2 className="text-[17px] font-semibold mb-6 text-white">Subtitle Editor</h2>
 
             {/* Tabs */}
-            <div className="flex gap-5">
+            <div className="flex gap-6 border-b border-zinc-800/50 -mx-6 px-6">
               <button
                 onClick={() => setActiveTab("subtitles")}
-                className={`pb-2 font-medium text-[16px] transition-colors relative ${
+                className={`pb-3 font-medium text-[15px] transition-colors relative ${
                   activeTab === "subtitles"
                     ? "text-white"
                     : "text-gray-400 hover:text-gray-300"
@@ -440,12 +440,12 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
               >
                 Subtitles
                 {activeTab === "subtitles" && (
-                  <div className="absolute -bottom-3 left-0 w-full h-[2px] bg-white rounded-full"></div>
+                  <div className="absolute bottom-0 left-0 w-full h-[2px] bg-white"></div>
                 )}
               </button>
               <button
                 onClick={() => setActiveTab("styles")}
-                className={`pb-2 font-medium text-[16px] transition-colors relative ${
+                className={`pb-3 font-medium text-[15px] transition-colors relative ${
                   activeTab === "styles"
                     ? "text-white"
                     : "text-gray-400 hover:text-gray-300"
@@ -453,32 +453,32 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
               >
                 Styles
                 {activeTab === "styles" && (
-                  <div className="absolute -bottom-3 left-0 w-full h-[2px] bg-white rounded-full"></div>
+                  <div className="absolute bottom-0 left-0 w-full h-[2px] bg-white"></div>
                 )}
               </button>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto px-6 py-4">
             {activeTab === "subtitles" ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {!video?.subtitles || video?.subtitles.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-sm text-gray-400 mb-4">
+                  <div className="text-center py-12">
+                    <p className="text-[14px] text-gray-400 mb-6">
                       No subtitles yet.
                     </p>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <button
                         onClick={transcribeVideo}
                         disabled={isTranscribing}
-                        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90 text-white px-4 py-2 rounded-lg text-sm transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:opacity-90 text-white px-4 py-2.5 rounded-lg text-[14px] font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isTranscribing ? "Transcribing..." : "🎤 Auto Transcribe"}
                       </button>
                       <button
                         onClick={addMockSubtitles}
                         disabled={isTranscribing}
-                        className="w-full bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2.5 rounded-lg text-[14px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Add Mock Subtitles
                       </button>
@@ -490,27 +490,27 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                       key={sub.id}
                       className={`p-3 cursor-pointer transition-all rounded-lg ${
                         currentSubtitle?.id === sub.id
-                          ? "bg-purple-600/30 mx-2"
-                          : "hover:bg-zinc-900/50"
+                          ? "bg-purple-600/30"
+                          : "hover:bg-zinc-800/50"
                       }`}
                       onClick={() => seekToSubtitle(sub.start)}
                     >
-                      <div className="flex items-center justify-between text-xs text-white/60 mb-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-gray-400 mb-2 font-mono">
                         <span>{formatTime(sub.start)} - {formatTime(sub.end)}</span>
                       </div>
                       {editingSubtitle === sub.id ? (
                         <textarea
                           value={sub.text}
                           onChange={(e) => updateSubtitleText(sub.id, e.target.value)}
-                          className="w-full bg-zinc-900 text-white text-sm p-2 rounded border border-zinc-700 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                          className="w-full bg-zinc-900 text-white text-[14px] p-2 rounded border border-zinc-700 focus:outline-none focus:ring-1 focus:ring-purple-500"
                           rows={2}
                           onClick={(e) => e.stopPropagation()}
                           onBlur={() => setEditingSubtitle(null)}
                         />
                       ) : (
                         <p
-                          className={`text-sm leading-relaxed ${
-                            currentSubtitle?.id === sub.id ? "text-white" : "text-gray-300"
+                          className={`text-[14px] leading-relaxed ${
+                            currentSubtitle?.id === sub.id ? "text-white font-medium" : "text-gray-300"
                           }`}
                           onDoubleClick={(e) => {
                             e.stopPropagation()
@@ -707,7 +707,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
             </div>
 
             {/* Thumbnail container */}
-            <div className="p-[3px] bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg">
+            <div className="p-[3px] bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg">
               <div className="bg-black rounded-md p-1 overflow-hidden">
                 <div className="flex gap-1 overflow-x-auto scrollbar-hide">
                   {Array.from({ length: 9 }).map((_, i) => (
