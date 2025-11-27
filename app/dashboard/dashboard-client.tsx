@@ -60,38 +60,38 @@ export default function DashboardClient({ user, initialVideos }: DashboardClient
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex">
+    <div className="min-h-screen bg-black text-white flex p-6 gap-4">
       {/* Sidebar */}
-      <aside className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col">
-        <div className="p-6">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
+      <aside className="w-64 bg-[#1b1a1d] rounded-[10px] flex flex-col p-6">
+        <div className="mb-8">
+          <h1 className="text-[20px] font-bold bg-gradient-to-r from-[#9740fe] to-[#b679fe] bg-clip-text text-transparent">
             SUPERTITLE
           </h1>
         </div>
 
-        <nav className="flex-1 px-4">
+        <nav className="flex-1">
           <Link
             href="/dashboard"
-            className="flex items-center px-4 py-3 mb-1 rounded-lg bg-purple-600/20 text-purple-400 font-medium"
+            className="flex items-center px-4 py-3 mb-2 rounded-[8px] bg-purple-600/20 text-purple-400 font-medium"
           >
             Dashboard
           </Link>
           <Link
             href="/dashboard/profile"
-            className="flex items-center px-4 py-3 mb-1 rounded-lg text-gray-400 hover:bg-zinc-800 hover:text-white transition-colors"
+            className="flex items-center px-4 py-3 mb-2 rounded-[8px] text-gray-400 hover:bg-zinc-800/50 hover:text-white transition-colors"
           >
             Profile
           </Link>
           <Link
             href="/dashboard/settings"
-            className="flex items-center px-4 py-3 mb-1 rounded-lg text-gray-400 hover:bg-zinc-800 hover:text-white transition-colors"
+            className="flex items-center px-4 py-3 mb-2 rounded-[8px] text-gray-400 hover:bg-zinc-800/50 hover:text-white transition-colors"
           >
             Settings
           </Link>
         </nav>
 
-        <div className="p-4">
-          <button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-lg font-medium hover:opacity-90 transition-opacity">
+        <div>
+          <button className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-3 rounded-[8px] font-medium hover:opacity-90 transition-opacity">
             Upgrade Plan
           </button>
           <button
@@ -104,18 +104,18 @@ export default function DashboardClient({ user, initialVideos }: DashboardClient
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8">
+      <main className="flex-1">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl font-semibold text-white">
+              <h2 className="text-[28px] font-semibold text-white">
                 Welcome back, {user.name || user.email?.split("@")[0]}
               </h2>
             </div>
             <button
               onClick={() => setShowNewProjectModal(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-lg font-medium hover:opacity-90 transition-opacity"
+              className="flex items-center gap-2 bg-[#9740fe] text-white px-6 py-3 rounded-[8px] font-medium hover:opacity-90 transition-opacity"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -129,15 +129,15 @@ export default function DashboardClient({ user, initialVideos }: DashboardClient
             <div className="flex items-center justify-center h-96">
               <div className="text-center">
                 <div className="text-6xl text-gray-700 mb-4">🎬</div>
-                <h3 className="text-2xl font-semibold text-gray-400 mb-2">
+                <h3 className="text-[22px] font-semibold text-gray-400 mb-2">
                   No videos yet
                 </h3>
-                <p className="text-gray-500 mb-6">
+                <p className="text-[14px] text-gray-500 mb-6">
                   Upload your first video to get started
                 </p>
                 <button
                   onClick={() => setShowNewProjectModal(true)}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-3 rounded-lg font-medium hover:opacity-90 transition-opacity"
+                  className="bg-[#9740fe] text-white px-8 py-3 rounded-[8px] font-medium hover:opacity-90 transition-opacity"
                 >
                   Upload Video
                 </button>
@@ -149,7 +149,7 @@ export default function DashboardClient({ user, initialVideos }: DashboardClient
                 <Link
                   key={video.id}
                   href={`/editor/${video.id}`}
-                  className="group bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800 hover:border-purple-500 transition-all"
+                  className="group bg-[#1b1a1d] rounded-[10px] overflow-hidden border border-zinc-800/50 hover:border-purple-500 transition-all"
                 >
                   <div className="aspect-video bg-zinc-800 relative overflow-hidden">
                     {video.thumbnailUrl ? (

@@ -101,11 +101,11 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
       onClick={onClose}
     >
       <div
-        className="bg-zinc-900 rounded-lg p-8 max-w-lg w-full border border-zinc-800"
+        className="bg-[#1b1a1d] rounded-[10px] p-8 max-w-lg w-full border border-zinc-800/50"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-semibold">Upload Video</h3>
+          <h3 className="text-[22px] font-semibold">Upload Video</h3>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-white transition-colors"
@@ -118,7 +118,7 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
         </div>
 
         {error && (
-          <div className="mb-4 bg-red-500/10 border border-red-500/50 text-red-500 px-4 py-3 rounded-lg text-sm">
+          <div className="mb-4 bg-red-500/10 border border-red-500/50 text-red-500 px-4 py-3 rounded-[8px] text-sm">
             {error}
           </div>
         )}
@@ -128,7 +128,7 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={`
-            border-2 border-dashed rounded-lg p-12 text-center transition-colors
+            border-2 border-dashed rounded-[10px] p-12 text-center transition-colors
             ${isDragging ? "border-purple-500 bg-purple-500/10" : "border-zinc-700 hover:border-zinc-600"}
             ${isUploading ? "opacity-50 pointer-events-none" : "cursor-pointer"}
           `}
@@ -147,27 +147,27 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
             <div className="space-y-4">
               <div className="text-4xl">⏳</div>
               <div>
-                <p className="text-lg font-medium mb-2">Uploading...</p>
+                <p className="text-[16px] font-medium mb-2">Uploading...</p>
                 <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
                   <div
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-full transition-all duration-300"
+                    className="bg-gradient-to-r from-purple-500 to-purple-600 h-full transition-all duration-300"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
-                <p className="text-sm text-gray-400 mt-2">{uploadProgress}%</p>
+                <p className="text-[13px] text-gray-400 mt-2">{uploadProgress}%</p>
               </div>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="text-6xl">🎬</div>
               <div>
-                <p className="text-lg font-medium mb-1">
+                <p className="text-[16px] font-medium mb-1">
                   Drag & drop your video here
                 </p>
-                <p className="text-sm text-gray-400 mb-4">
+                <p className="text-[14px] text-gray-400 mb-4">
                   or click to browse
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-[12px] text-gray-500">
                   Supports: MP4, WebM, MOV (max 500MB)
                 </p>
               </div>
@@ -178,7 +178,7 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
         {!isUploading && (
           <button
             onClick={onClose}
-            className="w-full mt-6 bg-zinc-800 hover:bg-zinc-700 text-white py-3 rounded-lg transition-colors"
+            className="w-full mt-6 bg-zinc-800 hover:bg-zinc-700 text-white py-3 rounded-[8px] transition-colors"
           >
             Cancel
           </button>
