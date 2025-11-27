@@ -666,7 +666,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
           {/* Timeline with Thumbnails */}
           <div className="w-full flex-shrink-0">
-            <div className="bg-[#1b1a1d] rounded-[10px] p-3 h-[110px]">
+            <div className="bg-[#1b1a1d] rounded-[10px] p-3 h-[140px]">
           <div className="relative">
             {/* Time markers */}
             <div className="flex justify-between mb-1 px-1">
@@ -720,7 +720,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
               style={{ left: `${(currentTime / ((video?.duration || 0) * 60)) * 100}%` }}
             >
               <div className="w-0 h-0 border-l-[8px] border-r-[8px] border-t-[12px] border-l-transparent border-r-transparent border-t-white shadow-lg"></div>
-              <div className="w-[2px] h-[40px] bg-white mx-auto"></div>
+              <div className="w-[2px] h-[55px] bg-white mx-auto"></div>
             </div>
 
             {/* Thumbnail container */}
@@ -730,7 +730,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                   {Array.from({ length: 9 }).map((_, i) => (
                     <div
                       key={i}
-                      className={`flex-shrink-0 w-[110px] h-[40px] bg-zinc-800 ${i === 0 ? 'rounded-l-lg' : i === 8 ? 'rounded-r-lg' : ''} cursor-pointer hover:opacity-80 transition-opacity relative overflow-hidden`}
+                      className={`flex-shrink-0 w-[110px] h-[55px] bg-zinc-800 ${i === 0 ? 'rounded-l-lg' : i === 8 ? 'rounded-r-lg' : ''} cursor-pointer hover:opacity-80 transition-opacity relative overflow-hidden`}
                       onClick={() => {
                         if (videoRef.current && video?.duration) {
                           const seekTime = (i / 9) * video.duration * 60
