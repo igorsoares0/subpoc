@@ -716,11 +716,11 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
             {/* Timeline indicator (triangle pointer) */}
             <div
-              className="absolute top-[40px] -translate-x-1/2 z-10 transition-all duration-100"
+              className="absolute top-[42px] -translate-x-1/2 z-10 transition-all duration-100"
               style={{ left: `${(currentTime / ((video?.duration || 0) * 60)) * 100}%` }}
             >
               <div className="w-0 h-0 border-l-[8px] border-r-[8px] border-t-[12px] border-l-transparent border-r-transparent border-t-white shadow-lg"></div>
-              <div className="w-[2px] h-[55px] bg-white mx-auto"></div>
+              <div className="w-[2px] h-[80px] bg-white mx-auto"></div>
             </div>
 
             {/* Thumbnail container */}
