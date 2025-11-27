@@ -297,7 +297,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   }
 
   return (
-    <div className="h-screen bg-black text-white flex flex-col p-6 gap-5 overflow-hidden">
+    <div className="min-h-screen bg-black text-white flex flex-col p-6 gap-4">
       {/* Header */}
       <header className="bg-[#1b1a1d] rounded-[10px] px-4 h-[60px] flex items-center justify-between w-full">
         {/* Left - Logo */}
@@ -422,7 +422,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       </header>
 
       {/* Main Editor */}
-      <div className="flex flex-1 overflow-hidden gap-5 min-h-0">
+      <div className="flex gap-4" style={{ height: 'calc(100vh - 60px - 72px)' }}>
         {/* Left Sidebar - Subtitle Editor */}
         <aside className="w-[350px] bg-[#1b1a1d] rounded-[10px] flex flex-col flex-shrink-0 self-stretch">
           <div className="p-5">
@@ -596,7 +596,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
         </aside>
 
         {/* Center - Video Preview */}
-        <main className="flex-1 flex flex-col min-w-0 max-w-[900px] gap-5">
+        <main className="flex-1 flex flex-col min-w-0 gap-4">
           {/* Video Area */}
           <div className="flex-1 flex items-center justify-center min-h-0">
             <div className="w-full h-full">
@@ -649,7 +649,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
           {/* Timeline with Thumbnails */}
           <div className="w-full flex-shrink-0">
-            <div className="bg-[#1b1a1d] rounded-[10px] p-3 h-[120px]">
+            <div className="bg-[#1b1a1d] rounded-[10px] p-3 h-[110px]">
           <div className="relative">
             {/* Time markers */}
             <div className="flex justify-between mb-1 px-1">
@@ -699,11 +699,11 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
             {/* Timeline indicator (triangle pointer) */}
             <div
-              className="absolute top-[42px] -translate-x-1/2 z-10 transition-all duration-100"
+              className="absolute top-[40px] -translate-x-1/2 z-10 transition-all duration-100"
               style={{ left: `${(currentTime / ((video?.duration || 0) * 60)) * 100}%` }}
             >
               <div className="w-0 h-0 border-l-[8px] border-r-[8px] border-t-[12px] border-l-transparent border-r-transparent border-t-white shadow-lg"></div>
-              <div className="w-[2px] h-[45px] bg-white mx-auto"></div>
+              <div className="w-[2px] h-[40px] bg-white mx-auto"></div>
             </div>
 
             {/* Thumbnail container */}
@@ -713,7 +713,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                   {Array.from({ length: 9 }).map((_, i) => (
                     <div
                       key={i}
-                      className={`flex-shrink-0 w-[110px] h-[45px] bg-zinc-800 ${i === 0 ? 'rounded-l-lg' : i === 8 ? 'rounded-r-lg' : ''} cursor-pointer hover:opacity-80 transition-opacity relative overflow-hidden`}
+                      className={`flex-shrink-0 w-[110px] h-[40px] bg-zinc-800 ${i === 0 ? 'rounded-l-lg' : i === 8 ? 'rounded-r-lg' : ''} cursor-pointer hover:opacity-80 transition-opacity relative overflow-hidden`}
                       onClick={() => {
                         if (videoRef.current && video?.duration) {
                           const seekTime = (i / 9) * video.duration * 60
