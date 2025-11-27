@@ -668,15 +668,6 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
           <div className="w-full flex-shrink-0">
             <div className="bg-[#1b1a1d] rounded-[10px] p-3 h-[140px]">
           <div className="relative">
-            {/* Time markers */}
-            <div className="flex justify-between mb-1 px-1">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <span key={i} className="text-[9px] text-white/25 font-medium">
-                  {i * 5}s
-                </span>
-              ))}
-            </div>
-
             {/* Video Controls */}
             <div className="flex items-center gap-3 mb-1.5 justify-center">
               <button
@@ -713,6 +704,15 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
             {/* Divider line */}
             <div className="h-[1px] bg-zinc-700/50 mb-2"></div>
+
+            {/* Time markers */}
+            <div className="flex justify-between mb-1 px-1">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <span key={i} className="text-[9px] text-white/25 font-medium">
+                  {i * 5}s
+                </span>
+              ))}
+            </div>
 
             {/* Timeline indicator (triangle pointer) */}
             <div
