@@ -678,7 +678,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
             </div>
 
             {/* Video Controls */}
-            <div className="flex items-center gap-3 mb-1.5">
+            <div className="flex items-center gap-3 mb-1.5 justify-center">
               <button
                 onClick={() => {
                   if (videoRef.current) {
@@ -704,7 +704,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
               <div className="text-xs text-gray-400 font-mono">
                 {formatTime(currentTime)} | {formatTime((video?.duration || 0) * 60)}
               </div>
-              <button className="p-2 hover:bg-zinc-800 rounded transition-colors ml-auto">
+              <button className="p-2 hover:bg-zinc-800 rounded transition-colors">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                 </svg>
