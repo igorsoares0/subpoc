@@ -558,6 +558,23 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                   </div>
                 </div>
 
+                {/* Background Opacity */}
+                <div>
+                  <label className="block text-sm font-normal mb-3 text-gray-300">Background Opacity</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={style.backgroundOpacity}
+                    onChange={(e) => updateStyle({ backgroundOpacity: parseFloat(e.target.value) })}
+                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer slider-purple"
+                    style={{
+                      background: `linear-gradient(to right, rgb(147, 51, 234) 0%, rgb(147, 51, 234) ${style.backgroundOpacity * 100}%, rgb(39, 39, 42) ${style.backgroundOpacity * 100}%, rgb(39, 39, 42) 100%)`
+                    }}
+                  />
+                </div>
+
                 {/* Font Family */}
                 <div>
                   <label className="block text-sm font-normal mb-3 text-gray-300">Font</label>
