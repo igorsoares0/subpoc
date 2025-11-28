@@ -693,7 +693,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                 )}
               </button>
               <div className="text-xs text-gray-400 font-mono">
-                {formatTime(currentTime)} | {formatTime((video?.duration || 0) * 60)}
+                {formatTime(currentTime)} | {formatTime(videoRef.current?.duration || 0)}
               </div>
               <button className="p-2 hover:bg-zinc-800 rounded transition-colors">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -707,17 +707,23 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
             {/* Time markers */}
             <div className="flex justify-between mb-1 px-1">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <span key={i} className="text-[9px] text-white/25 font-medium">
-                  {i * 5}s
-                </span>
-              ))}
+              {Array.from({ length: 12 }).map((_, i) => {
+                const totalDuration = videoRef.current?.duration || 60
+                const timeValue = (totalDuration / 11) * i
+                const mins = Math.floor(timeValue / 60)
+                const secs = Math.floor(timeValue % 60)
+                return (
+                  <span key={i} className="text-[9px] text-white/25 font-medium">
+                    {mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`}
+                  </span>
+                )
+              })}
             </div>
 
             {/* Timeline indicator (triangle pointer) */}
             <div
-              className="absolute top-[42px] -translate-x-1/2 z-10 transition-all duration-100"
-              style={{ left: `${(currentTime / ((video?.duration || 0) * 60)) * 100}%` }}
+              className="absolute top-[42px] -translate-x-1/2 z-10"
+              style={{ left: `${(currentTime / (videoRef.current?.duration || 1)) * 100}%` }}
             >
               <div className="w-0 h-0 border-l-[8px] border-r-[8px] border-t-[12px] border-l-transparent border-r-transparent border-t-white shadow-lg"></div>
               <div className="w-[2px] h-[80px] bg-white mx-auto"></div>
@@ -726,14 +732,14 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
             {/* Thumbnail container */}
             <div className="p-[3px] bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg">
               <div className="bg-black rounded-md p-1 overflow-hidden">
-                <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+                <div className="flex gap-1">
                   {Array.from({ length: 9 }).map((_, i) => (
                     <div
                       key={i}
-                      className={`flex-shrink-0 w-[110px] h-[55px] bg-zinc-800 ${i === 0 ? 'rounded-l-lg' : i === 8 ? 'rounded-r-lg' : ''} cursor-pointer hover:opacity-80 transition-opacity relative overflow-hidden`}
+                      className={`flex-1 h-[55px] bg-zinc-800 ${i === 0 ? 'rounded-l-lg' : i === 8 ? 'rounded-r-lg' : ''} cursor-pointer hover:opacity-80 transition-opacity relative overflow-hidden`}
                       onClick={() => {
-                        if (videoRef.current && video?.duration) {
-                          const seekTime = (i / 9) * video.duration * 60
+                        if (videoRef.current) {
+                          const seekTime = (i / 8) * (videoRef.current.duration || 0)
                           videoRef.current.currentTime = seekTime
                         }
                       }}
