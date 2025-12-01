@@ -104,6 +104,10 @@ model VideoProject {
   duration          Float    @default(0) // duração em segundos
   thumbnailUrl      String?
 
+  // Timeline filmstrip
+  filmstripUrl      String?  // URL do filmstrip gerado (sprite sheet horizontal)
+  filmstripMetadata Json?    // {frameCount: 25, frameWidth: 160, frameHeight: 90, totalWidth: 4000}
+
   // Processing status
   status            String   @default("uploading")
   // Status flow: uploading -> transcribing -> ready -> rendering -> completed -> failed

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { VideoTimeline } from "@/components/timeline/VideoTimeline"
 
 interface Subtitle {
   id: number
@@ -664,103 +665,28 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
             </div>
           </div>
 
-          {/* Timeline with Thumbnails */}
-          <div className="w-full flex-shrink-0">
-            <div className="bg-[#1b1a1d] rounded-[10px] p-3 h-[140px]">
-          <div className="relative">
-            {/* Video Controls */}
-            <div className="flex items-center gap-3 mb-1.5 justify-center">
-              <button
-                onClick={() => {
-                  if (videoRef.current) {
-                    if (videoRef.current.paused) {
-                      videoRef.current.play()
-                    } else {
-                      videoRef.current.pause()
-                    }
-                  }
-                }}
-                className="p-2 hover:bg-zinc-800 rounded transition-colors"
-              >
-                {isPlaying ? (
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z"/>
-                  </svg>
-                )}
-              </button>
-              <div className="text-xs text-gray-400 font-mono">
-                {formatTime(currentTime)} | {formatTime(videoRef.current?.duration || 0)}
-              </div>
-              <button className="p-2 hover:bg-zinc-800 rounded transition-colors">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Divider line */}
-            <div className="h-[1px] bg-zinc-700/50 mb-2"></div>
-
-            {/* Time markers */}
-            <div className="flex justify-between mb-1 px-1">
-              {Array.from({ length: 12 }).map((_, i) => {
-                const totalDuration = videoRef.current?.duration || 60
-                const timeValue = (totalDuration / 11) * i
-                const mins = Math.floor(timeValue / 60)
-                const secs = Math.floor(timeValue % 60)
-                return (
-                  <span key={i} className="text-[9px] text-white/25 font-medium">
-                    {mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`}
-                  </span>
-                )
-              })}
-            </div>
-
-            {/* Timeline indicator (triangle pointer) */}
-            <div
-              className="absolute top-[42px] -translate-x-1/2 z-10"
-              style={{ left: `${(currentTime / (videoRef.current?.duration || 1)) * 100}%` }}
-            >
-              <div className="w-0 h-0 border-l-[8px] border-r-[8px] border-t-[12px] border-l-transparent border-r-transparent border-t-white shadow-lg"></div>
-              <div className="w-[2px] h-[80px] bg-white mx-auto"></div>
-            </div>
-
-            {/* Thumbnail container */}
-            <div className="p-[3px] bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg">
-              <div className="bg-black rounded-md p-1 overflow-hidden">
-                <div className="flex gap-1">
-                  {Array.from({ length: 9 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={`flex-1 h-[55px] bg-zinc-800 ${i === 0 ? 'rounded-l-lg' : i === 8 ? 'rounded-r-lg' : ''} cursor-pointer hover:opacity-80 transition-opacity relative overflow-hidden`}
-                      onClick={() => {
-                        if (videoRef.current) {
-                          const seekTime = (i / 8) * (videoRef.current.duration || 0)
-                          videoRef.current.currentTime = seekTime
-                        }
-                      }}
-                    >
-                      {/* Thumbnail placeholder */}
-                      <video
-                        src={video?.videoUrl}
-                        className="w-full h-full object-cover pointer-events-none"
-                        style={{
-                          objectPosition: 'center',
-                          filter: 'brightness(0.7)'
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+          {/* Timeline with Filmstrip */}
+          <VideoTimeline
+            videoId={video.id}
+            videoUrl={video.videoUrl}
+            duration={videoRef.current?.duration || 60}
+            currentTime={currentTime}
+            isPlaying={isPlaying}
+            onPlayPause={() => {
+              if (videoRef.current) {
+                if (videoRef.current.paused) {
+                  videoRef.current.play()
+                } else {
+                  videoRef.current.pause()
+                }
+              }
+            }}
+            onSeek={(time) => {
+              if (videoRef.current) {
+                videoRef.current.currentTime = time
+              }
+            }}
+          />
         </main>
       </div>
     </div>
