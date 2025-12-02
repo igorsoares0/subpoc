@@ -48,6 +48,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const [duration, setDuration] = useState(initialVideo.duration * 60) // Convert minutes to seconds
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
+  const [videoDimensions, setVideoDimensions] = useState({ width: 0, height: 0 })
   const [editingSubtitle, setEditingSubtitle] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
@@ -157,6 +158,56 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       videoElement.removeEventListener("pause", handlePause)
       videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata)
       videoElement.removeEventListener("volumechange", handleVolumeChange)
+    }
+  }, [])
+
+  // Calculate actual video dimensions (for responsive subtitles)
+  useEffect(() => {
+    const videoElement = videoRef.current
+    if (!videoElement) return
+
+    const updateVideoDimensions = () => {
+      // Get container dimensions
+      const containerRect = videoElement.getBoundingClientRect()
+
+      // Get actual video dimensions (native resolution)
+      const videoWidth = videoElement.videoWidth
+      const videoHeight = videoElement.videoHeight
+      const containerWidth = containerRect.width
+      const containerHeight = containerRect.height
+
+      if (videoWidth === 0 || videoHeight === 0) return
+
+      // Calculate actual rendered dimensions with object-contain
+      const videoAspect = videoWidth / videoHeight
+      const containerAspect = containerWidth / containerHeight
+
+      let actualWidth, actualHeight
+      if (videoAspect > containerAspect) {
+        // Video is wider - limited by width
+        actualWidth = containerWidth
+        actualHeight = containerWidth / videoAspect
+      } else {
+        // Video is taller - limited by height
+        actualHeight = containerHeight
+        actualWidth = containerHeight * videoAspect
+      }
+
+      console.log(`[Video Dimensions] Calculated: ${actualWidth.toFixed(0)}x${actualHeight.toFixed(0)} (native: ${videoWidth}x${videoHeight})`)
+      setVideoDimensions({ width: actualWidth, height: actualHeight })
+    }
+
+    videoElement.addEventListener('loadedmetadata', updateVideoDimensions)
+    window.addEventListener('resize', updateVideoDimensions)
+
+    // Trigger if already loaded
+    if (videoElement.readyState >= 1) {
+      updateVideoDimensions()
+    }
+
+    return () => {
+      videoElement.removeEventListener('loadedmetadata', updateVideoDimensions)
+      window.removeEventListener('resize', updateVideoDimensions)
     }
   }, [])
 
@@ -662,10 +713,13 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
                 {/* Subtitle Preview Overlay */}
                 {currentSubtitle && (
-                  <div className="absolute bottom-12 left-0 right-0 flex justify-center pointer-events-none px-8">
+                  <div className="absolute bottom-12 left-0 right-0 flex justify-center pointer-events-none">
                     <div
-                      className="px-4 py-2 rounded-sm max-w-[90%] font-bold"
+                      className="px-4 py-2 rounded-sm font-bold"
                       style={{
+                        maxWidth: videoDimensions.width > 0
+                          ? `${Math.min(videoDimensions.width * 0.9, videoDimensions.width - 32)}px`
+                          : '90%',
                         backgroundColor: style.backgroundColor,
                         opacity: style.backgroundOpacity,
                         color: style.color,

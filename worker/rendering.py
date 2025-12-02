@@ -12,6 +12,46 @@ from utils import (
 
 settings = get_settings()
 
+def get_video_info(video_path: str) -> dict:
+    """
+    Obter informações do vídeo usando ffprobe
+
+    Returns:
+        dict com 'width', 'height', 'duration', etc
+    """
+    try:
+        result = subprocess.run(
+            [
+                'ffprobe',
+                '-v', 'quiet',
+                '-print_format', 'json',
+                '-show_streams',
+                '-select_streams', 'v:0',
+                video_path
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        if result.returncode == 0:
+            import json
+            data = json.loads(result.stdout)
+            streams = data.get('streams', [])
+            if streams:
+                video_stream = streams[0]
+                return {
+                    'width': video_stream.get('width', 1920),
+                    'height': video_stream.get('height', 1080),
+                    'codec': video_stream.get('codec_name', 'unknown')
+                }
+
+        return {'width': 1920, 'height': 1080}
+
+    except Exception as e:
+        print(f"[Video Info] Error getting video info: {e}")
+        return {'width': 1920, 'height': 1080}
+
 def hex_to_ffmpeg_color(hex_color: str, opacity: float = 1.0) -> str:
     """Converter cor hex para formato FFmpeg ASS (&HAABBGGRR)"""
     hex_color = hex_color.lstrip('#')
@@ -27,8 +67,14 @@ def hex_to_ffmpeg_color(hex_color: str, opacity: float = 1.0) -> str:
     # Formato FFmpeg: &HAABBGGRR (BGR, não RGB)
     return f"&H{a:02X}{b:02X}{g:02X}{r:02X}"
 
-def build_subtitle_style(style: dict) -> str:
-    """Construir força_style string para FFmpeg"""
+def build_subtitle_style(style: dict, video_width: int) -> str:
+    """
+    Construir força_style string para FFmpeg ASS
+
+    Args:
+        style: Dicionário de estilo
+        video_width: Largura do vídeo em pixels
+    """
     primary_color = hex_to_ffmpeg_color(style.get("color", "#FFFFFF"), 1)
     outline_color = hex_to_ffmpeg_color(style.get("outlineColor", "#000000"), 1)
 
@@ -42,6 +88,10 @@ def build_subtitle_style(style: dict) -> str:
     font_size = style.get("fontSize", 24)
     outline_width = style.get("outlineWidth", 2)
 
+    # Calcular margens laterais (5% de cada lado)
+    margin_percent = 0.05
+    margin_horizontal = int(video_width * margin_percent)
+
     # BorderStyle: 1 = outline apenas, 3 = opaque box (fundo)
     border_style = 3 if background_opacity > 0 else 1
 
@@ -54,7 +104,9 @@ def build_subtitle_style(style: dict) -> str:
             f"OutlineColour={back_color},"
             f"BackColour={outline_color},"
             f"BorderStyle={border_style},"
-            f"Outline={outline_width}"
+            f"Outline={outline_width},"
+            f"MarginL={margin_horizontal},"
+            f"MarginR={margin_horizontal}"
         )
     else:
         force_style = (
@@ -64,7 +116,9 @@ def build_subtitle_style(style: dict) -> str:
             f"OutlineColour={outline_color},"
             f"BackColour={back_color},"
             f"BorderStyle={border_style},"
-            f"Outline={outline_width}"
+            f"Outline={outline_width},"
+            f"MarginL={margin_horizontal},"
+            f"MarginR={margin_horizontal}"
         )
 
     return force_style
@@ -100,13 +154,18 @@ async def process_rendering(
         # 1. Download do vídeo
         video_path = await download_video(video_url, video_id)
 
-        # 2. Gerar arquivo SRT
+        # 2. Obter dimensões do vídeo
+        video_info = get_video_info(video_path)
+        video_width = video_info.get('width', 1920)  # Fallback para Full HD
+        print(f"[Rendering] Video dimensions: {video_info.get('width')}x{video_info.get('height')}")
+
+        # 3. Gerar arquivo SRT
         srt_path = generate_srt_file(subtitles, video_id)
 
-        # 3. Path do vídeo final
+        # 4. Path do vídeo final
         output_path = os.path.join(tempfile.gettempdir(), f"rendered_{video_id}.mp4")
 
-        # 4. Construir filtros FFmpeg
+        # 5. Construir filtros FFmpeg
         filters = []
 
         # Formatos para redes sociais
@@ -126,8 +185,8 @@ async def process_rendering(
                 "pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black"
             )
 
-        # Aplicar legendas com estilo
-        subtitle_style = build_subtitle_style(style)
+        # Aplicar legendas com estilo (com margens baseadas na largura do vídeo)
+        subtitle_style = build_subtitle_style(style, video_width)
 
         # Escape do caminho do SRT para FFmpeg
         # No Windows, precisamos escapar as barras invertidas
