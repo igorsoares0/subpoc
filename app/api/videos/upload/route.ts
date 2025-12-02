@@ -72,6 +72,30 @@ export async function POST(req: Request) {
       }
     })
 
+    // Trigger filmstrip generation in background immediately after upload
+    // This way when user opens the editor, filmstrip is already ready or processing
+    const workerUrl = process.env.WORKER_URL || "http://localhost:8000"
+    const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000"
+
+    console.log(`[Upload] Triggering filmstrip generation for video ${videoProject.id}`)
+
+    // Don't await - let it run in background
+    fetch(`${workerUrl}/generate-filmstrip`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        videoId: videoProject.id,
+        videoUrl: videoProject.videoUrl,
+        duration: duration, // Send in seconds
+        webhookUrl: `${appUrl}/api/webhooks/filmstrip-complete`
+      })
+    }).catch(error => {
+      // Log error but don't fail the upload
+      console.error(`[Upload] Failed to trigger filmstrip generation:`, error)
+    })
+
     return NextResponse.json({
       success: true,
       project: videoProject
