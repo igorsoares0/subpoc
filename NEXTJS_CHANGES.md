@@ -232,7 +232,7 @@ Após confirmar que tudo funciona, você pode remover do `package.json`:
 "fluent-ffmpeg": "^2.1.3",
 "@types/fluent-ffmpeg": "^2.1.28"
 
-// Essa pode ser removida se não usar mock-subtitles:
+// NOTA: openai continua sendo usado para transcrição automática via Whisper
 "openai": "^6.9.1"
 ```
 

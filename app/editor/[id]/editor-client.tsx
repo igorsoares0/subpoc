@@ -226,23 +226,6 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     return () => document.removeEventListener('click', handleClickOutside)
   }, [showExportMenu])
 
-  const addMockSubtitles = async () => {
-    try {
-      const response = await fetch(`/api/videos/${video.id}/mock-subtitles`, {
-        method: "POST"
-      })
-
-      if (!response.ok) throw new Error("Failed to add subtitles")
-
-      const data = await response.json()
-      setVideo(data.video)
-      router.refresh()
-    } catch (error) {
-      console.error("Error adding mock subtitles:", error)
-      alert("Failed to add mock subtitles")
-    }
-  }
-
   const transcribeVideo = async () => {
     setIsTranscribing(true)
     try {
@@ -543,22 +526,13 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     <p className="text-[14px] text-gray-400 mb-6">
                       No subtitles yet.
                     </p>
-                    <div className="space-y-3">
-                      <button
-                        onClick={transcribeVideo}
-                        disabled={isTranscribing}
-                        className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:opacity-90 text-white px-4 py-2.5 rounded-lg text-[14px] font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isTranscribing ? "Transcribing..." : "🎤 Auto Transcribe"}
-                      </button>
-                      <button
-                        onClick={addMockSubtitles}
-                        disabled={isTranscribing}
-                        className="w-full bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2.5 rounded-lg text-[14px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Add Mock Subtitles
-                      </button>
-                    </div>
+                    <button
+                      onClick={transcribeVideo}
+                      disabled={isTranscribing}
+                      className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:opacity-90 text-white px-4 py-2.5 rounded-lg text-[14px] font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isTranscribing ? "Transcribing..." : "🎤 Auto Transcribe"}
+                    </button>
                   </div>
                 ) : (
                   video?.subtitles?.map((sub) => (
