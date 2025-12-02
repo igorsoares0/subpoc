@@ -1,6 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
 /**
+ * Configuração de polling para filmstrip
+ */
+const POLLING_CONFIG = {
+  INITIAL_INTERVAL: 2000,      // Começa verificando a cada 2s
+  MAX_INTERVAL: 5000,          // Aumenta até no máximo 5s
+  BACKOFF_MULTIPLIER: 1.2,     // Aumenta 20% a cada tentativa
+  MAX_DURATION: 300000,        // Timeout máximo: 5 minutos
+  MAX_RETRIES: 90              // Máximo de tentativas (5min / 2s avg = ~150 tentativas)
+} as const
+
+/**
  * Estado do filmstrip durante o ciclo de vida de geração
  */
 type FilmstripStatus = 'loading' | 'canvas-ready' | 'filmstrip-ready' | 'error'
@@ -156,76 +167,157 @@ export function useFilmstrip(
   })
 
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const pollingStartTimeRef = useRef<number>(0)
+  const pollingAttemptsRef = useRef<number>(0)
+  const currentIntervalRef = useRef<number>(POLLING_CONFIG.INITIAL_INTERVAL)
   const isMountedRef = useRef(true)
 
   /**
-   * Limpa o intervalo de polling quando componente desmonta
+   * Para o polling e limpa todos os refs
    */
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current)
-      }
+  const stopPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
     }
+
+    // Resetar refs de tracking
+    pollingAttemptsRef.current = 0
+    currentIntervalRef.current = POLLING_CONFIG.INITIAL_INTERVAL
   }, [])
 
   /**
-   * Inicia o polling para verificar se o filmstrip está pronto
+   * Verifica se o filmstrip está pronto no backend
+   * Implementa timeout global e backoff progressivo
    */
-  const startPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current)
+  const checkFilmstripReady = useCallback(async () => {
+    if (!isMountedRef.current) {
+      console.log('[Filmstrip] Component unmounted, skipping check')
+      stopPolling()
+      return
     }
 
-    console.log('[Filmstrip] Starting polling for backend filmstrip')
+    // Verificar timeout global
+    const elapsed = Date.now() - pollingStartTimeRef.current
+    if (elapsed > POLLING_CONFIG.MAX_DURATION) {
+      console.error(`[Filmstrip] Polling timed out after ${elapsed}ms`)
+      stopPolling()
 
-    // Verificar imediatamente
-    checkFilmstripReady()
+      if (isMountedRef.current) {
+        setFilmstripState(prev => ({
+          ...prev,
+          // Manter canvas frames se disponível, apenas logar erro
+          error: 'Filmstrip generation timed out'
+        }))
+      }
+      return
+    }
 
-    // Continuar verificando a cada 2 segundos
-    pollingIntervalRef.current = setInterval(() => {
-      checkFilmstripReady()
-    }, 2000)
-  }, [videoId])
+    // Verificar número máximo de tentativas
+    pollingAttemptsRef.current++
+    if (pollingAttemptsRef.current > POLLING_CONFIG.MAX_RETRIES) {
+      console.error(`[Filmstrip] Max retries (${POLLING_CONFIG.MAX_RETRIES}) exceeded`)
+      stopPolling()
+      return
+    }
 
-  /**
-   * Verifica se o filmstrip está pronto no backend
-   */
-  const checkFilmstripReady = async () => {
+    const attempt = pollingAttemptsRef.current
+    console.log(`[Filmstrip] Polling attempt ${attempt} (elapsed: ${(elapsed / 1000).toFixed(1)}s, interval: ${currentIntervalRef.current}ms)`)
+
     try {
       const response = await fetch(`/api/videos/${videoId}/filmstrip`)
 
       if (response.ok) {
         const data = await response.json()
 
-        console.log('[Filmstrip] ✓ Backend filmstrip ready!')
+        console.log(`[Filmstrip] ✓ Backend filmstrip ready after ${attempt} attempts (${(elapsed / 1000).toFixed(1)}s)`)
 
         if (isMountedRef.current) {
           setFilmstripState(prev => ({
             ...prev,
             status: 'filmstrip-ready',
             filmstripUrl: data.filmstripUrl,
-            metadata: data.metadata
+            metadata: data.metadata,
+            error: null
           }))
         }
 
         // Parar polling
+        stopPolling()
+
+      } else if (response.status === 404) {
+        // Filmstrip ainda não está pronto, continuar polling com backoff
+        console.log(`[Filmstrip] Not ready yet (attempt ${attempt})`)
+
+        // Implementar backoff progressivo
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current)
-          pollingIntervalRef.current = null
+
+          // Aumentar intervalo progressivamente até MAX_INTERVAL
+          currentIntervalRef.current = Math.min(
+            currentIntervalRef.current * POLLING_CONFIG.BACKOFF_MULTIPLIER,
+            POLLING_CONFIG.MAX_INTERVAL
+          )
+
+          console.log(`[Filmstrip] Next check in ${currentIntervalRef.current}ms`)
+
+          pollingIntervalRef.current = setInterval(
+            checkFilmstripReady,
+            currentIntervalRef.current
+          )
         }
-      } else if (response.status === 404) {
-        // Filmstrip ainda não está pronto, continuar polling
-        console.log('[Filmstrip] Not ready yet, continuing to poll...')
+
       } else {
-        throw new Error(`Unexpected status: ${response.status}`)
+        console.error(`[Filmstrip] Unexpected status: ${response.status}`)
+        // Não parar polling em erros 5xx - pode ser temporário
+        // Apenas logar e continuar
       }
+
     } catch (error) {
       console.error('[Filmstrip] Error checking filmstrip status:', error)
-      // Continuar tentando - não é um erro fatal
+      // Não parar polling em erro de rede - pode ser temporário
+      // Apenas logar e continuar tentando
     }
-  }
+  }, [videoId, stopPolling])
+
+  /**
+   * Inicia o polling para verificar se o filmstrip está pronto
+   * Implementa backoff progressivo e timeout global
+   */
+  const startPolling = useCallback(() => {
+    // Parar polling existente se houver
+    stopPolling()
+
+    // Inicializar refs de tracking
+    pollingStartTimeRef.current = Date.now()
+    pollingAttemptsRef.current = 0
+    currentIntervalRef.current = POLLING_CONFIG.INITIAL_INTERVAL
+
+    console.log('[Filmstrip] Starting polling for backend filmstrip')
+    console.log(`[Filmstrip] Max duration: ${POLLING_CONFIG.MAX_DURATION}ms, Initial interval: ${POLLING_CONFIG.INITIAL_INTERVAL}ms`)
+
+    // Verificar imediatamente
+    checkFilmstripReady()
+
+    // Iniciar polling com intervalo inicial
+    pollingIntervalRef.current = setInterval(
+      checkFilmstripReady,
+      currentIntervalRef.current
+    )
+  }, [checkFilmstripReady, stopPolling])
+
+  /**
+   * Cleanup quando componente desmonta
+   */
+  useEffect(() => {
+    isMountedRef.current = true
+
+    return () => {
+      console.log('[Filmstrip] Component unmounting, stopping polling')
+      isMountedRef.current = false
+      stopPolling()
+    }
+  }, [stopPolling])
 
   /**
    * Triggera a geração do filmstrip no backend
