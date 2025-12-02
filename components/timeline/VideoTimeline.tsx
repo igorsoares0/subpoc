@@ -9,7 +9,9 @@ interface VideoTimelineProps {
   duration: number
   currentTime: number
   isPlaying: boolean
+  isMuted: boolean
   onPlayPause: () => void
+  onToggleMute: () => void
   onSeek: (time: number) => void
 }
 
@@ -19,7 +21,9 @@ export function VideoTimeline({
   duration,
   currentTime,
   isPlaying,
+  isMuted,
   onPlayPause,
+  onToggleMute,
   onSeek
 }: VideoTimelineProps) {
   return (
@@ -31,7 +35,9 @@ export function VideoTimeline({
             isPlaying={isPlaying}
             currentTime={currentTime}
             duration={duration}
+            isMuted={isMuted}
             onPlayPause={onPlayPause}
+            onToggleMute={onToggleMute}
           />
 
           {/* Divider */}

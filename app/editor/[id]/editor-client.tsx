@@ -47,6 +47,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(initialVideo.duration * 60) // Convert minutes to seconds
   const [isPlaying, setIsPlaying] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
   const [editingSubtitle, setEditingSubtitle] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
@@ -134,10 +135,16 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       }
     }
 
+    const handleVolumeChange = () => {
+      // Sync muted state with video element
+      setIsMuted(videoElement.muted)
+    }
+
     videoElement.addEventListener("timeupdate", handleTimeUpdate)
     videoElement.addEventListener("play", handlePlay)
     videoElement.addEventListener("pause", handlePause)
     videoElement.addEventListener("loadedmetadata", handleLoadedMetadata)
+    videoElement.addEventListener("volumechange", handleVolumeChange)
 
     // Trigger loadedmetadata if already loaded
     if (videoElement.readyState >= 1) {
@@ -149,6 +156,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       videoElement.removeEventListener("play", handlePlay)
       videoElement.removeEventListener("pause", handlePause)
       videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata)
+      videoElement.removeEventListener("volumechange", handleVolumeChange)
     }
   }, [])
 
@@ -688,6 +696,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
             duration={duration}
             currentTime={currentTime}
             isPlaying={isPlaying}
+            isMuted={isMuted}
             onPlayPause={() => {
               if (videoRef.current) {
                 if (videoRef.current.paused) {
@@ -695,6 +704,12 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                 } else {
                   videoRef.current.pause()
                 }
+              }
+            }}
+            onToggleMute={() => {
+              if (videoRef.current) {
+                videoRef.current.muted = !videoRef.current.muted
+                setIsMuted(videoRef.current.muted)
               }
             }}
             onSeek={(time) => {
