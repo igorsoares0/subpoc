@@ -45,6 +45,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const [activeTab, setActiveTab] = useState<"subtitles" | "styles">("subtitles")
   const [video, setVideo] = useState(initialVideo)
   const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(initialVideo.duration * 60) // Convert minutes to seconds
   const [isPlaying, setIsPlaying] = useState(false)
   const [editingSubtitle, setEditingSubtitle] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -113,7 +114,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     }
   }, [pollingInterval])
 
-  // Update current time
+  // Update current time and duration
   useEffect(() => {
     const videoElement = videoRef.current
     if (!videoElement) return
@@ -125,14 +126,29 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     const handlePlay = () => setIsPlaying(true)
     const handlePause = () => setIsPlaying(false)
 
+    const handleLoadedMetadata = () => {
+      // Update duration when video metadata is loaded
+      if (videoElement.duration && !isNaN(videoElement.duration)) {
+        console.log(`[Editor] Video metadata loaded, duration: ${videoElement.duration}s`)
+        setDuration(videoElement.duration)
+      }
+    }
+
     videoElement.addEventListener("timeupdate", handleTimeUpdate)
     videoElement.addEventListener("play", handlePlay)
     videoElement.addEventListener("pause", handlePause)
+    videoElement.addEventListener("loadedmetadata", handleLoadedMetadata)
+
+    // Trigger loadedmetadata if already loaded
+    if (videoElement.readyState >= 1) {
+      handleLoadedMetadata()
+    }
 
     return () => {
       videoElement.removeEventListener("timeupdate", handleTimeUpdate)
       videoElement.removeEventListener("play", handlePlay)
       videoElement.removeEventListener("pause", handlePause)
+      videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata)
     }
   }, [])
 
@@ -669,7 +685,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
           <VideoTimeline
             videoId={video.id}
             videoUrl={video.videoUrl}
-            duration={videoRef.current?.duration || 60}
+            duration={duration}
             currentTime={currentTime}
             isPlaying={isPlaying}
             onPlayPause={() => {
