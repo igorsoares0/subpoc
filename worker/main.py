@@ -41,6 +41,7 @@ class RenderRequest(BaseModel):
     format: str | None = None
     trim: dict | None = None
     overlays: list[dict] = []
+    logoOverlay: dict | None = None
     webhookUrl: str
 
 class GenerateThumbnailsRequest(BaseModel):
@@ -191,6 +192,7 @@ async def render(
         request.format,
         request.trim,
         request.overlays,
+        request.logoOverlay,
         request.webhookUrl
     )
 

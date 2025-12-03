@@ -209,6 +209,7 @@ export async function POST(
         format: video.format || null,
         trim: video.trim || null,
         overlays: video.overlays || [],
+        logoOverlay: video.logoOverlay || null,
         webhookUrl: webhookUrl
       })
     })

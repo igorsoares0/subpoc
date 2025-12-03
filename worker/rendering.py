@@ -131,6 +131,7 @@ async def process_rendering(
     format_type: str | None,
     trim: dict | None,
     overlays: list[dict],
+    logo_overlay: dict | None,
     webhook_url: str
 ):
     """
@@ -202,8 +203,58 @@ async def process_rendering(
         subtitle_filter = f"subtitles={srt_escaped}:force_style='{subtitle_style}'"
         filters.append(subtitle_filter)
 
-        # Combinar filtros
+        # Combinar filtros base (sem logo ainda)
         video_filter = ",".join(filters) if filters else None
+
+        # Logo overlay (será aplicado como input separado)
+        logo_path = None
+        logo_filter_complex = None
+        if logo_overlay and logo_overlay.get("logoUrl"):
+            logo_url = logo_overlay["logoUrl"]
+            position = logo_overlay.get("position", "top-right")
+            size = logo_overlay.get("size", 10)  # percentage
+            opacity = logo_overlay.get("opacity", 0.8)
+
+            # Download logo
+            try:
+                # Converter URL relativa para URL completa
+                if logo_url.startswith("/"):
+                    # Em produção, você precisará da URL base do Next.js
+                    app_url = "http://localhost:3000"
+                    logo_url = f"{app_url}{logo_url}"
+
+                # Download logo temporário
+                logo_temp_path = await download_video(logo_url, f"logo_{video_id}")
+                if logo_temp_path and os.path.exists(logo_temp_path):
+                    logo_path = logo_temp_path
+
+                    # Calcular posição
+                    padding = 20
+                    if position == "top-left":
+                        x_pos = str(padding)
+                        y_pos = str(padding)
+                    elif position == "top-right":
+                        x_pos = f"W-w-{padding}"
+                        y_pos = str(padding)
+                    elif position == "bottom-left":
+                        x_pos = str(padding)
+                        y_pos = f"H-h-{padding}"
+                    else:  # bottom-right
+                        x_pos = f"W-w-{padding}"
+                        y_pos = f"H-h-{padding}"
+
+                    # Filter complex para logo overlay
+                    # [0:v] = vídeo principal, [1:v] = logo
+                    # Aplicar escala e opacidade ao logo, depois overlay
+                    logo_width = f"iw*{size/100}"
+                    logo_filter_complex = f"[1:v]scale={logo_width}:-1,format=rgba,colorchannelmixer=aa={opacity}[logo];[0:v][logo]overlay={x_pos}:{y_pos}"
+
+                    print(f"[Rendering] Logo overlay will be applied from: {logo_path}")
+                    print(f"[Rendering] Logo filter complex: {logo_filter_complex}")
+
+            except Exception as e:
+                print(f"[Rendering] Warning: Failed to download/process logo: {e}")
+                logo_path = None
 
         # 5. Construir comando FFmpeg
         command = ["ffmpeg"]
@@ -214,11 +265,26 @@ async def process_rendering(
 
         command.extend(["-i", video_path])
 
+        # Adicionar logo como segundo input (se existe)
+        if logo_path and os.path.exists(logo_path):
+            command.extend(["-i", logo_path])
+
         if trim and trim.get("end") is not None:
             command.extend(["-to", str(trim["end"])])
 
         # Filtros de vídeo
-        if video_filter:
+        # Se temos logo, precisamos usar -filter_complex para combinar
+        if logo_path and logo_filter_complex:
+            # Aplicar filtros base primeiro no vídeo, depois overlay com logo
+            if video_filter:
+                # Aplicar filtros base ao vídeo [0:v], depois logo overlay
+                complex_filter = f"[0:v]{video_filter}[base];{logo_filter_complex.replace('[0:v]', '[base]')}"
+            else:
+                # Apenas logo overlay
+                complex_filter = logo_filter_complex
+            command.extend(["-filter_complex", complex_filter])
+        elif video_filter:
+            # Apenas filtros base (sem logo)
             command.extend(["-vf", video_filter])
 
         # Codec e qualidade

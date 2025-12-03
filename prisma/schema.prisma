@@ -131,6 +131,15 @@ model VideoProject {
   //   outlineWidth: 2
   // }
 
+  // Logo/Watermark overlay (JSON)
+  logoOverlay       Json?
+  // Estrutura: {
+  //   logoUrl: "/uploads/logo.png",
+  //   position: "top-right", // top-left, top-right, bottom-left, bottom-right
+  //   size: 10, // percentage (5-20)
+  //   opacity: 0.8 // 0-1
+  // }
+
   // Export settings
   format            String?  // instagram_story, instagram_feed, tiktok, youtube, original
   trim              Json?    // {start: 10, end: 30}

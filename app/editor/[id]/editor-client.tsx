@@ -25,6 +25,13 @@ interface SubtitleStyle {
   outlineWidth: number
 }
 
+interface LogoOverlay {
+  logoUrl: string | null
+  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  size: number  // percentage (5-20)
+  opacity: number  // 0-1
+}
+
 interface VideoProject {
   id: string
   title: string
@@ -33,6 +40,7 @@ interface VideoProject {
   status: string
   subtitles: Subtitle[] | null
   subtitleStyle: SubtitleStyle | null
+  logoOverlay: LogoOverlay | null
 }
 
 interface EditorClientProps {
@@ -55,6 +63,11 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const [isRendering, setIsRendering] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
+  const [showLogoModal, setShowLogoModal] = useState(false)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+  const logoUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Current subtitle based on video time
   const currentSubtitle = video?.subtitles?.find(
@@ -211,6 +224,15 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     }
   }, [])
 
+  // Cleanup logo update timer on unmount
+  useEffect(() => {
+    return () => {
+      if (logoUpdateTimerRef.current) {
+        clearTimeout(logoUpdateTimerRef.current)
+      }
+    }
+  }, [])
+
   // Close export menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -342,6 +364,117 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     }
   }
 
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file')
+        return
+      }
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert('Image file size must be less than 5MB')
+        return
+      }
+      setLogoFile(file)
+      // Create preview URL
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const uploadLogo = async () => {
+    if (!logoFile) return
+
+    setIsUploadingLogo(true)
+    try {
+      const formData = new FormData()
+      formData.append('logo', logoFile)
+      formData.append('videoId', video.id)
+
+      const response = await fetch('/api/videos/upload-logo', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) throw new Error('Failed to upload logo')
+
+      const data = await response.json()
+
+      // Update video with logo overlay
+      setVideo({
+        ...video,
+        logoOverlay: data.logoOverlay
+      })
+
+      setShowLogoModal(false)
+      setLogoFile(null)
+      setLogoPreview(null)
+      router.refresh()
+    } catch (error) {
+      console.error('Error uploading logo:', error)
+      alert('Failed to upload logo')
+    } finally {
+      setIsUploadingLogo(false)
+    }
+  }
+
+  const removeLogo = async () => {
+    try {
+      const response = await fetch(`/api/videos/${video.id}/logo`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) throw new Error('Failed to remove logo')
+
+      setVideo({
+        ...video,
+        logoOverlay: null
+      })
+      router.refresh()
+    } catch (error) {
+      console.error('Error removing logo:', error)
+      alert('Failed to remove logo')
+    }
+  }
+
+  const updateLogoSettings = (settings: Partial<LogoOverlay>) => {
+    if (!video.logoOverlay) return
+
+    const updatedLogo = {
+      ...video.logoOverlay,
+      ...settings
+    }
+
+    // Update local state immediately for instant visual feedback
+    setVideo({
+      ...video,
+      logoOverlay: updatedLogo
+    })
+
+    // Debounce API call - only save after 500ms of inactivity
+    if (logoUpdateTimerRef.current) {
+      clearTimeout(logoUpdateTimerRef.current)
+    }
+
+    logoUpdateTimerRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/videos/${video.id}/logo`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ logoOverlay: updatedLogo })
+        })
+
+        if (!response.ok) throw new Error('Failed to update logo settings')
+      } catch (error) {
+        console.error('Error updating logo settings:', error)
+        // Optionally revert state on error
+      }
+    }, 500)
+  }
+
   const style = video?.subtitleStyle || {
     fontFamily: "Montserrat",
     fontSize: 24,
@@ -377,7 +510,11 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
               <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2"/>
             </svg>
           </button>
-          <button className="p-1.5 rounded-md bg-zinc-700/50 hover:bg-zinc-600/50 transition-colors">
+          <button
+            onClick={() => setShowLogoModal(true)}
+            className={`p-1.5 rounded-md transition-colors ${video.logoOverlay ? 'bg-purple-600 hover:bg-purple-700' : 'bg-zinc-700/50 hover:bg-zinc-600/50'}`}
+            title="Add Logo/Watermark"
+          >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <rect x="3" y="3" width="18" height="18" rx="2" strokeWidth="2"/>
               <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
@@ -713,6 +850,63 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     </div>
                   </div>
                 )}
+
+                {/* Logo Preview Overlay */}
+                {video.logoOverlay && video.logoOverlay.logoUrl && videoDimensions.width > 0 && (
+                  (() => {
+                    // Calculate video container dimensions
+                    const containerRect = videoRef.current?.getBoundingClientRect()
+                    if (!containerRect) return null
+
+                    // Calculate offset to center video within container (letterboxing)
+                    const offsetX = (containerRect.width - videoDimensions.width) / 2
+                    const offsetY = (containerRect.height - videoDimensions.height) / 2
+
+                    // Calculate logo size based on video width
+                    const logoMaxSize = (videoDimensions.width * video.logoOverlay.size) / 100
+                    const padding = 16 // 1rem = 16px
+
+                    // Calculate position based on selected corner
+                    let left, right, top, bottom
+
+                    if (video.logoOverlay.position === 'top-left') {
+                      left = offsetX + padding
+                      top = offsetY + padding
+                    } else if (video.logoOverlay.position === 'top-right') {
+                      right = offsetX + padding
+                      top = offsetY + padding
+                    } else if (video.logoOverlay.position === 'bottom-left') {
+                      left = offsetX + padding
+                      bottom = offsetY + padding + 48 // Extra space for timeline controls
+                    } else { // bottom-right
+                      right = offsetX + padding
+                      bottom = offsetY + padding + 48
+                    }
+
+                    return (
+                      <div
+                        className="absolute pointer-events-none"
+                        style={{
+                          left: left !== undefined ? `${left}px` : undefined,
+                          right: right !== undefined ? `${right}px` : undefined,
+                          top: top !== undefined ? `${top}px` : undefined,
+                          bottom: bottom !== undefined ? `${bottom}px` : undefined,
+                          opacity: video.logoOverlay.opacity
+                        }}
+                      >
+                        <img
+                          src={video.logoOverlay.logoUrl}
+                          alt="Logo"
+                          style={{
+                            maxWidth: `${logoMaxSize}px`,
+                            maxHeight: `${logoMaxSize}px`,
+                            objectFit: 'contain'
+                          }}
+                        />
+                      </div>
+                    )
+                  })()
+                )}
               </div>
             </div>
           </div>
@@ -748,6 +942,127 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
           />
         </main>
       </div>
+
+      {/* Logo Upload Modal */}
+      {showLogoModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowLogoModal(false)}>
+          <div className="bg-zinc-900 rounded-lg p-6 w-[500px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold mb-4">Add Logo/Watermark</h2>
+
+            {video.logoOverlay ? (
+              /* Logo already exists - show settings */
+              <div className="space-y-4">
+                <div className="bg-zinc-800 rounded-lg p-4">
+                  <img src={video.logoOverlay.logoUrl || ''} alt="Logo" className="max-h-32 mx-auto" />
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-2">Position</label>
+                  <select
+                    value={video.logoOverlay.position}
+                    onChange={(e) => updateLogoSettings({ position: e.target.value as LogoOverlay['position'] })}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2"
+                  >
+                    <option value="top-left">Top Left</option>
+                    <option value="top-right">Top Right</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-right">Bottom Right</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-2">Size: {video.logoOverlay.size}%</label>
+                  <input
+                    type="range"
+                    min="5"
+                    max="20"
+                    value={video.logoOverlay.size}
+                    onChange={(e) => updateLogoSettings({ size: parseInt(e.target.value) })}
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-2">Opacity: {Math.round(video.logoOverlay.opacity * 100)}%</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={video.logoOverlay.opacity * 100}
+                    onChange={(e) => updateLogoSettings({ opacity: parseInt(e.target.value) / 100 })}
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={removeLogo}
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded transition-colors"
+                  >
+                    Remove Logo
+                  </button>
+                  <button
+                    onClick={() => setShowLogoModal(false)}
+                    className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2 rounded transition-colors"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* No logo - show upload form */
+              <div className="space-y-4">
+                <div className="border-2 border-dashed border-zinc-700 rounded-lg p-8 text-center">
+                  {logoPreview ? (
+                    <div className="space-y-4">
+                      <img src={logoPreview} alt="Logo preview" className="max-h-32 mx-auto" />
+                      <p className="text-sm text-gray-400">{logoFile?.name}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <svg className="w-16 h-16 mx-auto text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <p className="text-sm text-gray-400">Click to upload or drag and drop</p>
+                      <p className="text-xs text-gray-500">PNG, JPG or SVG (max 5MB)</p>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoFileChange}
+                    className="hidden"
+                    id="logo-upload"
+                  />
+                  <label htmlFor="logo-upload" className="cursor-pointer mt-4 inline-block bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition-colors">
+                    Select Image
+                  </label>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowLogoModal(false)
+                      setLogoFile(null)
+                      setLogoPreview(null)
+                    }}
+                    className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2 rounded transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={uploadLogo}
+                    disabled={!logoFile || isUploadingLogo}
+                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUploadingLogo ? 'Uploading...' : 'Upload & Add'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
