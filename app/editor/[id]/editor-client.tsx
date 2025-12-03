@@ -18,7 +18,7 @@ interface SubtitleStyle {
   color: string
   backgroundColor: string
   backgroundOpacity: number
-  position: string
+  position: { x: number; y: number } | string  // Support both new {x, y} and legacy string formats
   alignment: string
   outline: boolean
   outlineColor: string
@@ -47,6 +47,19 @@ interface EditorClientProps {
   video: VideoProject
 }
 
+// Helper function to normalize position from legacy string format to {x, y} coordinates
+function normalizePosition(position: { x: number; y: number } | string): { x: number; y: number } {
+  if (typeof position === 'string') {
+    switch (position) {
+      case 'top': return { x: 50, y: 10 }
+      case 'center': return { x: 50, y: 50 }
+      case 'bottom':
+      default: return { x: 50, y: 90 }
+    }
+  }
+  return position
+}
+
 export default function EditorClient({ video: initialVideo }: EditorClientProps) {
   const router = useRouter()
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -68,6 +81,8 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
   const logoUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const [isDraggingSubtitle, setIsDraggingSubtitle] = useState(false)
+  const subtitleUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Current subtitle based on video time
   const currentSubtitle = video?.subtitles?.find(
@@ -229,6 +244,31 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     return () => {
       if (logoUpdateTimerRef.current) {
         clearTimeout(logoUpdateTimerRef.current)
+      }
+    }
+  }, [])
+
+  // Handle subtitle dragging
+  useEffect(() => {
+    if (isDraggingSubtitle) {
+      const handleMove = (e: MouseEvent) => handleSubtitleMouseMove(e)
+      const handleUp = () => handleSubtitleMouseUp()
+
+      window.addEventListener('mousemove', handleMove)
+      window.addEventListener('mouseup', handleUp)
+
+      return () => {
+        window.removeEventListener('mousemove', handleMove)
+        window.removeEventListener('mouseup', handleUp)
+      }
+    }
+  }, [isDraggingSubtitle, videoDimensions])
+
+  // Cleanup subtitle update timer on unmount
+  useEffect(() => {
+    return () => {
+      if (subtitleUpdateTimerRef.current) {
+        clearTimeout(subtitleUpdateTimerRef.current)
       }
     }
   }, [])
@@ -475,13 +515,80 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     }, 500)
   }
 
+  // Subtitle drag-and-drop handlers
+  const handleSubtitleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDraggingSubtitle(true)
+
+    // Pause video during drag for better UX
+    if (videoRef.current && !videoRef.current.paused) {
+      videoRef.current.pause()
+    }
+  }
+
+  const handleSubtitleMouseMove = (e: MouseEvent) => {
+    if (!isDraggingSubtitle || !videoDimensions.width || !videoRef.current) return
+
+    const videoContainer = videoRef.current.getBoundingClientRect()
+
+    // Calculate letterboxing offset
+    const offsetX = (videoContainer.width - videoDimensions.width) / 2
+    const offsetY = (videoContainer.height - videoDimensions.height) / 2
+
+    // Calculate position relative to video
+    const relativeX = e.clientX - videoContainer.left - offsetX
+    const relativeY = e.clientY - videoContainer.top - offsetY
+
+    // Clamp to video bounds
+    const clampedX = Math.max(0, Math.min(relativeX, videoDimensions.width))
+    const clampedY = Math.max(0, Math.min(relativeY, videoDimensions.height))
+
+    // Convert to percentage
+    const xPercent = (clampedX / videoDimensions.width) * 100
+    const yPercent = (clampedY / videoDimensions.height) * 100
+
+    updateSubtitlePosition({ x: xPercent, y: yPercent })
+  }
+
+  const handleSubtitleMouseUp = () => {
+    setIsDraggingSubtitle(false)
+  }
+
+  const updateSubtitlePosition = (newPosition: { x: number; y: number }) => {
+    const updatedStyle = {
+      ...video.subtitleStyle,
+      position: newPosition
+    }
+
+    // Update local state immediately for instant feedback
+    setVideo({ ...video, subtitleStyle: updatedStyle })
+
+    // Debounce API call - save after 500ms of inactivity
+    if (subtitleUpdateTimerRef.current) {
+      clearTimeout(subtitleUpdateTimerRef.current)
+    }
+
+    subtitleUpdateTimerRef.current = setTimeout(async () => {
+      try {
+        await fetch(`/api/videos/${video.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subtitleStyle: updatedStyle })
+        })
+      } catch (error) {
+        console.error('Error updating subtitle position:', error)
+      }
+    }, 500)
+  }
+
   const style = video?.subtitleStyle || {
     fontFamily: "Montserrat",
     fontSize: 24,
     color: "#FFFF00",
     backgroundColor: "#FF00FF",
     backgroundOpacity: 0.8,
-    position: "bottom",
+    position: { x: 50, y: 90 },  // Default: centered horizontally, near bottom
     alignment: "center",
     outline: true,
     outlineColor: "#000000",
@@ -794,6 +901,28 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     }}
                   />
                 </div>
+
+                {/* Position Reset */}
+                <div>
+                  <label className="block text-sm font-normal mb-3 text-gray-300">Position</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => updateSubtitlePosition({ x: 50, y: 90 })}
+                      className="flex-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-md px-3 py-2 text-sm transition-colors"
+                    >
+                      Reset to Bottom
+                    </button>
+                    <button
+                      onClick={() => updateSubtitlePosition({ x: 50, y: 50 })}
+                      className="flex-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-md px-3 py-2 text-sm transition-colors"
+                    >
+                      Center
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Drag subtitle on video to reposition
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -823,33 +952,55 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                 </video>
 
                 {/* Subtitle Preview Overlay */}
-                {currentSubtitle && (
-                  <div className="absolute bottom-12 left-0 right-0 flex justify-center pointer-events-none">
+                {currentSubtitle && (() => {
+                  const position = normalizePosition(style.position)
+                  const videoContainer = videoRef.current?.getBoundingClientRect()
+                  if (!videoContainer || videoDimensions.width === 0) return null
+
+                  // Calculate letterboxing offset
+                  const offsetX = (videoContainer.width - videoDimensions.width) / 2
+                  const offsetY = (videoContainer.height - videoDimensions.height) / 2
+
+                  // Convert percentage to pixels
+                  const leftPx = offsetX + (position.x / 100) * videoDimensions.width
+                  const topPx = offsetY + (position.y / 100) * videoDimensions.height
+
+                  return (
                     <div
-                      className="px-4 py-2 rounded-sm font-bold"
+                      className="absolute"
                       style={{
-                        maxWidth: videoDimensions.width > 0
-                          ? `${Math.min(videoDimensions.width * 0.9, videoDimensions.width - 32)}px`
-                          : '90%',
-                        backgroundColor: style.backgroundColor,
-                        opacity: style.backgroundOpacity,
-                        color: style.color,
-                        fontFamily: `${style.fontFamily}, sans-serif`,
-                        fontSize: `${Math.max(style.fontSize * 0.8, 16)}px`,
-                        fontWeight: 700,
-                        textAlign: style.alignment as any,
-                        textShadow: style.outline
-                          ? `${style.outlineWidth}px ${style.outlineWidth}px 0 ${style.outlineColor},
-                             -${style.outlineWidth}px -${style.outlineWidth}px 0 ${style.outlineColor},
-                             ${style.outlineWidth}px -${style.outlineWidth}px 0 ${style.outlineColor},
-                             -${style.outlineWidth}px ${style.outlineWidth}px 0 ${style.outlineColor}`
-                          : "none"
+                        left: `${leftPx}px`,
+                        top: `${topPx}px`,
+                        transform: 'translate(-50%, -50%)',
+                        cursor: isDraggingSubtitle ? 'grabbing' : 'grab',
+                        pointerEvents: 'auto',
+                        maxWidth: `${Math.min(videoDimensions.width * 0.9, videoDimensions.width - 32)}px`,
                       }}
+                      onMouseDown={handleSubtitleMouseDown}
                     >
-                      {currentSubtitle.text}
+                      <div
+                        className="px-4 py-2 rounded-sm font-bold"
+                        style={{
+                          backgroundColor: style.backgroundColor,
+                          opacity: style.backgroundOpacity,
+                          color: style.color,
+                          fontFamily: `${style.fontFamily}, sans-serif`,
+                          fontSize: `${Math.max(style.fontSize * 0.8, 16)}px`,
+                          fontWeight: 700,
+                          textAlign: style.alignment as any,
+                          textShadow: style.outline
+                            ? `${style.outlineWidth}px ${style.outlineWidth}px 0 ${style.outlineColor},
+                               -${style.outlineWidth}px -${style.outlineWidth}px 0 ${style.outlineColor},
+                               ${style.outlineWidth}px -${style.outlineWidth}px 0 ${style.outlineColor},
+                               -${style.outlineWidth}px ${style.outlineWidth}px 0 ${style.outlineColor}`
+                            : "none"
+                        }}
+                      >
+                        {currentSubtitle.text}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )
+                })()}
 
                 {/* Logo Preview Overlay */}
                 {video.logoOverlay && video.logoOverlay.logoUrl && videoDimensions.width > 0 && (

@@ -106,6 +106,87 @@ def format_timestamp(seconds: float) -> str:
     millis = td.microseconds // 1000
     return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
 
+def generate_ass_file(
+    subtitles: list[dict],
+    video_id: str,
+    position: dict | None = None,
+    video_width: int = 1920,
+    video_height: int = 1080
+) -> str:
+    """
+    Gerar arquivo ASS com posicionamento personalizado de legendas
+
+    Args:
+        subtitles: Lista de dicionários com legendas
+        video_id: Identificador do vídeo
+        position: Dicionário com coordenadas 'x' e 'y' em porcentagem (0-100)
+        video_width: Largura do vídeo em pixels
+        video_height: Altura do vídeo em pixels
+
+    Returns:
+        Caminho do arquivo ASS gerado
+    """
+    temp_dir = tempfile.gettempdir()
+    ass_path = os.path.join(temp_dir, f"subtitles_{video_id}.ass")
+
+    # Calcular posição em pixels a partir de porcentagem
+    if position and isinstance(position, dict):
+        x_percent = position.get('x', 50)
+        y_percent = position.get('y', 90)
+    else:
+        # Posição padrão: centro horizontal, próximo ao fundo
+        x_percent = 50
+        y_percent = 90
+
+    x_pixels = int((x_percent / 100) * video_width)
+    y_pixels = int((y_percent / 100) * video_height)
+
+    # Cabeçalho ASS
+    ass_content = [
+        "[Script Info]",
+        "ScriptType: v4.00+",
+        f"PlayResX: {video_width}",
+        f"PlayResY: {video_height}",
+        "WrapStyle: 0",
+        "",
+        "[V4+ Styles]",
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+        "Style: Default,Arial,20,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1",
+        "",
+        "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
+    ]
+
+    # Adicionar legendas com tags de posição
+    for sub in subtitles:
+        start_time = format_ass_timestamp(sub["start"])
+        end_time = format_ass_timestamp(sub["end"])
+
+        # Tag {\pos(x,y)} posiciona a legenda em coordenadas absolutas
+        text = f"{{\\pos({x_pixels},{y_pixels})}}{sub['text']}"
+
+        dialogue = f"Dialogue: 0,{start_time},{end_time},Default,,0,0,0,,{text}"
+        ass_content.append(dialogue)
+
+    with open(ass_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(ass_content))
+
+    print(f"[ASS] Arquivo ASS gerado: {ass_path} ({len(subtitles)} legendas, pos: {x_pixels},{y_pixels})")
+    return ass_path
+
+def format_ass_timestamp(seconds: float) -> str:
+    """
+    Converter segundos para formato ASS (H:MM:SS.CC)
+    ASS usa centésimos de segundo (não milissegundos)
+    """
+    td = timedelta(seconds=seconds)
+    hours = td.seconds // 3600
+    minutes = (td.seconds % 3600) // 60
+    secs = td.seconds % 60
+    centiseconds = td.microseconds // 10000  # Converter microsegundos para centésimos
+
+    return f"{hours}:{minutes:02d}:{secs:02d}.{centiseconds:02d}"
+
 async def upload_to_storage(file_path: str, video_id: str) -> str:
     """
     Upload arquivo para storage (S3/R2/etc)

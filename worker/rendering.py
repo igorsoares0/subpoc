@@ -6,6 +6,7 @@ from config import get_settings
 from utils import (
     download_video,
     generate_srt_file,
+    generate_ass_file,
     upload_to_storage,
     cleanup_files
 )
@@ -146,7 +147,7 @@ async def process_rendering(
     7. Limpar arquivos temporários
     """
     video_path = None
-    srt_path = None
+    ass_path = None
     output_path = None
 
     try:
@@ -158,12 +159,24 @@ async def process_rendering(
         # 2. Obter dimensões do vídeo
         video_info = get_video_info(video_path)
         video_width = video_info.get('width', 1920)  # Fallback para Full HD
-        print(f"[Rendering] Video dimensions: {video_info.get('width')}x{video_info.get('height')}")
+        video_height = video_info.get('height', 1080)
+        print(f"[Rendering] Video dimensions: {video_width}x{video_height}")
 
-        # 3. Gerar arquivo SRT
-        srt_path = generate_srt_file(subtitles, video_id)
+        # 3. Extrair posição das legendas do estilo
+        subtitle_position = None
+        if style and isinstance(style.get("position"), dict):
+            subtitle_position = style["position"]
 
-        # 4. Path do vídeo final
+        # 4. Gerar arquivo ASS com posicionamento personalizado
+        ass_path = generate_ass_file(
+            subtitles,
+            video_id,
+            position=subtitle_position,
+            video_width=video_width,
+            video_height=video_height
+        )
+
+        # 5. Path do vídeo final
         output_path = os.path.join(tempfile.gettempdir(), f"rendered_{video_id}.mp4")
 
         # 5. Construir filtros FFmpeg
@@ -189,18 +202,20 @@ async def process_rendering(
         # Aplicar legendas com estilo (com margens baseadas na largura do vídeo)
         subtitle_style = build_subtitle_style(style, video_width)
 
-        # Escape do caminho do SRT para FFmpeg
+        # Escape do caminho do ASS para FFmpeg
         # No Windows, precisamos escapar as barras invertidas
         # No Linux, precisamos escapar os dois pontos
         import platform
         if platform.system() == "Windows":
             # Windows: escapar barras invertidas (duplicar)
-            srt_escaped = srt_path.replace('\\', '\\\\\\\\').replace(':', '\\\\:')
+            ass_escaped = ass_path.replace('\\', '\\\\\\\\').replace(':', '\\\\:')
         else:
             # Linux: escapar dois pontos
-            srt_escaped = srt_path.replace(':', '\\:')
+            ass_escaped = ass_path.replace(':', '\\:')
 
-        subtitle_filter = f"subtitles={srt_escaped}:force_style='{subtitle_style}'"
+        # ASS format com posicionamento personalizado via tags {\pos(x,y)}
+        # Nota: usar 'subtitles' ao invés de 'ass' pois suporta force_style
+        subtitle_filter = f"subtitles={ass_escaped}:force_style='{subtitle_style}'"
         filters.append(subtitle_filter)
 
         # Combinar filtros base (sem logo ainda)
@@ -344,7 +359,7 @@ async def process_rendering(
         print(f"[Rendering] ✓ Success! Video {video_id} completed")
 
         # NÃO deletar o arquivo ainda - ele será servido depois
-        cleanup_files(video_path or "", srt_path or "")
+        cleanup_files(video_path or "", ass_path or "")
         # output_path não é deletado!
 
     except subprocess.CalledProcessError as e:
@@ -389,6 +404,6 @@ async def process_rendering(
         # 9. Limpar arquivos temporários (exceto output_path que será servido depois)
         cleanup_files(
             video_path or "",
-            srt_path or ""
+            ass_path or ""
         )
         # NOTA: output_path NÃO é deletado aqui - ele fica disponível para download
