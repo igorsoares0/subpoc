@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { createPortal } from "react-dom"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { VideoTimeline } from "@/components/timeline/VideoTimeline"
@@ -41,6 +42,7 @@ interface VideoProject {
   subtitles: Subtitle[] | null
   subtitleStyle: SubtitleStyle | null
   logoOverlay: LogoOverlay | null
+  format: string | null
 }
 
 interface EditorClientProps {
@@ -58,6 +60,27 @@ function normalizePosition(position: { x: number; y: number } | string): { x: nu
     }
   }
   return position
+}
+
+// Mapeamento de formatos para exibição e backend
+const FORMAT_OPTIONS = [
+  { label: "Original", value: null, aspectRatio: null },
+  { label: "16:9", value: "youtube", aspectRatio: 16/9 },
+  { label: "9:16", value: "instagram_story", aspectRatio: 9/16 },
+  { label: "1:1", value: "instagram_feed", aspectRatio: 1 },
+  { label: "4:3", value: "classic", aspectRatio: 4/3 },
+]
+
+// Helper para obter label a partir do valor backend
+function getFormatLabel(backendValue: string | null): string {
+  const format = FORMAT_OPTIONS.find(f => f.value === backendValue)
+  return format?.label || "Original"
+}
+
+// Helper para obter aspect ratio a partir do valor backend
+function getFormatAspectRatio(backendValue: string | null): number | null {
+  const format = FORMAT_OPTIONS.find(f => f.value === backendValue)
+  return format?.aspectRatio || null
 }
 
 export default function EditorClient({ video: initialVideo }: EditorClientProps) {
@@ -83,6 +106,9 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const logoUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [isDraggingSubtitle, setIsDraggingSubtitle] = useState(false)
   const subtitleUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const [showFormatDropdown, setShowFormatDropdown] = useState(false)
+  const formatUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const formatButtonRef = useRef<HTMLButtonElement>(null)
 
   // Current subtitle based on video time
   const currentSubtitle = video?.subtitles?.find(
@@ -272,6 +298,33 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       }
     }
   }, [])
+
+  // Cleanup format update timer on unmount
+  useEffect(() => {
+    return () => {
+      if (formatUpdateTimerRef.current) {
+        clearTimeout(formatUpdateTimerRef.current)
+      }
+    }
+  }, [])
+
+  // Close format dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showFormatDropdown) {
+        const target = e.target as HTMLElement
+        // Check if click is outside both the button container AND the dropdown menu
+        if (!target.closest('.format-dropdown-container') && !target.closest('.format-dropdown-menu')) {
+          setShowFormatDropdown(false)
+        }
+      }
+    }
+
+    if (showFormatDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showFormatDropdown])
 
   // Close export menu when clicking outside
   useEffect(() => {
@@ -582,6 +635,29 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     }, 500)
   }
 
+  const updateFormat = (newFormat: string | null) => {
+    // Atualizar estado local imediatamente
+    setVideo({ ...video, format: newFormat })
+    setShowFormatDropdown(false)
+
+    // Debounce API call - salvar após 300ms
+    if (formatUpdateTimerRef.current) {
+      clearTimeout(formatUpdateTimerRef.current)
+    }
+
+    formatUpdateTimerRef.current = setTimeout(async () => {
+      try {
+        await fetch(`/api/videos/${video.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ format: newFormat })
+        })
+      } catch (error) {
+        console.error('Error updating format:', error)
+      }
+    }, 300)
+  }
+
   const style = video?.subtitleStyle || {
     fontFamily: "Montserrat",
     fontSize: 24,
@@ -612,11 +688,58 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
               <path fill="white" d="M8 10l5 3-5 3V10z"/>
             </svg>
           </button>
-          <button className="p-1.5 rounded-md bg-zinc-700/50 hover:bg-zinc-600/50 transition-colors">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2"/>
-            </svg>
-          </button>
+          <div className="relative format-dropdown-container">
+            <button
+              ref={formatButtonRef}
+              onClick={() => setShowFormatDropdown(!showFormatDropdown)}
+              className={`p-1.5 rounded-md transition-colors ${
+                video.format
+                  ? 'bg-purple-600/50 hover:bg-purple-500/50'
+                  : 'bg-zinc-700/50 hover:bg-zinc-600/50'
+              }`}
+              title={`Format: ${getFormatLabel(video.format)}`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2"/>
+              </svg>
+            </button>
+
+            {/* Dropdown Menu */}
+            {showFormatDropdown && (() => {
+              const buttonRect = formatButtonRef.current?.getBoundingClientRect()
+              if (!buttonRect || typeof window === 'undefined') return null
+
+              return createPortal(
+                <div
+                  className="format-dropdown-menu fixed bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl z-[9999] min-w-[140px] overflow-hidden"
+                  style={{
+                    top: `${buttonRect.bottom + 8}px`,
+                    left: `${buttonRect.left}px`,
+                  }}
+                >
+                  {FORMAT_OPTIONS.map((format) => (
+                    <button
+                      key={format.label}
+                      onClick={() => updateFormat(format.value)}
+                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors flex items-center justify-between ${
+                        video.format === format.value
+                          ? 'bg-purple-600/30 text-white'
+                          : 'text-gray-300 hover:bg-zinc-700'
+                      }`}
+                    >
+                      <span>{format.label}</span>
+                      {video.format === format.value && (
+                        <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>,
+                document.body
+              )
+            })()}
+          </div>
           <button
             onClick={() => setShowLogoModal(true)}
             className={`p-1.5 rounded-md transition-colors ${video.logoOverlay ? 'bg-purple-600 hover:bg-purple-700' : 'bg-zinc-700/50 hover:bg-zinc-600/50'}`}
@@ -933,25 +1056,46 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
           {/* Video Area */}
           <div className="flex-1 flex items-center justify-center min-h-0">
             <div className="w-full h-full">
-              <div className="w-full h-full bg-zinc-900 rounded-[10px] overflow-hidden relative">
-                <video
-                  ref={videoRef}
-                  src={video?.videoUrl}
-                  className="w-full h-full object-contain"
-                  onClick={() => {
-                    if (videoRef.current) {
-                      if (videoRef.current.paused) {
-                        videoRef.current.play()
-                      } else {
-                        videoRef.current.pause()
-                      }
-                    }
+              <div className="w-full h-full bg-zinc-900 rounded-[10px] overflow-hidden relative flex items-center justify-center">
+                {/* Aspect Ratio Wrapper */}
+                <div
+                  className="relative bg-black"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    width: (() => {
+                      const ratio = getFormatAspectRatio(video.format)
+                      return ratio ? 'auto' : '100%'
+                    })(),
+                    height: (() => {
+                      const ratio = getFormatAspectRatio(video.format)
+                      return ratio ? '100%' : '100%'
+                    })(),
+                    aspectRatio: (() => {
+                      const ratio = getFormatAspectRatio(video.format)
+                      return ratio ? `${ratio}` : 'auto'
+                    })(),
                   }}
                 >
-                  Your browser does not support the video tag.
-                </video>
+                  <video
+                    ref={videoRef}
+                    src={video?.videoUrl}
+                    className="w-full h-full"
+                    style={{ objectFit: 'contain' }}
+                    onClick={() => {
+                      if (videoRef.current) {
+                        if (videoRef.current.paused) {
+                          videoRef.current.play()
+                        } else {
+                          videoRef.current.pause()
+                        }
+                      }
+                    }}
+                  >
+                    Your browser does not support the video tag.
+                  </video>
 
-                {/* Subtitle Preview Overlay */}
+                  {/* Subtitle Preview Overlay */}
                 {currentSubtitle && (() => {
                   const position = normalizePosition(style.position)
                   const videoContainer = videoRef.current?.getBoundingClientRect()
@@ -1058,6 +1202,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     )
                   })()
                 )}
+                </div>
               </div>
             </div>
           </div>

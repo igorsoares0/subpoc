@@ -198,6 +198,11 @@ async def process_rendering(
                 "scale=1920:1080:force_original_aspect_ratio=decrease,"
                 "pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black"
             )
+        elif format_type == "classic":
+            filters.append(
+                "scale=1440:1080:force_original_aspect_ratio=decrease,"
+                "pad=1440:1080:(ow-iw)/2:(oh-ih)/2:black"
+            )
 
         # Aplicar legendas com estilo (com margens baseadas na largura do vídeo)
         subtitle_style = build_subtitle_style(style, video_width)

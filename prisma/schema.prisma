@@ -141,7 +141,7 @@ model VideoProject {
   // }
 
   // Export settings
-  format            String?  // instagram_story, instagram_feed, tiktok, youtube, original
+  format            String?  // youtube (16:9), instagram_story (9:16), instagram_feed (1:1), classic (4:3), tiktok, original
   trim              Json?    // {start: 10, end: 30}
   overlays          Json?    // [{type: "image", url: "...", x: 10, y: 10, width: 100, height: 100}]
 
