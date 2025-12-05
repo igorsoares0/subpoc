@@ -113,12 +113,24 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const [trim, setTrim] = useState<{ start: number; end: number } | null>(initialVideo.trim)
   const trimUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [isDraggingTrimHandle, setIsDraggingTrimHandle] = useState<'start' | 'end' | null>(null)
+  const [selectedSubtitleId, setSelectedSubtitleId] = useState<number | null>(null)
 
   // Current subtitle based on video time (adjusted for trim)
   const displayTime = trim ? currentTime + trim.start : currentTime
   const currentSubtitle = video?.subtitles?.find(
     sub => displayTime >= sub.start && displayTime < sub.end
   )
+
+  // Determine which subtitle should be highlighted (only one at a time)
+  // Priority: manual selection > current time-based subtitle
+  const highlightedSubtitleId = selectedSubtitleId || currentSubtitle?.id
+
+  // Clear selected subtitle when current subtitle changes (only during playback)
+  useEffect(() => {
+    if (isPlaying && currentSubtitle && selectedSubtitleId && currentSubtitle.id !== selectedSubtitleId) {
+      setSelectedSubtitleId(null)
+    }
+  }, [currentSubtitle?.id, isPlaying, selectedSubtitleId])
 
   // Polling for video updates
   const startPolling = () => {
@@ -209,6 +221,8 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
         videoElement.currentTime = trim.start
       }
       setIsPlaying(true)
+      // Clear selected subtitle when video starts playing
+      setSelectedSubtitleId(null)
     }
 
     const handlePause = () => setIsPlaying(false)
@@ -523,9 +537,10 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}:${ms.toString().padStart(2, '0')}`
   }
 
-  const seekToSubtitle = (start: number) => {
+  const seekToSubtitle = (start: number, subtitleId: number) => {
     if (videoRef.current) {
       videoRef.current.currentTime = start
+      setSelectedSubtitleId(subtitleId)
     }
   }
 
@@ -1081,11 +1096,11 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     <div
                       key={sub.id}
                       className={`p-3 cursor-pointer transition-all rounded-lg ${
-                        currentSubtitle?.id === sub.id
+                        highlightedSubtitleId === sub.id
                           ? "bg-purple-600/30"
                           : "hover:bg-zinc-800/50"
                       }`}
-                      onClick={() => seekToSubtitle(sub.start)}
+                      onClick={() => seekToSubtitle(sub.start, sub.id)}
                     >
                       <div className="flex items-center justify-between text-[11px] text-gray-400 mb-2 font-mono">
                         <span>{formatTime(sub.start)} - {formatTime(sub.end)}</span>
@@ -1095,7 +1110,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                           value={sub.text}
                           onChange={(e) => updateSubtitleText(sub.id, e.target.value)}
                           className={`w-full bg-transparent text-[14px] leading-relaxed resize-none border-none focus:outline-none p-0 ${
-                            currentSubtitle?.id === sub.id ? "text-white font-medium" : "text-gray-300"
+                            highlightedSubtitleId === sub.id ? "text-white font-medium" : "text-gray-300"
                           }`}
                           rows={2}
                           autoFocus
@@ -1110,7 +1125,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                       ) : (
                         <p
                           className={`text-[14px] leading-relaxed cursor-text ${
-                            currentSubtitle?.id === sub.id ? "text-white font-medium" : "text-gray-300"
+                            highlightedSubtitleId === sub.id ? "text-white font-medium" : "text-gray-300"
                           }`}
                           onDoubleClick={(e) => {
                             e.stopPropagation()
