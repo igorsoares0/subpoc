@@ -125,6 +125,9 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   // Priority: manual selection > current time-based subtitle
   const highlightedSubtitleId = selectedSubtitleId || currentSubtitle?.id
 
+  // Find the subtitle to display on video (based on highlighted ID)
+  const displayedSubtitle = video?.subtitles?.find(sub => sub.id === highlightedSubtitleId)
+
   // Clear selected subtitle when current subtitle changes (only during playback)
   useEffect(() => {
     if (isPlaying && currentSubtitle && selectedSubtitleId && currentSubtitle.id !== selectedSubtitleId) {
@@ -1294,7 +1297,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                   </video>
 
                   {/* Subtitle Preview Overlay */}
-                {currentSubtitle && (() => {
+                {displayedSubtitle && (() => {
                   const position = normalizePosition(style.position)
                   const videoContainer = videoRef.current?.getBoundingClientRect()
                   if (!videoContainer || videoDimensions.width === 0) return null
@@ -1338,7 +1341,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                             : "none"
                         }}
                       >
-                        {currentSubtitle.text}
+                        {displayedSubtitle.text}
                       </div>
                     </div>
                   )
