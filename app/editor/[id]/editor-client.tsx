@@ -43,6 +43,7 @@ interface VideoProject {
   subtitleStyle: SubtitleStyle | null
   logoOverlay: LogoOverlay | null
   format: string | null
+  trim: { start: number; end: number } | null
 }
 
 interface EditorClientProps {
@@ -109,10 +110,14 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const [showFormatDropdown, setShowFormatDropdown] = useState(false)
   const formatUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
   const formatButtonRef = useRef<HTMLButtonElement>(null)
+  const [trim, setTrim] = useState<{ start: number; end: number } | null>(initialVideo.trim)
+  const trimUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const [isDraggingTrimHandle, setIsDraggingTrimHandle] = useState<'start' | 'end' | null>(null)
 
-  // Current subtitle based on video time
+  // Current subtitle based on video time (adjusted for trim)
+  const displayTime = trim ? currentTime + trim.start : currentTime
   const currentSubtitle = video?.subtitles?.find(
-    sub => currentTime >= sub.start && currentTime < sub.end
+    sub => displayTime >= sub.start && displayTime < sub.end
   )
 
   // Polling for video updates
@@ -176,17 +181,48 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     if (!videoElement) return
 
     const handleTimeUpdate = () => {
-      setCurrentTime(videoElement.currentTime)
+      const currentVideoTime = videoElement.currentTime
+
+      if (trim) {
+        // Enforce trim bounds
+        if (currentVideoTime < trim.start) {
+          videoElement.currentTime = trim.start
+          return
+        }
+        if (currentVideoTime >= trim.end) {
+          videoElement.currentTime = trim.start // Loop back to start
+          videoElement.pause()
+          setIsPlaying(false)
+          return
+        }
+
+        // Set currentTime relative to trim start (0-based)
+        setCurrentTime(currentVideoTime - trim.start)
+      } else {
+        setCurrentTime(currentVideoTime)
+      }
     }
 
-    const handlePlay = () => setIsPlaying(true)
+    const handlePlay = () => {
+      // Start at trim.start if trim is active
+      if (trim && videoElement.currentTime < trim.start) {
+        videoElement.currentTime = trim.start
+      }
+      setIsPlaying(true)
+    }
+
     const handlePause = () => setIsPlaying(false)
 
     const handleLoadedMetadata = () => {
       // Update duration when video metadata is loaded
       if (videoElement.duration && !isNaN(videoElement.duration)) {
         console.log(`[Editor] Video metadata loaded, duration: ${videoElement.duration}s`)
-        setDuration(videoElement.duration)
+        // Set duration based on trim if active
+        if (trim) {
+          setDuration(trim.end - trim.start)
+        } else {
+          setDuration(videoElement.duration)
+        }
       }
     }
 
@@ -213,7 +249,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata)
       videoElement.removeEventListener("volumechange", handleVolumeChange)
     }
-  }, [])
+  }, [trim])
 
   // Calculate actual video dimensions (for responsive subtitles)
   useEffect(() => {
@@ -265,6 +301,20 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     }
   }, [])
 
+  // Initialize video at trim.start when trim changes
+  useEffect(() => {
+    if (videoRef.current && trim) {
+      videoRef.current.currentTime = trim.start
+      setCurrentTime(0) // Display 0:00 at trim start
+      setDuration(trim.end - trim.start)
+      console.log(`[Trim] Initialized at trim start: ${trim.start}s`)
+    } else if (videoRef.current && !trim && videoRef.current.duration) {
+      // Reset to full duration when trim is cleared
+      setDuration(videoRef.current.duration)
+      console.log(`[Trim] Reset to full duration: ${videoRef.current.duration}s`)
+    }
+  }, [trim])
+
   // Cleanup logo update timer on unmount
   useEffect(() => {
     return () => {
@@ -290,11 +340,33 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     }
   }, [isDraggingSubtitle, videoDimensions])
 
+  // Handle trim handle dragging
+  useEffect(() => {
+    if (isDraggingTrimHandle) {
+      window.addEventListener('mousemove', handleTrimHandleDrag)
+      window.addEventListener('mouseup', handleTrimHandleDragEnd)
+
+      return () => {
+        window.removeEventListener('mousemove', handleTrimHandleDrag)
+        window.removeEventListener('mouseup', handleTrimHandleDragEnd)
+      }
+    }
+  }, [isDraggingTrimHandle, trim])
+
   // Cleanup subtitle update timer on unmount
   useEffect(() => {
     return () => {
       if (subtitleUpdateTimerRef.current) {
         clearTimeout(subtitleUpdateTimerRef.current)
+      }
+    }
+  }, [])
+
+  // Cleanup trim update timer on unmount
+  useEffect(() => {
+    return () => {
+      if (trimUpdateTimerRef.current) {
+        clearTimeout(trimUpdateTimerRef.current)
       }
     }
   }, [])
@@ -656,6 +728,109 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
         console.error('Error updating format:', error)
       }
     }, 300)
+  }
+
+  const updateTrim = (newTrim: { start: number; end: number } | null) => {
+    // Atualizar estado local imediatamente
+    setTrim(newTrim)
+    setVideo({ ...video, trim: newTrim })
+
+    // Debounce API call - salvar após 300ms
+    if (trimUpdateTimerRef.current) {
+      clearTimeout(trimUpdateTimerRef.current)
+    }
+
+    trimUpdateTimerRef.current = setTimeout(async () => {
+      try {
+        await fetch(`/api/videos/${video.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trim: newTrim })
+        })
+        console.log('[Trim] Updated trim:', newTrim)
+      } catch (error) {
+        console.error('Error updating trim:', error)
+      }
+    }, 300)
+  }
+
+  const setTrimStart = () => {
+    if (!videoRef.current) return
+    const videoDuration = videoRef.current.duration
+    // Get actual video time (not relative)
+    const actualTime = trim ? currentTime + trim.start : currentTime
+    const newStart = actualTime
+    const newEnd = trim?.end || videoDuration
+
+    // Ensure valid range (minimum 1 second)
+    if (newStart < newEnd - 1) {
+      updateTrim({ start: newStart, end: newEnd })
+      console.log(`[Trim] Set trim start at ${newStart}s`)
+    } else {
+      console.warn('[Trim] Invalid trim start - too close to end')
+    }
+  }
+
+  const setTrimEnd = () => {
+    if (!videoRef.current) return
+    // Get actual video time (not relative)
+    const actualTime = trim ? currentTime + trim.start : currentTime
+    const newStart = trim?.start || 0
+    const newEnd = actualTime
+
+    // Ensure valid range (minimum 1 second)
+    if (newEnd > newStart + 1) {
+      updateTrim({ start: newStart, end: newEnd })
+      console.log(`[Trim] Set trim end at ${newEnd}s`)
+    } else {
+      console.warn('[Trim] Invalid trim end - too close to start')
+    }
+  }
+
+  const clearTrim = () => {
+    updateTrim(null)
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0
+      setCurrentTime(0)
+    }
+    console.log('[Trim] Cleared trim')
+  }
+
+  const handleTrimHandleDragStart = (handle: 'start' | 'end') => {
+    setIsDraggingTrimHandle(handle)
+    // Pause video during drag
+    if (videoRef.current && !videoRef.current.paused) {
+      videoRef.current.pause()
+    }
+    console.log(`[Trim] Started dragging ${handle} handle`)
+  }
+
+  const handleTrimHandleDrag = (e: MouseEvent) => {
+    if (!isDraggingTrimHandle || !trim || !videoRef.current) return
+
+    const timeline = document.querySelector('.timeline-filmstrip-container') as HTMLElement
+    if (!timeline) return
+
+    const rect = timeline.getBoundingClientRect()
+    const clickX = e.clientX - rect.left
+    const clickRatio = Math.max(0, Math.min(1, clickX / rect.width))
+    const videoDuration = videoRef.current.duration
+    const newTime = clickRatio * videoDuration
+
+    if (isDraggingTrimHandle === 'start') {
+      // Constrain: start must be < end (minimum 1s gap)
+      const newStart = Math.max(0, Math.min(newTime, trim.end - 1))
+      updateTrim({ start: newStart, end: trim.end })
+    } else {
+      // Constrain: end must be > start (minimum 1s gap)
+      const newEnd = Math.min(videoDuration, Math.max(newTime, trim.start + 1))
+      updateTrim({ start: trim.start, end: newEnd })
+    }
+  }
+
+  const handleTrimHandleDragEnd = () => {
+    console.log(`[Trim] Finished dragging handle`)
+    setIsDraggingTrimHandle(null)
   }
 
   const style = video?.subtitleStyle || {
@@ -1215,6 +1390,8 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
             currentTime={currentTime}
             isPlaying={isPlaying}
             isMuted={isMuted}
+            trim={trim}
+            videoDuration={videoRef.current?.duration || initialVideo.duration * 60}
             onPlayPause={() => {
               if (videoRef.current) {
                 if (videoRef.current.paused) {
@@ -1235,6 +1412,10 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                 videoRef.current.currentTime = time
               }
             }}
+            onSetTrimStart={setTrimStart}
+            onSetTrimEnd={setTrimEnd}
+            onClearTrim={clearTrim}
+            onTrimHandleDragStart={handleTrimHandleDragStart}
           />
         </main>
       </div>

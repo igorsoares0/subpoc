@@ -5,8 +5,12 @@ interface TimelineControlsProps {
   currentTime: number
   duration: number
   isMuted: boolean
+  trim: { start: number; end: number } | null
   onPlayPause: () => void
   onToggleMute: () => void
+  onSetTrimStart: () => void
+  onSetTrimEnd: () => void
+  onClearTrim: () => void
 }
 
 function formatTime(seconds: number): string {
@@ -22,8 +26,12 @@ export function TimelineControls({
   currentTime,
   duration,
   isMuted,
+  trim,
   onPlayPause,
-  onToggleMute
+  onToggleMute,
+  onSetTrimStart,
+  onSetTrimEnd,
+  onClearTrim
 }: TimelineControlsProps) {
   return (
     <div className="flex items-center gap-3 mb-1.5 justify-center">
@@ -43,8 +51,44 @@ export function TimelineControls({
         )}
       </button>
 
+      {/* Trim controls */}
+      <div className="flex items-center gap-1 ml-1 pl-1 border-l border-zinc-700">
+        <button
+          onClick={onSetTrimStart}
+          className="p-1.5 hover:bg-zinc-800 rounded transition-colors"
+          title="Set In Point (trim start at playhead)"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+          </svg>
+        </button>
+
+        <button
+          onClick={onSetTrimEnd}
+          className="p-1.5 hover:bg-zinc-800 rounded transition-colors"
+          title="Set Out Point (trim end at playhead)"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+          </svg>
+        </button>
+
+        {trim && (
+          <button
+            onClick={onClearTrim}
+            className="p-1.5 hover:bg-red-800 rounded transition-colors text-red-400"
+            title="Clear trim"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+
       <div className="text-xs text-gray-400 font-mono">
         {formatTime(currentTime)} | {formatTime(duration)}
+        {trim && <span className="text-purple-400 ml-1">(trimmed)</span>}
       </div>
 
       <button
