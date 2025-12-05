@@ -1094,14 +1094,22 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                         <textarea
                           value={sub.text}
                           onChange={(e) => updateSubtitleText(sub.id, e.target.value)}
-                          className="w-full bg-zinc-900 text-white text-[14px] p-2 rounded border border-zinc-700 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                          className={`w-full bg-transparent text-[14px] leading-relaxed resize-none border-none focus:outline-none p-0 ${
+                            currentSubtitle?.id === sub.id ? "text-white font-medium" : "text-gray-300"
+                          }`}
                           rows={2}
+                          autoFocus
                           onClick={(e) => e.stopPropagation()}
                           onBlur={() => setEditingSubtitle(null)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              setEditingSubtitle(null)
+                            }
+                          }}
                         />
                       ) : (
                         <p
-                          className={`text-[14px] leading-relaxed ${
+                          className={`text-[14px] leading-relaxed cursor-text ${
                             currentSubtitle?.id === sub.id ? "text-white font-medium" : "text-gray-300"
                           }`}
                           onDoubleClick={(e) => {
