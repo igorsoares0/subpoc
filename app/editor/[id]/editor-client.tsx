@@ -1060,7 +1060,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
             {activeTab === "subtitles" ? (
               <div className="space-y-3">
                 {!video?.subtitles || video?.subtitles.length === 0 ? (
