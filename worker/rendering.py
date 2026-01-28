@@ -105,6 +105,7 @@ def build_subtitle_style(style: dict, video_width: int) -> str:
         force_style = (
             f"FontName={font_name},"
             f"FontSize={font_size},"
+            f"Bold=-1,"
             f"PrimaryColour={primary_color},"
             f"OutlineColour={back_color},"
             f"BackColour={back_color},"
@@ -118,6 +119,7 @@ def build_subtitle_style(style: dict, video_width: int) -> str:
         force_style = (
             f"FontName={font_name},"
             f"FontSize={font_size},"
+            f"Bold=-1,"
             f"PrimaryColour={primary_color},"
             f"OutlineColour={outline_color},"
             f"BackColour={back_color},"

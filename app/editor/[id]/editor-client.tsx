@@ -218,6 +218,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [videoDimensions, setVideoDimensions] = useState({ width: 0, height: 0 })
+  const [nativeVideoWidth, setNativeVideoWidth] = useState(1920)
   const [editingSubtitle, setEditingSubtitle] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
@@ -426,6 +427,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
       console.log(`[Video Dimensions] Calculated: ${actualWidth.toFixed(0)}x${actualHeight.toFixed(0)} (native: ${videoWidth}x${videoHeight})`)
       setVideoDimensions({ width: actualWidth, height: actualHeight })
+      setNativeVideoWidth(videoWidth)
     }
 
     videoElement.addEventListener('loadedmetadata', updateVideoDimensions)
@@ -1500,6 +1502,10 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                   const leftPx = offsetX + (position.x / 100) * videoDimensions.width
                   const topPx = offsetY + (position.y / 100) * videoDimensions.height
 
+                  // Scale factor: ratio between preview width and native video width
+                  // The worker renders at native resolution, so we scale proportionally
+                  const scaleFactor = videoDimensions.width / nativeVideoWidth
+
                   return (
                     <div
                       className="absolute"
@@ -1526,12 +1532,12 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                           })(),
                           color: style.color,
                           fontFamily: `${style.fontFamily}, sans-serif`,
-                          fontSize: `${Math.max(style.fontSize * 0.8, 16)}px`,
+                          fontSize: `${Math.max(style.fontSize * scaleFactor, 12)}px`,
                           fontWeight: 700,
                           textAlign: style.alignment as any,
                           textShadow: (() => {
                             if (!style.outline || style.backgroundOpacity > 0) return "none"
-                            const w = style.outlineWidth
+                            const w = Math.max(style.outlineWidth * scaleFactor, 1)
                             const oc = style.outlineColor
                             return `${w}px 0 0 ${oc}, -${w}px 0 0 ${oc}, 0 ${w}px 0 ${oc}, 0 -${w}px 0 ${oc}, ${w}px ${w}px 0 ${oc}, -${w}px -${w}px 0 ${oc}, ${w}px -${w}px 0 ${oc}, -${w}px ${w}px 0 ${oc}`
                           })()
