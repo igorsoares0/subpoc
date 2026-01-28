@@ -87,29 +87,34 @@ def build_subtitle_style(style: dict, video_width: int) -> str:
 
     font_name = style.get("fontFamily", "Arial")
     font_size = style.get("fontSize", 24)
-    outline_width = style.get("outlineWidth", 2)
+    has_outline = style.get("outline", False)
+    outline_width = style.get("outlineWidth", 2) if has_outline else 0
 
     # Calcular margens laterais (5% de cada lado)
     margin_percent = 0.05
     margin_horizontal = int(video_width * margin_percent)
 
     # BorderStyle: 1 = outline apenas, 3 = opaque box (fundo)
+    # When background is visible, use BorderStyle=3 (opaque box)
+    # When no background, use BorderStyle=1 (outline only)
     border_style = 3 if background_opacity > 0 else 1
 
-    # No modo BorderStyle=3, OutlineColour é usado para a cor de fundo
     if border_style == 3:
+        # BorderStyle=3: OutlineColour becomes the box color, Outline controls box padding
+        # Text outline is not separately available in this mode
         force_style = (
             f"FontName={font_name},"
             f"FontSize={font_size},"
             f"PrimaryColour={primary_color},"
             f"OutlineColour={back_color},"
-            f"BackColour={outline_color},"
+            f"BackColour={back_color},"
             f"BorderStyle={border_style},"
             f"Outline={outline_width},"
             f"MarginL={margin_horizontal},"
             f"MarginR={margin_horizontal}"
         )
     else:
+        # BorderStyle=1: OutlineColour is the text outline color
         force_style = (
             f"FontName={font_name},"
             f"FontSize={font_size},"

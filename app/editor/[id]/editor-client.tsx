@@ -63,6 +63,130 @@ function normalizePosition(position: { x: number; y: number } | string): { x: nu
   return position
 }
 
+// Subtitle style templates
+const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
+  {
+    name: "Classic",
+    style: {
+      fontFamily: "Arial",
+      fontSize: 24,
+      color: "#FFFFFF",
+      backgroundColor: "#000000",
+      backgroundOpacity: 0.6,
+      position: { x: 50, y: 90 },
+      alignment: "center",
+      outline: false,
+      outlineColor: "#000000",
+      outlineWidth: 0,
+    },
+  },
+  {
+    name: "Bold Yellow",
+    style: {
+      fontFamily: "Montserrat",
+      fontSize: 36,
+      color: "#FFFF00",
+      backgroundColor: "#000000",
+      backgroundOpacity: 0,
+      position: { x: 50, y: 85 },
+      alignment: "center",
+      outline: true,
+      outlineColor: "#000000",
+      outlineWidth: 4,
+    },
+  },
+  {
+    name: "Neon",
+    style: {
+      fontFamily: "Montserrat",
+      fontSize: 28,
+      color: "#39FF14",
+      backgroundColor: "#000000",
+      backgroundOpacity: 0,
+      position: { x: 50, y: 85 },
+      alignment: "center",
+      outline: true,
+      outlineColor: "#000000",
+      outlineWidth: 2,
+    },
+  },
+  {
+    name: "Karaoke",
+    style: {
+      fontFamily: "Montserrat",
+      fontSize: 24,
+      color: "#FFFF00",
+      backgroundColor: "#FF00FF",
+      backgroundOpacity: 0.8,
+      position: { x: 50, y: 90 },
+      alignment: "center",
+      outline: false,
+      outlineColor: "#000000",
+      outlineWidth: 2,
+    },
+  },
+  {
+    name: "Minimal",
+    style: {
+      fontFamily: "Inter",
+      fontSize: 18,
+      color: "#FFFFFF",
+      backgroundColor: "#000000",
+      backgroundOpacity: 0,
+      position: { x: 50, y: 92 },
+      alignment: "center",
+      outline: true,
+      outlineColor: "#000000",
+      outlineWidth: 1,
+    },
+  },
+  {
+    name: "Cinema",
+    style: {
+      fontFamily: "Helvetica",
+      fontSize: 22,
+      color: "#FFFFFF",
+      backgroundColor: "#000000",
+      backgroundOpacity: 1,
+      position: { x: 50, y: 92 },
+      alignment: "center",
+      outline: false,
+      outlineColor: "#000000",
+      outlineWidth: 0,
+    },
+  },
+  {
+    name: "Pop",
+    style: {
+      fontFamily: "Poppins",
+      fontSize: 26,
+      color: "#FF69B4",
+      backgroundColor: "#FFFFFF",
+      backgroundOpacity: 0.9,
+      position: { x: 50, y: 85 },
+      alignment: "center",
+      outline: false,
+      outlineColor: "#000000",
+      outlineWidth: 0,
+    },
+  },
+  {
+    name: "Glow",
+    style: {
+      fontFamily: "Montserrat",
+      fontSize: 28,
+      color: "#FFFFFF",
+      backgroundColor: "#000000",
+      backgroundOpacity: 0,
+      position: { x: 50, y: 85 },
+      alignment: "center",
+      outline: true,
+      outlineColor: "#3B82F6",
+      outlineWidth: 4,
+    },
+  },
+]
+
 // Mapeamento de formatos para exibição e backend
 const FORMAT_OPTIONS = [
   { label: "Original", value: null, aspectRatio: null },
@@ -1144,6 +1268,72 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
               </div>
             ) : (
               <div className="space-y-6">
+                {/* Templates */}
+                <div>
+                  <label className="block text-sm font-normal mb-3 text-gray-300">Templates</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {SUBTITLE_TEMPLATES.map((template) => {
+                      const isActive = style.color === template.style.color
+                        && style.backgroundColor === template.style.backgroundColor
+                        && style.backgroundOpacity === template.style.backgroundOpacity
+                        && style.fontFamily === template.style.fontFamily
+                        && style.fontSize === template.style.fontSize
+                        && style.outline === template.style.outline
+                        && style.outlineColor === template.style.outlineColor
+                        && style.outlineWidth === template.style.outlineWidth
+
+                      const previewBg = (() => {
+                        if (template.style.backgroundOpacity <= 0) return "transparent"
+                        const hex = template.style.backgroundColor.replace('#', '')
+                        const r = parseInt(hex.substring(0, 2), 16)
+                        const g = parseInt(hex.substring(2, 4), 16)
+                        const b = parseInt(hex.substring(4, 6), 16)
+                        return `rgba(${r}, ${g}, ${b}, ${template.style.backgroundOpacity})`
+                      })()
+
+                      // Match worker: outline only renders when backgroundOpacity <= 0 (BorderStyle=1)
+                      const w = template.style.outlineWidth
+                      const oc = template.style.outlineColor
+                      const textShadow = template.style.outline && template.style.backgroundOpacity <= 0
+                        ? `${w}px 0 0 ${oc}, -${w}px 0 0 ${oc}, 0 ${w}px 0 ${oc}, 0 -${w}px 0 ${oc}, ${w}px ${w}px 0 ${oc}, -${w}px -${w}px 0 ${oc}, ${w}px -${w}px 0 ${oc}, -${w}px ${w}px 0 ${oc}`
+                        : "none"
+
+                      return (
+                        <button
+                          key={template.name}
+                          onClick={() => updateStyle(template.style)}
+                          className={`flex flex-col items-center gap-1.5 rounded-lg p-2 transition-all ${
+                            isActive
+                              ? "ring-2 ring-purple-500 bg-zinc-700/50"
+                              : "bg-zinc-800 hover:bg-zinc-700/50"
+                          }`}
+                        >
+                          <div
+                            className="w-full h-[48px] rounded flex items-center justify-center"
+                            style={{ backgroundColor: "#18181b" }}
+                          >
+                            <span
+                              style={{
+                                color: template.style.color,
+                                fontFamily: `${template.style.fontFamily}, sans-serif`,
+                                fontSize: "18px",
+                                fontWeight: 700,
+                                textShadow,
+                                backgroundColor: previewBg,
+                                padding: template.style.backgroundOpacity > 0 ? "2px 6px" : undefined,
+                                borderRadius: "2px",
+                              }}
+                            >
+                              Aa
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-gray-400">{template.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
                 {/* Subtitle Color */}
                 <div>
                   <label className="block text-sm font-normal mb-3 text-gray-300">Subtitle Color</label>
@@ -1326,19 +1516,25 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                       <div
                         className="px-4 py-2 rounded-sm font-bold"
                         style={{
-                          backgroundColor: style.backgroundColor,
-                          opacity: style.backgroundOpacity,
+                          backgroundColor: (() => {
+                            if (style.backgroundOpacity <= 0) return "transparent"
+                            const hex = style.backgroundColor.replace('#', '')
+                            const r = parseInt(hex.substring(0, 2), 16)
+                            const g = parseInt(hex.substring(2, 4), 16)
+                            const b = parseInt(hex.substring(4, 6), 16)
+                            return `rgba(${r}, ${g}, ${b}, ${style.backgroundOpacity})`
+                          })(),
                           color: style.color,
                           fontFamily: `${style.fontFamily}, sans-serif`,
                           fontSize: `${Math.max(style.fontSize * 0.8, 16)}px`,
                           fontWeight: 700,
                           textAlign: style.alignment as any,
-                          textShadow: style.outline
-                            ? `${style.outlineWidth}px ${style.outlineWidth}px 0 ${style.outlineColor},
-                               -${style.outlineWidth}px -${style.outlineWidth}px 0 ${style.outlineColor},
-                               ${style.outlineWidth}px -${style.outlineWidth}px 0 ${style.outlineColor},
-                               -${style.outlineWidth}px ${style.outlineWidth}px 0 ${style.outlineColor}`
-                            : "none"
+                          textShadow: (() => {
+                            if (!style.outline || style.backgroundOpacity > 0) return "none"
+                            const w = style.outlineWidth
+                            const oc = style.outlineColor
+                            return `${w}px 0 0 ${oc}, -${w}px 0 0 ${oc}, 0 ${w}px 0 ${oc}, 0 -${w}px 0 ${oc}, ${w}px ${w}px 0 ${oc}, -${w}px -${w}px 0 ${oc}, ${w}px -${w}px 0 ${oc}, -${w}px ${w}px 0 ${oc}`
+                          })()
                         }}
                       >
                         {displayedSubtitle.text}
