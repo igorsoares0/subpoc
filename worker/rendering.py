@@ -180,7 +180,8 @@ async def process_rendering(
             video_id,
             position=subtitle_position,
             video_width=video_width,
-            video_height=video_height
+            video_height=video_height,
+            style=style
         )
 
         # 5. Path do vídeo final

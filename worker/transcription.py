@@ -41,33 +41,59 @@ async def process_transcription(
                 model="whisper-1",
                 file=audio_file,
                 response_format="verbose_json",
-                language="pt"  # Português
+                language="pt",  # Português
+                timestamp_granularities=["word", "segment"]
             )
 
         # 4. Formatar resultado
         # Verificar se segments é lista de dicts ou objetos
         segments = transcription.segments if hasattr(transcription, 'segments') else transcription.get('segments', [])
 
-        print(f"[Transcription] Whisper returned {len(segments)} segments")
+        # Extrair word-level timestamps (se disponíveis)
+        all_words = []
+        if hasattr(transcription, 'words') and transcription.words:
+            all_words = transcription.words
+        elif isinstance(transcription, dict) and transcription.get('words'):
+            all_words = transcription['words']
+
+        print(f"[Transcription] Whisper returned {len(segments)} segments, {len(all_words)} words")
 
         # Acessar como dict ou objeto dependendo do tipo
         subtitles = []
         for i, seg in enumerate(segments, start=1):
             # Tentar acessar como dict primeiro, depois como objeto
             if isinstance(seg, dict):
-                subtitles.append({
-                    "id": i,
-                    "start": seg["start"],
-                    "end": seg["end"],
-                    "text": seg["text"].strip()
-                })
+                seg_start = seg["start"]
+                seg_end = seg["end"]
+                seg_text = seg["text"].strip()
             else:
-                subtitles.append({
-                    "id": i,
-                    "start": seg.start,
-                    "end": seg.end,
-                    "text": seg.text.strip()
-                })
+                seg_start = seg.start
+                seg_end = seg.end
+                seg_text = seg.text.strip()
+
+            # Associar words deste segmento (pelo intervalo de tempo)
+            segment_words = []
+            for w in all_words:
+                w_start = w["start"] if isinstance(w, dict) else w.start
+                w_end = w["end"] if isinstance(w, dict) else w.end
+                w_word = w["word"] if isinstance(w, dict) else w.word
+                if w_start >= seg_start - 0.05 and w_end <= seg_end + 0.05:
+                    segment_words.append({
+                        "word": w_word.strip(),
+                        "start": w_start,
+                        "end": w_end
+                    })
+
+            entry = {
+                "id": i,
+                "start": seg_start,
+                "end": seg_end,
+                "text": seg_text
+            }
+            if segment_words:
+                entry["words"] = segment_words
+
+            subtitles.append(entry)
 
         print(f"[Transcription] Formatted {len(subtitles)} subtitles")
 

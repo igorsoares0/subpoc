@@ -106,12 +106,22 @@ def format_timestamp(seconds: float) -> str:
     millis = td.microseconds // 1000
     return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
 
+def _hex_to_ass_color(hex_color: str, opacity: float = 1.0) -> str:
+    """Converter cor hex para formato ASS (&HAABBGGRR)"""
+    hex_color = hex_color.lstrip('#')
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    a = int((1 - opacity) * 255)
+    return f"&H{a:02X}{b:02X}{g:02X}{r:02X}"
+
 def generate_ass_file(
     subtitles: list[dict],
     video_id: str,
     position: dict | None = None,
     video_width: int = 1920,
-    video_height: int = 1080
+    video_height: int = 1080,
+    style: dict | None = None
 ) -> str:
     """
     Gerar arquivo ASS com posicionamento personalizado de legendas
@@ -122,6 +132,7 @@ def generate_ass_file(
         position: Dicionário com coordenadas 'x' e 'y' em porcentagem (0-100)
         video_width: Largura do vídeo em pixels
         video_height: Altura do vídeo em pixels
+        style: Dicionário de estilo (para word-group/karaoke mode)
 
     Returns:
         Caminho do arquivo ASS gerado
@@ -141,6 +152,11 @@ def generate_ass_file(
     x_pixels = int((x_percent / 100) * video_width)
     y_pixels = int((y_percent / 100) * video_height)
 
+    display_mode = (style or {}).get('displayMode', 'sentence')
+    words_per_group = (style or {}).get('wordsPerGroup', 3)
+    uppercase = (style or {}).get('uppercase', False)
+    highlight_color = (style or {}).get('highlightColor', '#FFD700')
+
     # Cabeçalho ASS
     ass_content = [
         "[Script Info]",
@@ -157,21 +173,68 @@ def generate_ass_file(
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
     ]
 
-    # Adicionar legendas com tags de posição
-    for sub in subtitles:
-        start_time = format_ass_timestamp(sub["start"])
-        end_time = format_ass_timestamp(sub["end"])
+    # Check if word-group mode with word data available
+    has_word_data = any(sub.get('words') for sub in subtitles)
 
-        # Tag {\pos(x,y)} posiciona a legenda em coordenadas absolutas
-        text = f"{{\\pos({x_pixels},{y_pixels})}}{sub['text']}"
+    if display_mode == 'word-group' and has_word_data:
+        # Flatten all words
+        all_words = []
+        for sub in subtitles:
+            if sub.get('words'):
+                all_words.extend(sub['words'])
 
-        dialogue = f"Dialogue: 0,{start_time},{end_time},Default,,0,0,0,,{text}"
-        ass_content.append(dialogue)
+        # ASS color tags for highlight
+        highlight_ass = _hex_to_ass_color(highlight_color)
+        base_color_hex = (style or {}).get('color', '#FFFFFF')
+        base_ass = _hex_to_ass_color(base_color_hex)
+
+        # Group words into chunks
+        for i in range(0, len(all_words), words_per_group):
+            group = all_words[i:i + words_per_group]
+            group_start = group[0]['start']
+            group_end = group[-1]['end']
+
+            # For each word in the group, create a separate dialogue line
+            # where that word is highlighted (shown for its duration)
+            for j, w in enumerate(group):
+                word_start = w['start']
+                word_end = w['end']
+
+                start_time = format_ass_timestamp(word_start)
+                end_time = format_ass_timestamp(word_end)
+
+                # Build text with all words, highlighting the active one
+                parts = []
+                for k, gw in enumerate(group):
+                    word_text = gw['word'].upper() if uppercase else gw['word']
+                    if k == j:
+                        parts.append(f"{{\\c{highlight_ass}}}{word_text}{{\\c{base_ass}}}")
+                    else:
+                        parts.append(word_text)
+
+                line_text = " ".join(parts)
+                text = f"{{\\pos({x_pixels},{y_pixels})}}{line_text}"
+                dialogue = f"Dialogue: 0,{start_time},{end_time},Default,,0,0,0,,{text}"
+                ass_content.append(dialogue)
+
+        print(f"[ASS] Word-group ASS gerado: {ass_path} ({len(all_words)} words, groups of {words_per_group})")
+    else:
+        # Standard sentence mode
+        for sub in subtitles:
+            start_time = format_ass_timestamp(sub["start"])
+            end_time = format_ass_timestamp(sub["end"])
+
+            sub_text = sub['text'].upper() if uppercase else sub['text']
+            text = f"{{\\pos({x_pixels},{y_pixels})}}{sub_text}"
+
+            dialogue = f"Dialogue: 0,{start_time},{end_time},Default,,0,0,0,,{text}"
+            ass_content.append(dialogue)
+
+        print(f"[ASS] Arquivo ASS gerado: {ass_path} ({len(subtitles)} legendas, pos: {x_pixels},{y_pixels})")
 
     with open(ass_path, "w", encoding="utf-8") as f:
         f.write("\n".join(ass_content))
 
-    print(f"[ASS] Arquivo ASS gerado: {ass_path} ({len(subtitles)} legendas, pos: {x_pixels},{y_pixels})")
     return ass_path
 
 def format_ass_timestamp(seconds: float) -> str:

@@ -6,11 +6,18 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { VideoTimeline } from "@/components/timeline/VideoTimeline"
 
+interface SubtitleWord {
+  word: string
+  start: number
+  end: number
+}
+
 interface Subtitle {
   id: number
   start: number
   end: number
   text: string
+  words?: SubtitleWord[]
 }
 
 interface SubtitleStyle {
@@ -24,6 +31,10 @@ interface SubtitleStyle {
   outline: boolean
   outlineColor: string
   outlineWidth: number
+  highlightColor?: string        // cor da palavra ativa (ex: "#FFD700")
+  displayMode?: 'sentence' | 'word-group'  // default 'sentence'
+  wordsPerGroup?: number         // palavras por grupo (default 3)
+  uppercase?: boolean            // forçar maiúsculas
 }
 
 interface LogoOverlay {
@@ -185,6 +196,25 @@ const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
       outlineWidth: 4,
     },
   },
+  {
+    name: "Hormozi",
+    style: {
+      fontFamily: "Montserrat",
+      fontSize: 42,
+      color: "#FFFFFF",
+      backgroundColor: "#000000",
+      backgroundOpacity: 0,
+      position: { x: 50, y: 50 },
+      alignment: "center",
+      outline: true,
+      outlineColor: "#000000",
+      outlineWidth: 5,
+      highlightColor: "#FFD700",
+      displayMode: "word-group",
+      wordsPerGroup: 3,
+      uppercase: true,
+    },
+  },
 ]
 
 // Mapeamento de formatos para exibição e backend
@@ -206,6 +236,41 @@ function getFormatLabel(backendValue: string | null): string {
 function getFormatAspectRatio(backendValue: string | null): number | null {
   const format = FORMAT_OPTIONS.find(f => f.value === backendValue)
   return format?.aspectRatio || null
+}
+
+// Get display content for word-group mode
+function getWordGroupDisplay(
+  subtitles: Subtitle[],
+  currentTime: number,
+  wordsPerGroup: number
+): { words: SubtitleWord[]; activeIndex: number } | null {
+  // Flatten all words from all subtitles
+  const allWords: SubtitleWord[] = []
+  for (const sub of subtitles) {
+    if (sub.words) {
+      allWords.push(...sub.words)
+    }
+  }
+  if (allWords.length === 0) return null
+
+  // Find which word is active
+  let activeWordIdx = -1
+  for (let i = 0; i < allWords.length; i++) {
+    if (currentTime >= allWords[i].start && currentTime < allWords[i].end) {
+      activeWordIdx = i
+      break
+    }
+  }
+  if (activeWordIdx === -1) return null
+
+  // Determine group: which group of N words contains the active word
+  const groupIndex = Math.floor(activeWordIdx / wordsPerGroup)
+  const groupStart = groupIndex * wordsPerGroup
+  const groupEnd = Math.min(groupStart + wordsPerGroup, allWords.length)
+  const groupWords = allWords.slice(groupStart, groupEnd)
+  const activeIndexInGroup = activeWordIdx - groupStart
+
+  return { words: groupWords, activeIndex: activeIndexInGroup }
 }
 
 export default function EditorClient({ video: initialVideo }: EditorClientProps) {
@@ -1283,6 +1348,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                         && style.outline === template.style.outline
                         && style.outlineColor === template.style.outlineColor
                         && style.outlineWidth === template.style.outlineWidth
+                        && (style.displayMode || 'sentence') === (template.style.displayMode || 'sentence')
 
                       const previewBg = (() => {
                         if (template.style.backgroundOpacity <= 0) return "transparent"
@@ -1314,20 +1380,32 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                             className="w-full h-[48px] rounded flex items-center justify-center"
                             style={{ backgroundColor: "#18181b" }}
                           >
-                            <span
-                              style={{
-                                color: template.style.color,
+                            {template.style.displayMode === 'word-group' ? (
+                              <span style={{
                                 fontFamily: `${template.style.fontFamily}, sans-serif`,
-                                fontSize: "18px",
+                                fontSize: "16px",
                                 fontWeight: 700,
                                 textShadow,
-                                backgroundColor: previewBg,
-                                padding: template.style.backgroundOpacity > 0 ? "2px 6px" : undefined,
-                                borderRadius: "2px",
-                              }}
-                            >
-                              Aa
-                            </span>
+                              }}>
+                                <span style={{ color: template.style.color }}>DO </span>
+                                <span style={{ color: template.style.highlightColor || '#FFD700' }}>IT</span>
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  color: template.style.color,
+                                  fontFamily: `${template.style.fontFamily}, sans-serif`,
+                                  fontSize: "18px",
+                                  fontWeight: 700,
+                                  textShadow,
+                                  backgroundColor: previewBg,
+                                  padding: template.style.backgroundOpacity > 0 ? "2px 6px" : undefined,
+                                  borderRadius: "2px",
+                                }}
+                              >
+                                Aa
+                              </span>
+                            )}
                           </div>
                           <span className="text-[11px] text-gray-400">{template.name}</span>
                         </button>
@@ -1506,6 +1584,87 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                   // The worker renders at native resolution, so we scale proportionally
                   const scaleFactor = videoDimensions.width / nativeVideoWidth
 
+                  const isWordGroupMode = style.displayMode === 'word-group'
+                  const hasWordData = video.subtitles?.some(s => s.words && s.words.length > 0)
+
+                  // Word-group mode rendering
+                  if (isWordGroupMode && hasWordData && video.subtitles) {
+                    const wordGroup = getWordGroupDisplay(
+                      video.subtitles,
+                      displayTime,
+                      style.wordsPerGroup || 3
+                    )
+                    if (!wordGroup) return null
+
+                    return (
+                      <div
+                        className="absolute"
+                        style={{
+                          left: `${leftPx}px`,
+                          top: `${topPx}px`,
+                          transform: 'translate(-50%, -50%)',
+                          cursor: isDraggingSubtitle ? 'grabbing' : 'grab',
+                          pointerEvents: 'auto',
+                          maxWidth: `${Math.min(videoDimensions.width * 0.9, videoDimensions.width - 32)}px`,
+                        }}
+                        onMouseDown={handleSubtitleMouseDown}
+                      >
+                        <div
+                          className="px-4 py-2 rounded-sm font-bold text-center"
+                          style={{
+                            fontFamily: `${style.fontFamily}, sans-serif`,
+                            fontSize: `${Math.max(style.fontSize * scaleFactor, 12)}px`,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {wordGroup.words.map((w, idx) => {
+                            const isActive = idx === wordGroup.activeIndex
+                            const wordText = style.uppercase ? w.word.toUpperCase() : w.word
+                            const outlineW = Math.max(style.outlineWidth * scaleFactor, 1)
+                            const oc = style.outlineColor
+                            const textShadow = style.outline && style.backgroundOpacity <= 0
+                              ? `${outlineW}px 0 0 ${oc}, -${outlineW}px 0 0 ${oc}, 0 ${outlineW}px 0 ${oc}, 0 -${outlineW}px 0 ${oc}, ${outlineW}px ${outlineW}px 0 ${oc}, -${outlineW}px -${outlineW}px 0 ${oc}, ${outlineW}px -${outlineW}px 0 ${oc}, -${outlineW}px ${outlineW}px 0 ${oc}`
+                              : "none"
+                            return (
+                              <span
+                                key={idx}
+                                style={{
+                                  color: isActive ? (style.highlightColor || '#FFD700') : style.color,
+                                  textShadow,
+                                  marginRight: idx < wordGroup.words.length - 1 ? '0.3em' : undefined,
+                                }}
+                              >
+                                {wordText}
+                              </span>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  // Word-group mode selected but no word data available
+                  if (isWordGroupMode && !hasWordData) {
+                    return (
+                      <div
+                        className="absolute"
+                        style={{
+                          left: `${leftPx}px`,
+                          top: `${topPx}px`,
+                          transform: 'translate(-50%, -50%)',
+                          pointerEvents: 'auto',
+                        }}
+                      >
+                        <div className="bg-yellow-900/80 text-yellow-200 px-4 py-2 rounded text-sm text-center max-w-[300px]">
+                          Word-level data not available. Re-transcribe the video to enable word-by-word display.
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  // Default sentence mode
+                  const displayText = style.uppercase ? displayedSubtitle.text.toUpperCase() : displayedSubtitle.text
+
                   return (
                     <div
                       className="absolute"
@@ -1543,7 +1702,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                           })()
                         }}
                       >
-                        {displayedSubtitle.text}
+                        {displayText}
                       </div>
                     </div>
                   )
