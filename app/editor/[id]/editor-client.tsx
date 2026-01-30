@@ -215,6 +215,25 @@ const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
       uppercase: true,
     },
   },
+  {
+    name: "Hormozi Fire",
+    style: {
+      fontFamily: "Poppins",
+      fontSize: 46,
+      color: "#FFFFFF",
+      backgroundColor: "#000000",
+      backgroundOpacity: 0,
+      position: { x: 50, y: 50 },
+      alignment: "center",
+      outline: true,
+      outlineColor: "#000000",
+      outlineWidth: 5,
+      highlightColor: "#FF4500",
+      displayMode: "word-group",
+      wordsPerGroup: 2,
+      uppercase: true,
+    },
+  },
 ]
 
 // Mapeamento de formatos para exibição e backend
