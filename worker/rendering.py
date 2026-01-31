@@ -100,6 +100,9 @@ def build_subtitle_style(style: dict, video_width: int) -> str:
     border_style = 3 if background_opacity > 0 else 1
 
     if border_style == 3:
+        # In BorderStyle=3, Outline controls box padding — need minimum for visible box
+        outline_width = max(outline_width, 5)
+
         # BorderStyle=3: OutlineColour becomes the box color, Outline controls box padding
         # Text outline is not separately available in this mode
         force_style = (
