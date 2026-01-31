@@ -32,6 +32,8 @@ interface SubtitleStyle {
   outlineColor: string
   outlineWidth: number
   highlightColor?: string        // cor da palavra ativa (ex: "#FFD700")
+  highlightBg?: string           // cor de fundo só na palavra ativa (ex: "#E63946")
+  highlightBgOpacity?: number    // opacidade do fundo da palavra ativa (0-1)
   displayMode?: 'sentence' | 'word-group'  // default 'sentence'
   wordsPerGroup?: number         // palavras por grupo (default 3)
   uppercase?: boolean            // forçar maiúsculas
@@ -343,6 +345,27 @@ const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
       outlineColor: "#000000",
       outlineWidth: 0,
       highlightColor: "#FFFF00",
+      displayMode: "word-group",
+      wordsPerGroup: 3,
+      uppercase: true,
+    },
+  },
+  {
+    name: "Hormozi Flash",
+    style: {
+      fontFamily: "Montserrat",
+      fontSize: 48,
+      color: "#FFFFFF",
+      backgroundColor: "#000000",
+      backgroundOpacity: 0,
+      position: { x: 50, y: 50 },
+      alignment: "center",
+      outline: true,
+      outlineColor: "#000000",
+      outlineWidth: 5,
+      highlightColor: "#FFFFFF",
+      highlightBg: "#E63946",
+      highlightBgOpacity: 0.95,
       displayMode: "word-group",
       wordsPerGroup: 3,
       uppercase: true,
@@ -1519,12 +1542,17 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                                 fontSize: "16px",
                                 fontWeight: 700,
                                 textShadow,
-                                backgroundColor: previewBg,
-                                padding: template.style.backgroundOpacity > 0 ? "2px 6px" : undefined,
+                                backgroundColor: !template.style.highlightBg ? previewBg : undefined,
+                                padding: !template.style.highlightBg && template.style.backgroundOpacity > 0 ? "2px 6px" : undefined,
                                 borderRadius: "2px",
                               }}>
-                                <span style={{ color: template.style.color }}>DO </span>
-                                <span style={{ color: template.style.highlightColor || '#FFD700' }}>IT</span>
+                                <span style={{ color: template.style.color, marginRight: '4px' }}>DO </span>
+                                <span style={{
+                                  color: template.style.highlightBg ? (template.style.highlightColor || '#FFFFFF') : (template.style.highlightColor || '#FFD700'),
+                                  backgroundColor: template.style.highlightBg || undefined,
+                                  padding: template.style.highlightBg ? '1px 4px' : undefined,
+                                  borderRadius: template.style.highlightBg ? '3px' : undefined,
+                                }}>IT</span>
                               </span>
                             ) : (
                               <span
@@ -1769,13 +1797,26 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                             const textShadow = style.outline && style.backgroundOpacity <= 0
                               ? `${outlineW}px 0 0 ${oc}, -${outlineW}px 0 0 ${oc}, 0 ${outlineW}px 0 ${oc}, 0 -${outlineW}px 0 ${oc}, ${outlineW}px ${outlineW}px 0 ${oc}, -${outlineW}px -${outlineW}px 0 ${oc}, ${outlineW}px -${outlineW}px 0 ${oc}, -${outlineW}px ${outlineW}px 0 ${oc}`
                               : "none"
+                            // Per-word highlight background
+                            const wordBg = isActive && style.highlightBg
+                              ? (() => {
+                                  const hex = style.highlightBg!.replace('#', '')
+                                  const r = parseInt(hex.substring(0, 2), 16)
+                                  const g = parseInt(hex.substring(2, 4), 16)
+                                  const b = parseInt(hex.substring(4, 6), 16)
+                                  return `rgba(${r}, ${g}, ${b}, ${style.highlightBgOpacity ?? 0.95})`
+                                })()
+                              : undefined
                             return (
                               <span
                                 key={idx}
                                 style={{
-                                  color: isActive ? (style.highlightColor || '#FFD700') : style.color,
-                                  textShadow,
+                                  color: isActive && style.highlightBg ? (style.highlightColor || '#FFFFFF') : isActive ? (style.highlightColor || '#FFD700') : style.color,
+                                  textShadow: isActive && style.highlightBg ? 'none' : textShadow,
                                   marginRight: idx < wordGroup.words.length - 1 ? '0.3em' : undefined,
+                                  backgroundColor: wordBg,
+                                  padding: wordBg ? '2px 6px' : undefined,
+                                  borderRadius: wordBg ? '4px' : undefined,
                                 }}
                               >
                                 {wordText}

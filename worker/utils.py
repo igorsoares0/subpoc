@@ -168,8 +168,19 @@ def generate_ass_file(
     has_outline = s.get('outline', False)
     outline_width = s.get('outlineWidth', 2) if has_outline else 0
 
+    # Per-word highlight background detection
+    highlight_bg_hex = s.get('highlightBg')
+    highlight_bg_opacity = s.get('highlightBgOpacity', 0.95)
+
     # BorderStyle: 3 = opaque box (background visible), 1 = outline only
-    if bg_opacity > 0:
+    if highlight_bg_hex:
+        # Per-word bg mode: BorderStyle=3 with the highlight color as OutlineColour
+        # We use \3a (alpha) inline to toggle box visibility per word
+        border_style = 3
+        outline_colour = _hex_to_ass_color(highlight_bg_hex, highlight_bg_opacity)
+        back_colour = _hex_to_ass_color(highlight_bg_hex, highlight_bg_opacity)
+        outline_width = 5  # Box padding
+    elif bg_opacity > 0:
         border_style = 3
         outline_colour = bg_color  # In BorderStyle=3, OutlineColour = box color
         back_colour = bg_color
@@ -216,6 +227,9 @@ def generate_ass_file(
         base_color_hex = (style or {}).get('color', '#FFFFFF')
         base_ass = _hex_to_ass_color(base_color_hex)
 
+        # Per-word background highlight mode
+        has_highlight_bg = bool((style or {}).get('highlightBg'))
+
         # Group words into chunks
         for i in range(0, len(all_words), words_per_group):
             group = all_words[i:i + words_per_group]
@@ -236,12 +250,28 @@ def generate_ass_file(
                 for k, gw in enumerate(group):
                     word_text = gw['word'].upper() if uppercase else gw['word']
                     if k == j:
-                        parts.append(f"{{\\c{highlight_ass}}}{word_text}{{\\c{base_ass}}}")
+                        if has_highlight_bg:
+                            # Per-word box: \3a&H00& = show box (opaque), change text color
+                            parts.append(
+                                f"{{\\3a&H00&\\c{highlight_ass}}}"
+                                f"{word_text}"
+                                f"{{\\3a&HFF&\\c{base_ass}}}"
+                            )
+                        else:
+                            parts.append(f"{{\\c{highlight_ass}}}{word_text}{{\\c{base_ass}}}")
                     else:
-                        parts.append(word_text)
+                        if has_highlight_bg:
+                            # Non-active: \3a&HFF& = hide box (transparent)
+                            parts.append(f"{{\\3a&HFF&}}{word_text}")
+                        else:
+                            parts.append(word_text)
 
                 line_text = " ".join(parts)
-                text = f"{{\\pos({x_pixels},{y_pixels})}}{line_text}"
+                # For highlight bg mode, start with box hidden
+                pos_tag = f"{{\\pos({x_pixels},{y_pixels})}}"
+                if has_highlight_bg:
+                    pos_tag = f"{{\\pos({x_pixels},{y_pixels})\\3a&HFF&}}"
+                text = f"{pos_tag}{line_text}"
                 dialogue = f"Dialogue: 0,{start_time},{end_time},Default,,0,0,0,,{text}"
                 ass_content.append(dialogue)
 
