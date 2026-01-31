@@ -212,9 +212,6 @@ async def process_rendering(
                 "pad=1440:1080:(ow-iw)/2:(oh-ih)/2:black"
             )
 
-        # Aplicar legendas com estilo (com margens baseadas na largura do vídeo)
-        subtitle_style = build_subtitle_style(style, video_width)
-
         # Escape do caminho do ASS para FFmpeg
         # No Windows, precisamos escapar as barras invertidas
         # No Linux, precisamos escapar os dois pontos
@@ -226,9 +223,14 @@ async def process_rendering(
             # Linux: escapar dois pontos
             ass_escaped = ass_path.replace(':', '\\:')
 
-        # ASS format com posicionamento personalizado via tags {\pos(x,y)}
-        # Nota: usar 'subtitles' ao invés de 'ass' pois suporta force_style
-        subtitle_filter = f"subtitles={ass_escaped}:force_style='{subtitle_style}'"
+        # Word-group mode: style is fully baked into the ASS file (inline \c tags, etc.)
+        # Sentence mode: use force_style to override ASS defaults
+        display_mode = style.get('displayMode', 'sentence') if style else 'sentence'
+        if display_mode == 'word-group':
+            subtitle_filter = f"subtitles={ass_escaped}"
+        else:
+            subtitle_style = build_subtitle_style(style, video_width)
+            subtitle_filter = f"subtitles={ass_escaped}:force_style='{subtitle_style}'"
         filters.append(subtitle_filter)
 
         # Combinar filtros base (sem logo ainda)

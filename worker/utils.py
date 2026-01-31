@@ -157,6 +157,34 @@ def generate_ass_file(
     uppercase = (style or {}).get('uppercase', False)
     highlight_color = (style or {}).get('highlightColor', '#FFD700')
 
+    # Build ASS style line from style dict
+    s = style or {}
+    font_name = s.get('fontFamily', 'Arial')
+    font_size = s.get('fontSize', 20)
+    primary_colour = _hex_to_ass_color(s.get('color', '#FFFFFF'))
+    secondary_colour = _hex_to_ass_color(highlight_color)
+    bg_opacity = s.get('backgroundOpacity', 0)
+    bg_color = _hex_to_ass_color(s.get('backgroundColor', '#000000'), bg_opacity)
+    has_outline = s.get('outline', False)
+    outline_width = s.get('outlineWidth', 2) if has_outline else 0
+
+    # BorderStyle: 3 = opaque box (background visible), 1 = outline only
+    if bg_opacity > 0:
+        border_style = 3
+        outline_colour = bg_color  # In BorderStyle=3, OutlineColour = box color
+        back_colour = bg_color
+        # In BorderStyle=3, Outline controls box padding — need minimum for visible box
+        outline_width = max(outline_width, 5)
+    else:
+        border_style = 1
+        outline_colour = _hex_to_ass_color(s.get('outlineColor', '#000000'))
+        back_colour = "&H00000000"
+
+    style_line = (
+        f"Style: Default,{font_name},{font_size},{primary_colour},{secondary_colour},"
+        f"{outline_colour},{back_colour},-1,0,0,0,100,100,0,0,{border_style},{outline_width},0,2,10,10,10,1"
+    )
+
     # Cabeçalho ASS
     ass_content = [
         "[Script Info]",
@@ -167,7 +195,7 @@ def generate_ass_file(
         "",
         "[V4+ Styles]",
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-        "Style: Default,Arial,20,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1",
+        style_line,
         "",
         "[Events]",
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"

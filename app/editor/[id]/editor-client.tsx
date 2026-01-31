@@ -310,6 +310,44 @@ const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
       uppercase: true,
     },
   },
+  {
+    name: "Hormozi Box",
+    style: {
+      fontFamily: "Montserrat",
+      fontSize: 42,
+      color: "#FFFFFF",
+      backgroundColor: "#1A1A2E",
+      backgroundOpacity: 0.85,
+      position: { x: 50, y: 50 },
+      alignment: "center",
+      outline: false,
+      outlineColor: "#000000",
+      outlineWidth: 0,
+      highlightColor: "#FFD700",
+      displayMode: "word-group",
+      wordsPerGroup: 3,
+      uppercase: true,
+    },
+  },
+  {
+    name: "Hormozi Candy",
+    style: {
+      fontFamily: "Poppins",
+      fontSize: 44,
+      color: "#FFFFFF",
+      backgroundColor: "#FF1493",
+      backgroundOpacity: 0.9,
+      position: { x: 50, y: 50 },
+      alignment: "center",
+      outline: false,
+      outlineColor: "#000000",
+      outlineWidth: 0,
+      highlightColor: "#FFFF00",
+      displayMode: "word-group",
+      wordsPerGroup: 3,
+      uppercase: true,
+    },
+  },
 ]
 
 // Mapeamento de formatos para exibição e backend
@@ -1481,6 +1519,9 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                                 fontSize: "16px",
                                 fontWeight: 700,
                                 textShadow,
+                                backgroundColor: previewBg,
+                                padding: template.style.backgroundOpacity > 0 ? "2px 6px" : undefined,
+                                borderRadius: "2px",
                               }}>
                                 <span style={{ color: template.style.color }}>DO </span>
                                 <span style={{ color: template.style.highlightColor || '#FFD700' }}>IT</span>
@@ -1710,6 +1751,14 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                             fontFamily: `${style.fontFamily}, sans-serif`,
                             fontSize: `${Math.max(style.fontSize * scaleFactor, 12)}px`,
                             fontWeight: 700,
+                            backgroundColor: (() => {
+                              if (style.backgroundOpacity <= 0) return "transparent"
+                              const hex = style.backgroundColor.replace('#', '')
+                              const r = parseInt(hex.substring(0, 2), 16)
+                              const g = parseInt(hex.substring(2, 4), 16)
+                              const b = parseInt(hex.substring(4, 6), 16)
+                              return `rgba(${r}, ${g}, ${b}, ${style.backgroundOpacity})`
+                            })(),
                           }}
                         >
                           {wordGroup.words.map((w, idx) => {
