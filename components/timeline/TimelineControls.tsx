@@ -34,10 +34,10 @@ export function TimelineControls({
   onClearTrim
 }: TimelineControlsProps) {
   return (
-    <div className="flex items-center gap-3 mb-1.5 justify-center">
+    <div className="flex items-center gap-2 mb-1.5 justify-center">
       <button
         onClick={onPlayPause}
-        className="p-2 hover:bg-zinc-800 rounded transition-colors"
+        className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors"
         aria-label={isPlaying ? 'Pause' : 'Play'}
       >
         {isPlaying ? (
@@ -51,12 +51,14 @@ export function TimelineControls({
         )}
       </button>
 
+      <div className="w-px h-4 bg-white/[0.08]" />
+
       {/* Trim controls */}
-      <div className="flex items-center gap-1 ml-1 pl-1 border-l border-zinc-700">
+      <div className="flex items-center gap-0.5">
         <button
           onClick={onSetTrimStart}
-          className="p-1.5 hover:bg-zinc-800 rounded transition-colors"
-          title="Set In Point (trim start at playhead)"
+          className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors text-zinc-400 hover:text-white"
+          title="Set In Point (I)"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
@@ -65,8 +67,8 @@ export function TimelineControls({
 
         <button
           onClick={onSetTrimEnd}
-          className="p-1.5 hover:bg-zinc-800 rounded transition-colors"
-          title="Set Out Point (trim end at playhead)"
+          className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors text-zinc-400 hover:text-white"
+          title="Set Out Point (O)"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
@@ -76,7 +78,7 @@ export function TimelineControls({
         {trim && (
           <button
             onClick={onClearTrim}
-            className="p-1.5 hover:bg-red-800 rounded transition-colors text-red-400"
+            className="p-1.5 hover:bg-red-500/10 rounded-md transition-colors text-red-400"
             title="Clear trim"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -86,14 +88,20 @@ export function TimelineControls({
         )}
       </div>
 
-      <div className="text-xs text-gray-400 font-mono">
-        {formatTime(currentTime)} | {formatTime(duration)}
-        {trim && <span className="text-purple-400 ml-1">(trimmed)</span>}
+      <div className="w-px h-4 bg-white/[0.08]" />
+
+      <div className="text-[11px] text-zinc-500 font-mono tabular-nums min-w-[100px] text-center">
+        <span className="text-zinc-300">{formatTime(currentTime)}</span>
+        <span className="mx-1">/</span>
+        <span>{formatTime(duration)}</span>
+        {trim && <span className="text-blue-400 ml-1.5 text-[10px]">trimmed</span>}
       </div>
+
+      <div className="w-px h-4 bg-white/[0.08]" />
 
       <button
         onClick={onToggleMute}
-        className="p-2 hover:bg-zinc-800 rounded transition-colors"
+        className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors text-zinc-400 hover:text-white"
         aria-label={isMuted ? 'Unmute' : 'Mute'}
       >
         {isMuted ? (

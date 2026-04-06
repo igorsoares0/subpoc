@@ -47,7 +47,7 @@ export default function DashboardClient({ user, initialVideos }: DashboardClient
       uploading: "bg-blue-500/10 text-blue-500 border-blue-500/50",
       transcribing: "bg-yellow-500/10 text-yellow-500 border-yellow-500/50",
       ready: "bg-green-500/10 text-green-500 border-green-500/50",
-      rendering: "bg-purple-500/10 text-purple-500 border-purple-500/50",
+      rendering: "bg-blue-500/10 text-blue-500 border-blue-500/50",
       completed: "bg-green-500/10 text-green-500 border-green-500/50",
       failed: "bg-red-500/10 text-red-500 border-red-500/50",
     }
@@ -72,7 +72,7 @@ export default function DashboardClient({ user, initialVideos }: DashboardClient
         <nav className="flex-1">
           <Link
             href="/dashboard"
-            className="flex items-center px-4 py-3 mb-2 rounded-[8px] bg-purple-600/20 text-purple-400 font-medium"
+            className="flex items-center px-4 py-3 mb-2 rounded-[8px] bg-blue-600/20 text-blue-400 font-medium"
           >
             Dashboard
           </Link>
@@ -91,7 +91,7 @@ export default function DashboardClient({ user, initialVideos }: DashboardClient
         </nav>
 
         <div>
-          <button className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-3 rounded-[8px] font-medium hover:opacity-90 transition-opacity">
+          <button className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-[8px] font-medium hover:opacity-90 transition-opacity">
             Upgrade Plan
           </button>
           <button
@@ -149,7 +149,7 @@ export default function DashboardClient({ user, initialVideos }: DashboardClient
                 <Link
                   key={video.id}
                   href={`/editor/${video.id}`}
-                  className="group bg-[#1b1a1d] rounded-[10px] overflow-hidden border border-zinc-800/50 hover:border-purple-500 transition-all"
+                  className="group bg-[#1b1a1d] rounded-[10px] overflow-hidden border border-zinc-800/50 hover:border-blue-500 transition-all"
                 >
                   <div className="aspect-video bg-zinc-800 relative overflow-hidden">
                     {video.thumbnailUrl ? (
@@ -170,7 +170,7 @@ export default function DashboardClient({ user, initialVideos }: DashboardClient
                     </div>
                   </div>
                   <div className="p-4">
-                    <h3 className="font-medium text-white mb-1 truncate group-hover:text-purple-400 transition-colors">
+                    <h3 className="font-medium text-white mb-1 truncate group-hover:text-blue-400 transition-colors">
                       {video.title}
                     </h3>
                     <p className="text-sm text-gray-400">

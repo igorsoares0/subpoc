@@ -5,6 +5,32 @@ import { createPortal } from "react-dom"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { VideoTimeline } from "@/components/timeline/VideoTimeline"
+import {
+  ArrowLeft,
+  Play,
+  Pause,
+  Monitor,
+  Image,
+  Undo2,
+  Redo2,
+  Download,
+  FileText,
+  Film,
+  Type,
+  Palette,
+  Mic,
+  Check,
+  X,
+  Upload,
+  Trash2,
+  ChevronDown,
+  Save,
+  Loader2,
+  Pencil,
+  Move,
+  RotateCcw,
+  AlignCenter,
+} from "lucide-react"
 
 interface SubtitleWord {
   word: string
@@ -1212,46 +1238,46 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col p-6 gap-4">
+    <div className="min-h-screen bg-[#0c0c0e] text-white flex flex-col p-4 gap-3">
       {/* Header */}
-      <header className="bg-[#1b1a1d] rounded-[10px] px-4 h-[60px] flex items-center justify-between w-full">
-        {/* Left - Logo */}
-        <h1 className="text-[15px] font-bold bg-gradient-to-r from-[#9740fe] to-[#b679fe] bg-clip-text text-transparent">
-          SUPERTITLE
-        </h1>
+      <header className="bg-[#16161a] rounded-xl px-4 h-[56px] flex items-center justify-between w-full border border-white/[0.04]">
+        {/* Left - Back + Logo */}
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard" className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors text-zinc-400 hover:text-white">
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
+          <div className="w-px h-5 bg-white/[0.08]" />
+          <h1 className="text-[14px] font-bold tracking-wide bg-gradient-to-r from-[#2563eb] to-[#60a5fa] bg-clip-text text-transparent">
+            SUPERTITLE
+          </h1>
+        </div>
 
-        {/* Center - Icons */}
-        <div className="flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
-          <button className="p-1.5 rounded-md bg-purple-600 hover:bg-purple-700 transition-colors">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <rect x="2" y="3" width="20" height="14" rx="2" />
-              <path fill="white" d="M8 10l5 3-5 3V10z"/>
-            </svg>
-          </button>
+        {/* Center - Tools */}
+        <div className="flex items-center gap-1 absolute left-1/2 transform -translate-x-1/2 bg-white/[0.04] rounded-lg p-1">
           <div className="relative format-dropdown-container">
             <button
               ref={formatButtonRef}
               onClick={() => setShowFormatDropdown(!showFormatDropdown)}
-              className={`p-1.5 rounded-md transition-colors ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 video.format
-                  ? 'bg-purple-600/50 hover:bg-purple-500/50'
-                  : 'bg-zinc-700/50 hover:bg-zinc-600/50'
+                  ? 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
+                  : 'text-zinc-400 hover:bg-white/[0.06] hover:text-white'
               }`}
               title={`Format: ${getFormatLabel(video.format)}`}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2"/>
-              </svg>
+              <Monitor className="w-3.5 h-3.5" />
+              <span>{getFormatLabel(video.format)}</span>
+              <ChevronDown className="w-3 h-3 opacity-50" />
             </button>
 
-            {/* Dropdown Menu */}
+            {/* Format Dropdown */}
             {showFormatDropdown && (() => {
               const buttonRect = formatButtonRef.current?.getBoundingClientRect()
               if (!buttonRect || typeof window === 'undefined') return null
 
               return createPortal(
                 <div
-                  className="format-dropdown-menu fixed bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl z-[9999] min-w-[140px] overflow-hidden"
+                  className="format-dropdown-menu fixed bg-[#1e1e24] border border-white/[0.08] rounded-xl shadow-2xl z-[9999] min-w-[160px] overflow-hidden py-1"
                   style={{
                     top: `${buttonRect.bottom + 8}px`,
                     left: `${buttonRect.left}px`,
@@ -1261,17 +1287,15 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     <button
                       key={format.label}
                       onClick={() => updateFormat(format.value)}
-                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors flex items-center justify-between ${
+                      className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center justify-between ${
                         video.format === format.value
-                          ? 'bg-purple-600/30 text-white'
-                          : 'text-gray-300 hover:bg-zinc-700'
+                          ? 'bg-blue-600/15 text-blue-400'
+                          : 'text-zinc-300 hover:bg-white/[0.06]'
                       }`}
                     >
                       <span>{format.label}</span>
                       {video.format === format.value && (
-                        <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/>
-                        </svg>
+                        <Check className="w-3.5 h-3.5 text-blue-400" />
                       )}
                     </button>
                   ))}
@@ -1280,187 +1304,214 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
               )
             })()}
           </div>
+
+          <div className="w-px h-4 bg-white/[0.08]" />
+
           <button
             onClick={() => setShowLogoModal(true)}
-            className={`p-1.5 rounded-md transition-colors ${video.logoOverlay ? 'bg-purple-600 hover:bg-purple-700' : 'bg-zinc-700/50 hover:bg-zinc-600/50'}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              video.logoOverlay
+                ? 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
+                : 'text-zinc-400 hover:bg-white/[0.06] hover:text-white'
+            }`}
             title="Add Logo/Watermark"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <rect x="3" y="3" width="18" height="18" rx="2" strokeWidth="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
-              <path d="M21 15l-5-5L5 21" strokeWidth="2"/>
-            </svg>
+            <Image className="w-3.5 h-3.5" />
+            <span>Logo</span>
+          </button>
+
+          <div className="w-px h-4 bg-white/[0.08]" />
+
+          <button className="p-1.5 rounded-md text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300 transition-colors" title="Undo (Ctrl+Z)">
+            <Undo2 className="w-3.5 h-3.5" />
+          </button>
+          <button className="p-1.5 rounded-md text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300 transition-colors" title="Redo (Ctrl+Shift+Z)">
+            <Redo2 className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* Center Right - Undo/Redo */}
-        <div className="flex items-center gap-2 absolute right-[150px]">
-          <button className="p-1.5 hover:bg-zinc-800/50 rounded transition-colors" title="Undo">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-            </svg>
-          </button>
-          <button className="p-1.5 hover:bg-zinc-800/50 rounded transition-colors" title="Redo">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Right - Export */}
+        {/* Right - Status + Export */}
         <div className="flex items-center gap-3 relative export-menu-container">
-          {isSaving && <span className="text-xs text-purple-400">Saving...</span>}
-          {isTranscribing && <span className="text-xs text-yellow-400">Transcribing...</span>}
-          {isRendering && <span className="text-xs text-green-400">Rendering...</span>}
+          {isSaving && (
+            <span className="flex items-center gap-1.5 text-xs text-blue-400">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Saving
+            </span>
+          )}
+          {isTranscribing && (
+            <span className="flex items-center gap-1.5 text-xs text-amber-400">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Transcribing
+            </span>
+          )}
+          {isRendering && (
+            <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Rendering
+            </span>
+          )}
 
           <button
             onClick={() => setShowExportMenu(!showExportMenu)}
             disabled={!video?.subtitles || (video?.subtitles as any[]).length === 0}
-            className="bg-[#9740fe] text-white px-5 py-1.5 rounded-[8px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed h-[32px] text-[14px]"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed h-[32px] text-[13px]"
           >
+            <Download className="w-3.5 h-3.5" />
             Export
           </button>
 
             {/* Export Dropdown Menu */}
             {showExportMenu && (
-              <div className="absolute top-full right-0 mt-2 w-56 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl z-50 overflow-hidden">
-                <div className="py-1">
+              <div className="absolute top-full right-0 mt-2 w-60 bg-[#1e1e24] border border-white/[0.08] rounded-xl shadow-2xl z-50 overflow-hidden py-1">
                   <button
                     onClick={exportSRT}
-                    className="w-full text-left px-4 py-3 hover:bg-zinc-700 transition-colors flex items-center gap-3"
+                    className="w-full text-left px-4 py-3 hover:bg-white/[0.06] transition-colors flex items-center gap-3"
                   >
-                    <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
+                    <FileText className="w-4 h-4 text-blue-400 flex-shrink-0" />
                     <div>
-                      <div className="font-medium">Export SRT</div>
-                      <div className="text-xs text-gray-400">Universal subtitle format</div>
+                      <div className="text-sm font-medium">Export SRT</div>
+                      <div className="text-[11px] text-zinc-500">Universal subtitle format</div>
                     </div>
                   </button>
 
                   <button
                     onClick={exportVTT}
-                    className="w-full text-left px-4 py-3 hover:bg-zinc-700 transition-colors flex items-center gap-3"
+                    className="w-full text-left px-4 py-3 hover:bg-white/[0.06] transition-colors flex items-center gap-3"
                   >
-                    <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
+                    <FileText className="w-4 h-4 text-blue-400 flex-shrink-0" />
                     <div>
-                      <div className="font-medium">Export VTT</div>
-                      <div className="text-xs text-gray-400">Web video text tracks</div>
+                      <div className="text-sm font-medium">Export VTT</div>
+                      <div className="text-[11px] text-zinc-500">Web video text tracks</div>
                     </div>
                   </button>
 
-                  <div className="border-t border-zinc-700 my-1"></div>
+                  <div className="border-t border-white/[0.06] my-1"></div>
 
                   {video?.outputUrl ? (
                     <button
                       onClick={downloadRenderedVideo}
-                      className="w-full text-left px-4 py-3 hover:bg-zinc-700 transition-colors flex items-center gap-3"
+                      className="w-full text-left px-4 py-3 hover:bg-white/[0.06] transition-colors flex items-center gap-3"
                     >
-                      <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
+                      <Download className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                       <div>
-                        <div className="font-medium text-green-400">Download Video</div>
-                        <div className="text-xs text-gray-400">Rendered with subtitles</div>
+                        <div className="text-sm font-medium text-emerald-400">Download Video</div>
+                        <div className="text-[11px] text-zinc-500">Rendered with subtitles</div>
                       </div>
                     </button>
                   ) : (
                     <button
                       onClick={renderVideo}
                       disabled={isRendering}
-                      className="w-full text-left px-4 py-3 hover:bg-zinc-700 transition-colors flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full text-left px-4 py-3 hover:bg-white/[0.06] transition-colors flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
+                      <Film className="w-4 h-4 text-blue-400 flex-shrink-0" />
                       <div>
-                        <div className="font-medium">Render Video</div>
-                        <div className="text-xs text-gray-400">Burn subtitles into video</div>
+                        <div className="text-sm font-medium">Render Video</div>
+                        <div className="text-[11px] text-zinc-500">Burn subtitles into video</div>
                       </div>
                     </button>
                   )}
-                </div>
               </div>
             )}
         </div>
       </header>
 
       {/* Main Editor */}
-      <div className="flex gap-4" style={{ height: 'calc(100vh - 60px - 72px)' }}>
+      <div className="flex gap-3" style={{ height: 'calc(100vh - 56px - 48px)' }}>
         {/* Left Sidebar - Subtitle Editor */}
-        <aside className="w-[350px] bg-[#1b1a1d] rounded-[10px] flex flex-col flex-shrink-0 self-stretch">
-          <div className="px-6 pt-6 pb-4">
-            <h2 className="text-[17px] font-semibold mb-6 text-white text-center">Subtitle Editor</h2>
-
+        <aside className="w-[340px] bg-[#16161a] rounded-xl flex flex-col flex-shrink-0 self-stretch border border-white/[0.04]">
+          <div className="px-4 pt-4 pb-3">
             {/* Tabs */}
-            <div className="flex gap-6 border-b border-zinc-800/50 -mx-6 px-6 justify-center">
+            <div className="flex gap-1 bg-white/[0.04] rounded-lg p-1">
               <button
                 onClick={() => setActiveTab("subtitles")}
-                className={`pb-3 font-medium text-[15px] transition-colors relative ${
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[13px] font-medium transition-all ${
                   activeTab === "subtitles"
-                    ? "text-white"
-                    : "text-gray-400 hover:text-gray-300"
+                    ? "bg-white/[0.1] text-white shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
+                <Type className="w-3.5 h-3.5" />
                 Subtitles
-                {activeTab === "subtitles" && (
-                  <div className="absolute bottom-0 left-0 w-full h-[2px] bg-white"></div>
-                )}
               </button>
               <button
                 onClick={() => setActiveTab("styles")}
-                className={`pb-3 font-medium text-[15px] transition-colors relative ${
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[13px] font-medium transition-all ${
                   activeTab === "styles"
-                    ? "text-white"
-                    : "text-gray-400 hover:text-gray-300"
+                    ? "bg-white/[0.1] text-white shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
+                <Palette className="w-3.5 h-3.5" />
                 Styles
-                {activeTab === "styles" && (
-                  <div className="absolute bottom-0 left-0 w-full h-[2px] bg-white"></div>
-                )}
               </button>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar">
             {activeTab === "subtitles" ? (
-              <div className="space-y-3">
+              <div className="space-y-1.5">
                 {!video?.subtitles || video?.subtitles.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-[14px] text-gray-400 mb-6">
-                      No subtitles yet.
+                  <div className="text-center py-16 px-4">
+                    <div className="w-12 h-12 rounded-full bg-white/[0.04] flex items-center justify-center mx-auto mb-4">
+                      <Mic className="w-5 h-5 text-zinc-500" />
+                    </div>
+                    <p className="text-[13px] text-zinc-500 mb-1">
+                      No subtitles yet
+                    </p>
+                    <p className="text-[11px] text-zinc-600 mb-6">
+                      Transcribe your video to generate subtitles automatically
                     </p>
                     <button
                       onClick={transcribeVideo}
                       disabled={isTranscribing}
-                      className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:opacity-90 text-white px-4 py-2.5 rounded-lg text-[14px] font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-lg text-[13px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                      {isTranscribing ? "Transcribing..." : "🎤 Auto Transcribe"}
+                      {isTranscribing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Transcribing...
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="w-4 h-4" />
+                          Auto Transcribe
+                        </>
+                      )}
                     </button>
                   </div>
                 ) : (
                   video?.subtitles?.map((sub) => (
                     <div
                       key={sub.id}
-                      className={`p-3 cursor-pointer transition-all rounded-lg ${
+                      className={`group p-3 cursor-pointer transition-all rounded-lg border ${
                         highlightedSubtitleId === sub.id
-                          ? "bg-purple-600/30"
-                          : "hover:bg-zinc-800/50"
+                          ? "bg-blue-600/10 border-blue-500/20"
+                          : "border-transparent hover:bg-white/[0.03]"
                       }`}
                       onClick={() => seekToSubtitle(sub.start, sub.id)}
                     >
-                      <div className="flex items-center justify-between text-[11px] text-gray-400 mb-2 font-mono">
-                        <span>{formatTime(sub.start)} - {formatTime(sub.end)}</span>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] text-zinc-500 font-mono tracking-wide">
+                          {formatTime(sub.start)} - {formatTime(sub.end)}
+                        </span>
+                        <button
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/[0.06] transition-all"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setEditingSubtitle(sub.id)
+                          }}
+                          title="Edit subtitle"
+                        >
+                          <Pencil className="w-3 h-3 text-zinc-500" />
+                        </button>
                       </div>
                       {editingSubtitle === sub.id ? (
                         <textarea
                           value={sub.text}
                           onChange={(e) => updateSubtitleText(sub.id, e.target.value)}
-                          className={`w-full bg-transparent text-[14px] leading-relaxed resize-none border-none focus:outline-none p-0 ${
-                            highlightedSubtitleId === sub.id ? "text-white font-medium" : "text-gray-300"
+                          className={`w-full bg-transparent text-[13px] leading-relaxed resize-none border-none focus:outline-none p-0 ${
+                            highlightedSubtitleId === sub.id ? "text-white" : "text-zinc-300"
                           }`}
                           rows={2}
                           autoFocus
@@ -1474,8 +1525,8 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                         />
                       ) : (
                         <p
-                          className={`text-[14px] leading-relaxed cursor-text ${
-                            highlightedSubtitleId === sub.id ? "text-white font-medium" : "text-gray-300"
+                          className={`text-[13px] leading-relaxed cursor-text ${
+                            highlightedSubtitleId === sub.id ? "text-white" : "text-zinc-400"
                           }`}
                           onDoubleClick={(e) => {
                             e.stopPropagation()
@@ -1490,10 +1541,10 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                 )}
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-5">
                 {/* Templates */}
                 <div>
-                  <label className="block text-sm font-normal mb-3 text-gray-300">Templates</label>
+                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-3">Templates</label>
                   <div className="grid grid-cols-2 gap-2">
                     {SUBTITLE_TEMPLATES.map((template) => {
                       const isActive = style.color === template.style.color
@@ -1526,10 +1577,10 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                         <button
                           key={template.name}
                           onClick={() => updateStyle(template.style)}
-                          className={`flex flex-col items-center gap-1.5 rounded-lg p-2 transition-all ${
+                          className={`flex flex-col items-center gap-1.5 rounded-lg p-2 transition-all border ${
                             isActive
-                              ? "ring-2 ring-purple-500 bg-zinc-700/50"
-                              : "bg-zinc-800 hover:bg-zinc-700/50"
+                              ? "border-blue-500/50 bg-blue-600/10"
+                              : "border-white/[0.04] bg-white/[0.02] hover:bg-white/[0.06]"
                           }`}
                         >
                           <div
@@ -1580,7 +1631,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
                 {/* Subtitle Color */}
                 <div>
-                  <label className="block text-sm font-normal mb-3 text-gray-300">Subtitle Color</label>
+                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Subtitle Color</label>
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <input
@@ -1596,7 +1647,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
                 {/* Background Color */}
                 <div>
-                  <label className="block text-sm font-normal mb-3 text-gray-300">Subtitle Background</label>
+                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Subtitle Background</label>
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <input
@@ -1612,7 +1663,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
                 {/* Background Opacity */}
                 <div>
-                  <label className="block text-sm font-normal mb-3 text-gray-300">Background Opacity</label>
+                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Background Opacity</label>
                   <input
                     type="range"
                     min="0"
@@ -1620,20 +1671,20 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     step="0.1"
                     value={style.backgroundOpacity}
                     onChange={(e) => updateStyle({ backgroundOpacity: parseFloat(e.target.value) })}
-                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer slider-purple"
+                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer slider-blue"
                     style={{
-                      background: `linear-gradient(to right, rgb(147, 51, 234) 0%, rgb(147, 51, 234) ${style.backgroundOpacity * 100}%, rgb(39, 39, 42) ${style.backgroundOpacity * 100}%, rgb(39, 39, 42) 100%)`
+                      background: `linear-gradient(to right, rgb(37, 99, 235) 0%, rgb(37, 99, 235) ${style.backgroundOpacity * 100}%, rgb(39, 39, 42) ${style.backgroundOpacity * 100}%, rgb(39, 39, 42) 100%)`
                     }}
                   />
                 </div>
 
                 {/* Font Family */}
                 <div>
-                  <label className="block text-sm font-normal mb-3 text-gray-300">Font</label>
+                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Font</label>
                   <select
                     value={style.fontFamily}
                     onChange={(e) => updateStyle({ fontFamily: e.target.value })}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-colors hover:bg-white/[0.06]"
                   >
                     <option value="Montserrat">Montserrat</option>
                     <option value="Arial">Arial</option>
@@ -1646,38 +1697,41 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
                 {/* Font Size */}
                 <div>
-                  <label className="block text-sm font-normal mb-3 text-gray-300">Font Size</label>
+                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Font Size</label>
                   <input
                     type="range"
                     min="12"
                     max="72"
                     value={style.fontSize}
                     onChange={(e) => updateStyle({ fontSize: parseInt(e.target.value) })}
-                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer slider-purple"
+                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer slider-blue"
                     style={{
-                      background: `linear-gradient(to right, rgb(147, 51, 234) 0%, rgb(147, 51, 234) ${((style.fontSize - 12) / (72 - 12)) * 100}%, rgb(39, 39, 42) ${((style.fontSize - 12) / (72 - 12)) * 100}%, rgb(39, 39, 42) 100%)`
+                      background: `linear-gradient(to right, rgb(37, 99, 235) 0%, rgb(37, 99, 235) ${((style.fontSize - 12) / (72 - 12)) * 100}%, rgb(39, 39, 42) ${((style.fontSize - 12) / (72 - 12)) * 100}%, rgb(39, 39, 42) 100%)`
                     }}
                   />
                 </div>
 
                 {/* Position Reset */}
                 <div>
-                  <label className="block text-sm font-normal mb-3 text-gray-300">Position</label>
+                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Position</label>
                   <div className="flex gap-2">
                     <button
                       onClick={() => updateSubtitlePosition({ x: 50, y: 90 })}
-                      className="flex-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-md px-3 py-2 text-sm transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg px-3 py-2 text-[12px] transition-colors"
                     >
-                      Reset to Bottom
+                      <RotateCcw className="w-3 h-3" />
+                      Bottom
                     </button>
                     <button
                       onClick={() => updateSubtitlePosition({ x: 50, y: 50 })}
-                      className="flex-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-md px-3 py-2 text-sm transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg px-3 py-2 text-[12px] transition-colors"
                     >
+                      <AlignCenter className="w-3 h-3" />
                       Center
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="flex items-center gap-1.5 text-[11px] text-zinc-600 mt-2">
+                    <Move className="w-3 h-3" />
                     Drag subtitle on video to reposition
                   </p>
                 </div>
@@ -1687,11 +1741,11 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
         </aside>
 
         {/* Center - Video Preview */}
-        <main className="flex-1 flex flex-col min-w-0 gap-4">
+        <main className="flex-1 flex flex-col min-w-0 gap-3">
           {/* Video Area */}
           <div className="flex-1 flex items-center justify-center min-h-0">
             <div className="w-full h-full">
-              <div className="w-full h-full bg-zinc-900 rounded-[10px] overflow-hidden relative flex items-center justify-center">
+              <div className="w-full h-full bg-[#0a0a0c] rounded-xl overflow-hidden relative flex items-center justify-center border border-white/[0.04]">
                 {/* Aspect Ratio Wrapper */}
                 <div
                   className="relative bg-black"
@@ -1994,23 +2048,28 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
       {/* Logo Upload Modal */}
       {showLogoModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowLogoModal(false)}>
-          <div className="bg-zinc-900 rounded-lg p-6 w-[500px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-xl font-bold mb-4">Add Logo/Watermark</h2>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowLogoModal(false)}>
+          <div className="bg-[#1a1a1f] border border-white/[0.08] rounded-2xl p-6 w-[460px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold">Logo / Watermark</h2>
+              <button onClick={() => setShowLogoModal(false)} className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors text-zinc-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
             {video.logoOverlay ? (
               /* Logo already exists - show settings */
               <div className="space-y-4">
-                <div className="bg-zinc-800 rounded-lg p-4">
-                  <img src={video.logoOverlay.logoUrl || ''} alt="Logo" className="max-h-32 mx-auto" />
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
+                  <img src={video.logoOverlay.logoUrl || ''} alt="Logo" className="max-h-28 mx-auto" />
                 </div>
 
                 <div>
-                  <label className="block text-sm mb-2">Position</label>
+                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Position</label>
                   <select
                     value={video.logoOverlay.position}
                     onChange={(e) => updateLogoSettings({ position: e.target.value as LogoOverlay['position'] })}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2"
+                    className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                   >
                     <option value="top-left">Top Left</option>
                     <option value="top-right">Top Right</option>
@@ -2020,39 +2079,52 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                 </div>
 
                 <div>
-                  <label className="block text-sm mb-2">Size: {video.logoOverlay.size}%</label>
+                  <label className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">
+                    <span>Size</span>
+                    <span className="text-zinc-400 normal-case tracking-normal">{video.logoOverlay.size}%</span>
+                  </label>
                   <input
                     type="range"
                     min="5"
                     max="20"
                     value={video.logoOverlay.size}
                     onChange={(e) => updateLogoSettings({ size: parseInt(e.target.value) })}
-                    className="w-full"
+                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, rgb(37, 99, 235) 0%, rgb(37, 99, 235) ${((video.logoOverlay.size - 5) / 15) * 100}%, rgb(39, 39, 42) ${((video.logoOverlay.size - 5) / 15) * 100}%, rgb(39, 39, 42) 100%)`
+                    }}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm mb-2">Opacity: {Math.round(video.logoOverlay.opacity * 100)}%</label>
+                  <label className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">
+                    <span>Opacity</span>
+                    <span className="text-zinc-400 normal-case tracking-normal">{Math.round(video.logoOverlay.opacity * 100)}%</span>
+                  </label>
                   <input
                     type="range"
                     min="0"
                     max="100"
                     value={video.logoOverlay.opacity * 100}
                     onChange={(e) => updateLogoSettings({ opacity: parseInt(e.target.value) / 100 })}
-                    className="w-full"
+                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, rgb(37, 99, 235) 0%, rgb(37, 99, 235) ${video.logoOverlay.opacity * 100}%, rgb(39, 39, 42) ${video.logoOverlay.opacity * 100}%, rgb(39, 39, 42) 100%)`
+                    }}
                   />
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex gap-3 pt-1">
                   <button
                     onClick={removeLogo}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded transition-colors"
+                    className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-lg transition-colors text-[13px] font-medium border border-red-500/20"
                   >
-                    Remove Logo
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Remove
                   </button>
                   <button
                     onClick={() => setShowLogoModal(false)}
-                    className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2 rounded transition-colors"
+                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-lg transition-colors text-[13px] font-medium"
                   >
                     Done
                   </button>
@@ -2061,19 +2133,19 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
             ) : (
               /* No logo - show upload form */
               <div className="space-y-4">
-                <div className="border-2 border-dashed border-zinc-700 rounded-lg p-8 text-center">
+                <div className="border-2 border-dashed border-white/[0.08] rounded-xl p-8 text-center hover:border-blue-500/30 transition-colors">
                   {logoPreview ? (
-                    <div className="space-y-4">
-                      <img src={logoPreview} alt="Logo preview" className="max-h-32 mx-auto" />
-                      <p className="text-sm text-gray-400">{logoFile?.name}</p>
+                    <div className="space-y-3">
+                      <img src={logoPreview} alt="Logo preview" className="max-h-28 mx-auto" />
+                      <p className="text-[12px] text-zinc-500">{logoFile?.name}</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <svg className="w-16 h-16 mx-auto text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <p className="text-sm text-gray-400">Click to upload or drag and drop</p>
-                      <p className="text-xs text-gray-500">PNG, JPG or SVG (max 5MB)</p>
+                      <div className="w-12 h-12 rounded-full bg-white/[0.04] flex items-center justify-center mx-auto">
+                        <Upload className="w-5 h-5 text-zinc-500" />
+                      </div>
+                      <p className="text-[13px] text-zinc-400">Click to upload or drag and drop</p>
+                      <p className="text-[11px] text-zinc-600">PNG, JPG or SVG (max 5MB)</p>
                     </div>
                   )}
                   <input
@@ -2083,7 +2155,8 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     className="hidden"
                     id="logo-upload"
                   />
-                  <label htmlFor="logo-upload" className="cursor-pointer mt-4 inline-block bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition-colors">
+                  <label htmlFor="logo-upload" className="cursor-pointer mt-4 inline-flex items-center gap-2 bg-white/[0.06] hover:bg-white/[0.1] text-white px-4 py-2 rounded-lg transition-colors text-[13px]">
+                    <Image className="w-3.5 h-3.5" />
                     Select Image
                   </label>
                 </div>
@@ -2095,16 +2168,26 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                       setLogoFile(null)
                       setLogoPreview(null)
                     }}
-                    className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2 rounded transition-colors"
+                    className="flex-1 bg-white/[0.06] hover:bg-white/[0.1] text-white py-2.5 rounded-lg transition-colors text-[13px] font-medium"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={uploadLogo}
                     disabled={!logoFile || isUploadingLogo}
-                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[13px] font-medium flex items-center justify-center gap-2"
                   >
-                    {isUploadingLogo ? 'Uploading...' : 'Upload & Add'}
+                    {isUploadingLogo ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3.5 h-3.5" />
+                        Upload & Add
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

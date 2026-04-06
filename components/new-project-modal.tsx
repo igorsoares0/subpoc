@@ -129,7 +129,7 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
           onDrop={handleDrop}
           className={`
             border-2 border-dashed rounded-[10px] p-12 text-center transition-colors
-            ${isDragging ? "border-purple-500 bg-purple-500/10" : "border-zinc-700 hover:border-zinc-600"}
+            ${isDragging ? "border-blue-500 bg-blue-500/10" : "border-zinc-700 hover:border-zinc-600"}
             ${isUploading ? "opacity-50 pointer-events-none" : "cursor-pointer"}
           `}
           onClick={() => !isUploading && fileInputRef.current?.click()}
@@ -150,7 +150,7 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
                 <p className="text-[16px] font-medium mb-2">Uploading...</p>
                 <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
                   <div
-                    className="bg-gradient-to-r from-purple-500 to-purple-600 h-full transition-all duration-300"
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 h-full transition-all duration-300"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>

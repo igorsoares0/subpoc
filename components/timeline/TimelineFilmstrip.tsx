@@ -170,7 +170,7 @@ export function TimelineFilmstrip({
       {/* Indicador sutil e discreto quando filmstrip HD ainda está processando */}
       {filmstripState.status === 'canvas-ready' && (
         <div className="absolute top-1 right-1 bg-zinc-800/70 backdrop-blur-sm text-zinc-400 text-[9px] font-medium px-1.5 py-0.5 rounded flex items-center gap-1">
-          <div className="w-1 h-1 bg-purple-400 rounded-full animate-pulse" />
+          <div className="w-1 h-1 bg-blue-400 rounded-full animate-pulse" />
           HD
         </div>
       )}
