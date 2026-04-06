@@ -5,8 +5,20 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signOut } from "next-auth/react"
 import NewProjectModal from "@/components/new-project-modal"
+import {
+  LayoutDashboard,
+  User,
+  Settings,
+  Sparkles,
+  LogOut,
+  Plus,
+  Film,
+  Clock,
+  Calendar,
+  Search,
+} from "lucide-react"
 
-interface User {
+interface UserType {
   id: string
   email: string
   name?: string | null
@@ -23,7 +35,7 @@ interface VideoProject {
 }
 
 interface DashboardClientProps {
-  user: User
+  user: UserType
   initialVideos: VideoProject[]
 }
 
@@ -31,6 +43,7 @@ export default function DashboardClient({ user, initialVideos }: DashboardClient
   const router = useRouter()
   const [showNewProjectModal, setShowNewProjectModal] = useState(false)
   const [videos, setVideos] = useState(initialVideos)
+  const [searchQuery, setSearchQuery] = useState("")
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: "/login" })
@@ -43,139 +56,189 @@ export default function DashboardClient({ user, initialVideos }: DashboardClient
   }
 
   const getStatusBadge = (status: string) => {
-    const styles = {
-      uploading: "bg-blue-500/10 text-blue-500 border-blue-500/50",
-      transcribing: "bg-yellow-500/10 text-yellow-500 border-yellow-500/50",
-      ready: "bg-green-500/10 text-green-500 border-green-500/50",
-      rendering: "bg-blue-500/10 text-blue-500 border-blue-500/50",
-      completed: "bg-green-500/10 text-green-500 border-green-500/50",
-      failed: "bg-red-500/10 text-red-500 border-red-500/50",
+    const styles: Record<string, string> = {
+      uploading: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+      transcribing: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+      ready: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+      rendering: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+      completed: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+      failed: "bg-red-500/10 text-red-400 border-red-500/20",
     }
 
     return (
-      <span className={`px-2 py-1 rounded text-xs border ${styles[status as keyof typeof styles] || styles.ready}`}>
+      <span className={`px-2 py-0.5 rounded-md text-[11px] font-medium border ${styles[status] || styles.ready}`}>
         {status}
       </span>
     )
   }
 
+  const filteredVideos = searchQuery
+    ? videos.filter(v => v.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    : videos
+
   return (
-    <div className="min-h-screen bg-black text-white flex p-6 gap-4">
+    <div className="min-h-screen bg-[#0c0c0e] text-white flex p-4 gap-3">
       {/* Sidebar */}
-      <aside className="w-64 bg-[#1b1a1d] rounded-[10px] flex flex-col p-6">
-        <div className="mb-8">
-          <h1 className="text-[20px] font-bold bg-gradient-to-r from-[#9740fe] to-[#b679fe] bg-clip-text text-transparent">
+      <aside className="w-[240px] bg-[#16161a] rounded-xl flex flex-col p-4 border border-white/[0.04]">
+        <div className="mb-8 px-2 pt-1">
+          <h1 className="text-[15px] font-bold tracking-wide bg-gradient-to-r from-[#2563eb] to-[#60a5fa] bg-clip-text text-transparent">
             SUPERTITLE
           </h1>
         </div>
 
-        <nav className="flex-1">
+        <nav className="flex-1 space-y-1">
           <Link
             href="/dashboard"
-            className="flex items-center px-4 py-3 mb-2 rounded-[8px] bg-blue-600/20 text-blue-400 font-medium"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-blue-600/10 text-blue-400 font-medium text-[13px]"
           >
+            <LayoutDashboard className="w-4 h-4" />
             Dashboard
           </Link>
           <Link
             href="/dashboard/profile"
-            className="flex items-center px-4 py-3 mb-2 rounded-[8px] text-gray-400 hover:bg-zinc-800/50 hover:text-white transition-colors"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300 transition-colors text-[13px]"
           >
+            <User className="w-4 h-4" />
             Profile
           </Link>
           <Link
             href="/dashboard/settings"
-            className="flex items-center px-4 py-3 mb-2 rounded-[8px] text-gray-400 hover:bg-zinc-800/50 hover:text-white transition-colors"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300 transition-colors text-[13px]"
           >
+            <Settings className="w-4 h-4" />
             Settings
           </Link>
         </nav>
 
-        <div>
-          <button className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-[8px] font-medium hover:opacity-90 transition-opacity">
+        <div className="space-y-2 pt-4 border-t border-white/[0.04]">
+          <button className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-lg font-medium text-[13px] transition-colors">
+            <Sparkles className="w-3.5 h-3.5" />
             Upgrade Plan
           </button>
-          <button
-            onClick={handleSignOut}
-            className="w-full mt-2 text-gray-400 hover:text-white py-2 text-sm transition-colors"
-          >
-            Sign out
-          </button>
+
+          <div className="flex items-center gap-3 px-3 py-2">
+            <div className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-[11px] font-semibold text-zinc-400 uppercase">
+              {(user.name || user.email)?.[0]}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] text-zinc-300 truncate">{user.name || user.email?.split("@")[0]}</p>
+              <p className="text-[11px] text-zinc-600 truncate">{user.email}</p>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="p-1.5 rounded-md text-zinc-600 hover:bg-white/[0.06] hover:text-zinc-400 transition-colors"
+              title="Sign out"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1">
-        <div className="max-w-7xl mx-auto">
+      <main className="flex-1 min-w-0">
+        <div className="max-w-6xl mx-auto px-2">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-8 pt-2">
             <div>
-              <h2 className="text-[28px] font-semibold text-white">
+              <h2 className="text-2xl font-semibold text-white mb-1">
                 Welcome back, {user.name || user.email?.split("@")[0]}
               </h2>
+              <p className="text-[13px] text-zinc-500">
+                {videos.length} {videos.length === 1 ? 'project' : 'projects'}
+              </p>
             </div>
             <button
               onClick={() => setShowNewProjectModal(true)}
-              className="flex items-center gap-2 bg-[#9740fe] text-white px-6 py-3 rounded-[8px] font-medium hover:opacity-90 transition-opacity"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-medium text-[13px] transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
+              <Plus className="w-4 h-4" />
               New Project
             </button>
           </div>
 
+          {/* Search bar (show when there are videos) */}
+          {videos.length > 0 && (
+            <div className="relative mb-6">
+              <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search projects..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full max-w-sm bg-[#16161a] border border-white/[0.04] rounded-lg pl-10 pr-4 py-2.5 text-[13px] text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/30 transition-colors"
+              />
+            </div>
+          )}
+
           {/* Video Grid or Empty State */}
           {videos.length === 0 ? (
-            <div className="flex items-center justify-center h-96">
-              <div className="text-center">
-                <div className="text-6xl text-gray-700 mb-4">🎬</div>
-                <h3 className="text-[22px] font-semibold text-gray-400 mb-2">
-                  No videos yet
+            <div className="flex items-center justify-center h-[60vh]">
+              <div className="text-center max-w-sm">
+                <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center mx-auto mb-5">
+                  <Film className="w-7 h-7 text-zinc-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-zinc-300 mb-2">
+                  No projects yet
                 </h3>
-                <p className="text-[14px] text-gray-500 mb-6">
-                  Upload your first video to get started
+                <p className="text-[13px] text-zinc-600 mb-6 leading-relaxed">
+                  Upload your first video to start adding subtitles automatically with AI.
                 </p>
                 <button
                   onClick={() => setShowNewProjectModal(true)}
-                  className="bg-[#9740fe] text-white px-8 py-3 rounded-[8px] font-medium hover:opacity-90 transition-opacity"
+                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-medium text-[13px] transition-colors"
                 >
+                  <Plus className="w-4 h-4" />
                   Upload Video
                 </button>
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {videos.map((video) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredVideos.map((video) => (
                 <Link
                   key={video.id}
                   href={`/editor/${video.id}`}
-                  className="group bg-[#1b1a1d] rounded-[10px] overflow-hidden border border-zinc-800/50 hover:border-blue-500 transition-all"
+                  className="group bg-[#16161a] rounded-xl overflow-hidden border border-white/[0.04] hover:border-blue-500/30 transition-all"
                 >
-                  <div className="aspect-video bg-zinc-800 relative overflow-hidden">
+                  <div className="aspect-video bg-[#0a0a0c] relative overflow-hidden">
                     {video.thumbnailUrl ? (
                       <img
                         src={video.thumbnailUrl}
                         alt={video.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <svg className="w-16 h-16 text-zinc-700" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zm12.553 1.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
-                        </svg>
+                        <Film className="w-10 h-10 text-zinc-800" />
                       </div>
                     )}
-                    <div className="absolute top-2 right-2">
+                    <div className="absolute top-2.5 right-2.5">
                       {getStatusBadge(video.status)}
+                    </div>
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                   <div className="p-4">
-                    <h3 className="font-medium text-white mb-1 truncate group-hover:text-blue-400 transition-colors">
+                    <h3 className="font-medium text-[14px] text-white mb-2 truncate group-hover:text-blue-400 transition-colors">
                       {video.title}
                     </h3>
-                    <p className="text-sm text-gray-400">
-                      {formatDuration(video.duration)} min • {new Date(video.createdAt).toLocaleDateString()}
-                    </p>
+                    <div className="flex items-center gap-3 text-[12px] text-zinc-600">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {formatDuration(video.duration)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(video.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
                   </div>
                 </Link>
               ))}
