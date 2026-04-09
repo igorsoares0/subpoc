@@ -115,6 +115,58 @@ def _hex_to_ass_color(hex_color: str, opacity: float = 1.0) -> str:
     a = int((1 - opacity) * 255)
     return f"&H{a:02X}{b:02X}{g:02X}{r:02X}"
 
+
+# Maps (CSS family, weight) -> (ASS Fontname, Bold flag) for libass.
+#
+# libass/ASS can't express weights beyond 400/700 via the Bold field. To render
+# Medium (500), SemiBold (600), Black (900) etc., we have to pass the literal
+# sub-family name (e.g. "Poppins Black") as Fontname and set Bold=0, so libass
+# matches the per-weight static file by family name instead of by bold flag.
+#
+# Only Poppins and Montserrat have static per-weight files in worker/fonts/.
+# Inter and Roboto ship only as variable fonts in worker/fonts/, so libass can
+# at best pick weight 700 via Bold=-1 — higher weights silently fall back.
+_WEIGHT_TO_ASS: dict[str, dict[int, tuple[str, int]]] = {
+    "Poppins": {
+        400: ("Poppins", 0),
+        500: ("Poppins Medium", 0),
+        600: ("Poppins SemiBold", 0),
+        700: ("Poppins", -1),          # libass: (Poppins, bold) -> Poppins-Bold.ttf
+        800: ("Poppins Black", 0),     # no ExtraBold static; use Black as heaviest
+        900: ("Poppins Black", 0),
+    },
+    "Montserrat": {
+        400: ("Montserrat", 0),
+        500: ("Montserrat Medium", 0),
+        600: ("Montserrat SemiBold", 0),
+        700: ("Montserrat", -1),
+        800: ("Montserrat Black", 0),
+        900: ("Montserrat Black", 0),
+    },
+}
+
+
+def _resolve_font(family: str, weight: int | None) -> tuple[str, int]:
+    """
+    Pick the ASS Fontname + Bold flag for a CSS (family, weight) combo.
+
+    Returns a tuple (ass_fontname, bold_flag) where bold_flag is -1 (true) or
+    0 (false). Falls back gracefully when the family has no weight table or the
+    requested weight isn't available.
+    """
+    w = int(weight) if weight else 700
+    table = _WEIGHT_TO_ASS.get(family)
+    if table:
+        # Match exact, or pick the closest available weight.
+        if w in table:
+            return table[w]
+        closest = min(table.keys(), key=lambda k: abs(k - w))
+        return table[closest]
+    # Unknown family: fall back to the family name as-is and derive Bold from
+    # the weight (>=600 counts as bold for libass synthesis).
+    bold = -1 if w >= 600 else 0
+    return (family, bold)
+
 def generate_ass_file(
     subtitles: list[dict],
     video_id: str,
@@ -159,7 +211,9 @@ def generate_ass_file(
 
     # Build ASS style line from style dict
     s = style or {}
-    font_name = s.get('fontFamily', 'Arial')
+    raw_family = s.get('fontFamily', 'Arial')
+    font_weight = s.get('fontWeight', 700)
+    font_name, bold_flag = _resolve_font(raw_family, font_weight)
     font_size = s.get('fontSize', 20)
     primary_colour = _hex_to_ass_color(s.get('color', '#FFFFFF'))
     secondary_colour = _hex_to_ass_color(highlight_color)
@@ -172,6 +226,17 @@ def generate_ass_file(
     highlight_bg_hex = s.get('highlightBg')
     highlight_bg_opacity = s.get('highlightBgOpacity', 0.95)
 
+    # Box padding scales with video width so it matches the preview's visual
+    # padding (preview uses fixed CSS px-4 py-2, which is ~1.5% of a 1920px
+    # video). A fixed 5 was barely visible on HD+ renders.
+    box_padding = max(int(video_width * 0.015), 6)
+
+    # Side margins: 5% of video width, same as sentence-mode force_style.
+    margin_horizontal = int(video_width * 0.05)
+
+    # Shadow depth (matches preview's text-shadow glow for outline-only templates)
+    shadow_depth = 0
+
     # BorderStyle: 3 = opaque box (background visible), 1 = outline only
     if highlight_bg_hex:
         # Per-word bg mode: BorderStyle=3 with the highlight color as OutlineColour
@@ -179,21 +244,30 @@ def generate_ass_file(
         border_style = 3
         outline_colour = _hex_to_ass_color(highlight_bg_hex, highlight_bg_opacity)
         back_colour = _hex_to_ass_color(highlight_bg_hex, highlight_bg_opacity)
-        outline_width = 5  # Box padding
+        outline_width = box_padding
     elif bg_opacity > 0:
         border_style = 3
         outline_colour = bg_color  # In BorderStyle=3, OutlineColour = box color
         back_colour = bg_color
-        # In BorderStyle=3, Outline controls box padding — need minimum for visible box
-        outline_width = max(outline_width, 5)
+        # In BorderStyle=3, Outline controls box padding
+        outline_width = box_padding
     else:
         border_style = 1
         outline_colour = _hex_to_ass_color(s.get('outlineColor', '#000000'))
         back_colour = "&H00000000"
+        # Soft shadow so outlined text has the same "pop" as the preview's
+        # text-shadow stack. Skip when there is no outline at all.
+        if has_outline:
+            shadow_depth = max(1, int(outline_width * 0.4))
 
+    # Alignment=5 (middle-center) so \pos(x,y) anchors on the center of the
+    # text box, matching the preview's transform: translate(-50%, -50%).
+    # Previously this was 2 (bottom-center), which placed text visually
+    # above the user's chosen y coordinate.
     style_line = (
         f"Style: Default,{font_name},{font_size},{primary_colour},{secondary_colour},"
-        f"{outline_colour},{back_colour},-1,0,0,0,100,100,0,0,{border_style},{outline_width},0,2,10,10,10,1"
+        f"{outline_colour},{back_colour},{bold_flag},0,0,0,100,100,0,0,{border_style},"
+        f"{outline_width},{shadow_depth},5,{margin_horizontal},{margin_horizontal},10,1"
     )
 
     # Cabeçalho ASS
@@ -267,10 +341,13 @@ def generate_ass_file(
                             parts.append(word_text)
 
                 line_text = " ".join(parts)
-                # For highlight bg mode, start with box hidden
-                pos_tag = f"{{\\pos({x_pixels},{y_pixels})}}"
+                # \an5 = middle-center anchor; matches the preview's center
+                # translate. For highlight bg mode, also start with the box
+                # hidden so non-active words don't render a background.
                 if has_highlight_bg:
-                    pos_tag = f"{{\\pos({x_pixels},{y_pixels})\\3a&HFF&}}"
+                    pos_tag = f"{{\\an5\\pos({x_pixels},{y_pixels})\\3a&HFF&}}"
+                else:
+                    pos_tag = f"{{\\an5\\pos({x_pixels},{y_pixels})}}"
                 text = f"{pos_tag}{line_text}"
                 dialogue = f"Dialogue: 0,{start_time},{end_time},Default,,0,0,0,,{text}"
                 ass_content.append(dialogue)
@@ -283,7 +360,10 @@ def generate_ass_file(
             end_time = format_ass_timestamp(sub["end"])
 
             sub_text = sub['text'].upper() if uppercase else sub['text']
-            text = f"{{\\pos({x_pixels},{y_pixels})}}{sub_text}"
+            # \an5 = middle-center anchor, matching the preview's center
+            # translate. Stays correct even when force_style overrides the
+            # Style line's Alignment for sentence mode.
+            text = f"{{\\an5\\pos({x_pixels},{y_pixels})}}{sub_text}"
 
             dialogue = f"Dialogue: 0,{start_time},{end_time},Default,,0,0,0,,{text}"
             ass_content.append(dialogue)

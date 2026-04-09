@@ -8,7 +8,8 @@ from utils import (
     generate_srt_file,
     generate_ass_file,
     upload_to_storage,
-    cleanup_files
+    cleanup_files,
+    _resolve_font,
 )
 
 settings = get_settings()
@@ -85,7 +86,9 @@ def build_subtitle_style(style: dict, video_width: int) -> str:
         background_opacity
     )
 
-    font_name = style.get("fontFamily", "Arial")
+    raw_family = style.get("fontFamily", "Arial")
+    font_weight = style.get("fontWeight", 700)
+    font_name, bold_flag = _resolve_font(raw_family, font_weight)
     font_size = style.get("fontSize", 24)
     has_outline = style.get("outline", False)
     outline_width = style.get("outlineWidth", 2) if has_outline else 0
@@ -94,40 +97,56 @@ def build_subtitle_style(style: dict, video_width: int) -> str:
     margin_percent = 0.05
     margin_horizontal = int(video_width * margin_percent)
 
+    # Box padding scales with video width so it matches the preview (~1.5%)
+    box_padding = max(int(video_width * 0.015), 6)
+
     # BorderStyle: 1 = outline apenas, 3 = opaque box (fundo)
-    # When background is visible, use BorderStyle=3 (opaque box)
-    # When no background, use BorderStyle=1 (outline only)
     border_style = 3 if background_opacity > 0 else 1
 
+    # Alignment=5 (middle-center): anchors \pos(x, y) on the text center,
+    # mirroring the preview's transform: translate(-50%, -50%). Without
+    # this, force_style inherits Alignment=2 from the ASS Style line and
+    # text renders with its bottom edge at the user-chosen y coordinate.
+    alignment = 5
+    shadow = 0
+
     if border_style == 3:
-        # In BorderStyle=3, Outline controls box padding — need minimum for visible box
-        outline_width = max(outline_width, 5)
+        # In BorderStyle=3, Outline is the box padding.
+        outline_width = box_padding
 
         # BorderStyle=3: OutlineColour becomes the box color, Outline controls box padding
         # Text outline is not separately available in this mode
         force_style = (
             f"FontName={font_name},"
             f"FontSize={font_size},"
-            f"Bold=-1,"
+            f"Bold={bold_flag},"
             f"PrimaryColour={primary_color},"
             f"OutlineColour={back_color},"
             f"BackColour={back_color},"
             f"BorderStyle={border_style},"
             f"Outline={outline_width},"
+            f"Shadow={shadow},"
+            f"Alignment={alignment},"
             f"MarginL={margin_horizontal},"
             f"MarginR={margin_horizontal}"
         )
     else:
-        # BorderStyle=1: OutlineColour is the text outline color
+        # BorderStyle=1: OutlineColour is the text outline color.
+        # Add a soft shadow to emulate the preview's multi-layer text-shadow
+        # "pop" for outline-only templates (Hormozi, Glow, etc).
+        if has_outline:
+            shadow = max(1, int(outline_width * 0.4))
         force_style = (
             f"FontName={font_name},"
             f"FontSize={font_size},"
-            f"Bold=-1,"
+            f"Bold={bold_flag},"
             f"PrimaryColour={primary_color},"
             f"OutlineColour={outline_color},"
             f"BackColour={back_color},"
             f"BorderStyle={border_style},"
             f"Outline={outline_width},"
+            f"Shadow={shadow},"
+            f"Alignment={alignment},"
             f"MarginL={margin_horizontal},"
             f"MarginR={margin_horizontal}"
         )
@@ -219,21 +238,46 @@ async def process_rendering(
         # No Windows, precisamos escapar as barras invertidas
         # No Linux, precisamos escapar os dois pontos
         import platform
-        if platform.system() == "Windows":
-            # Windows: escapar barras invertidas (duplicar)
-            ass_escaped = ass_path.replace('\\', '\\\\\\\\').replace(':', '\\\\:')
+        is_windows = platform.system() == "Windows"
+
+        def _escape_filter_path(p: str) -> str:
+            """Escape a path for ffmpeg's subtitles filter argument."""
+            if is_windows:
+                return p.replace('\\', '\\\\\\\\').replace(':', '\\\\:')
+            return p.replace(':', '\\:')
+
+        ass_escaped = _escape_filter_path(ass_path)
+
+        # Bundled fonts directory. Without this, libass falls back to whatever
+        # the host has installed — which usually means Montserrat/Poppins/Inter
+        # become DejaVu or Arial and the final render looks nothing like the
+        # preview. Drop .ttf/.otf files into worker/fonts/ to enable this.
+        fonts_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "fonts"
+        )
+        fonts_dir_arg = ""
+        if os.path.isdir(fonts_dir) and os.listdir(fonts_dir):
+            fonts_dir_escaped = _escape_filter_path(fonts_dir)
+            fonts_dir_arg = f":fontsdir={fonts_dir_escaped}"
+            print(f"[Rendering] Using bundled fonts dir: {fonts_dir}")
         else:
-            # Linux: escapar dois pontos
-            ass_escaped = ass_path.replace(':', '\\:')
+            print(
+                f"[Rendering] WARNING: {fonts_dir} is missing or empty — "
+                "libass will use system fallbacks, so template fonts "
+                "(Montserrat/Poppins/Inter/Roboto) may not render correctly."
+            )
 
         # Word-group mode: style is fully baked into the ASS file (inline \c tags, etc.)
         # Sentence mode: use force_style to override ASS defaults
         display_mode = style.get('displayMode', 'sentence') if style else 'sentence'
         if display_mode == 'word-group':
-            subtitle_filter = f"subtitles={ass_escaped}"
+            subtitle_filter = f"subtitles={ass_escaped}{fonts_dir_arg}"
         else:
             subtitle_style = build_subtitle_style(style, video_width)
-            subtitle_filter = f"subtitles={ass_escaped}:force_style='{subtitle_style}'"
+            subtitle_filter = (
+                f"subtitles={ass_escaped}{fonts_dir_arg}"
+                f":force_style='{subtitle_style}'"
+            )
         filters.append(subtitle_filter)
 
         # Combinar filtros base (sem logo ainda)
@@ -332,6 +376,11 @@ async def process_rendering(
             output_path
         ])
 
+        # Enable libass debug logging so font matching decisions are visible
+        # in the worker output. This is the only way to tell whether libass
+        # is picking up the bundled fonts or falling back to system defaults.
+        command = command[:1] + ["-v", "info"] + command[1:]
+
         print(f"[Rendering] FFmpeg command: {' '.join(command)}")
 
         # 6. Executar FFmpeg
@@ -341,6 +390,23 @@ async def process_rendering(
             capture_output=True,
             text=True
         )
+
+        # ffmpeg writes everything (including libass font logs) to stderr.
+        # Surface the libass-relevant lines so we can diagnose font issues.
+        if result.stderr:
+            libass_lines = [
+                line for line in result.stderr.splitlines()
+                if any(tag in line.lower() for tag in [
+                    "libass", "fontselect", "font ", "fontname", "glyph",
+                    "fallback", "family"
+                ])
+            ]
+            if libass_lines:
+                print("[Rendering] libass log:")
+                for line in libass_lines:
+                    print(f"  {line}")
+            else:
+                print("[Rendering] (no libass font messages in ffmpeg output)")
 
         print(f"[Rendering] Video rendered successfully: {output_path}")
         print(f"[Rendering] Output file size: {os.path.getsize(output_path)} bytes")

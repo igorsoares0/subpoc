@@ -49,6 +49,7 @@ interface Subtitle {
 interface SubtitleStyle {
   fontFamily: string
   fontSize: number
+  fontWeight?: number            // 400/700/900 — default 700; 900 = chunky Hormozi look
   color: string
   backgroundColor: string
   backgroundOpacity: number
@@ -63,6 +64,23 @@ interface SubtitleStyle {
   displayMode?: 'sentence' | 'word-group'  // default 'sentence'
   wordsPerGroup?: number         // palavras por grupo (default 3)
   uppercase?: boolean            // forçar maiúsculas
+}
+
+// Maps logical template font names to the CSS variable exposed by next/font.
+// Keeps the preview rendering the same glyphs as the worker's libass renderer.
+// Families without a loaded web font fall back to the system stack.
+const FONT_FAMILY_CSS: Record<string, string> = {
+  Inter: "var(--font-inter), sans-serif",
+  Montserrat: "var(--font-montserrat), sans-serif",
+  Poppins: "var(--font-poppins), sans-serif",
+  Roboto: "var(--font-roboto), sans-serif",
+  Arial: "Arial, sans-serif",
+  Helvetica: "Helvetica, Arial, sans-serif",
+}
+
+function resolveFontFamily(family: string | undefined): string {
+  if (!family) return "var(--font-poppins), sans-serif"
+  return FONT_FAMILY_CSS[family] || `${family}, sans-serif`
 }
 
 interface LogoOverlay {
@@ -229,6 +247,7 @@ const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
     style: {
       fontFamily: "Montserrat",
       fontSize: 42,
+      fontWeight: 900,
       color: "#FFFFFF",
       backgroundColor: "#000000",
       backgroundOpacity: 0,
@@ -248,6 +267,7 @@ const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
     style: {
       fontFamily: "Poppins",
       fontSize: 46,
+      fontWeight: 900,
       color: "#FFFFFF",
       backgroundColor: "#000000",
       backgroundOpacity: 0,
@@ -267,6 +287,7 @@ const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
     style: {
       fontFamily: "Montserrat",
       fontSize: 44,
+      fontWeight: 900,
       color: "#FFFFFF",
       backgroundColor: "#000000",
       backgroundOpacity: 0,
@@ -286,6 +307,7 @@ const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
     style: {
       fontFamily: "Inter",
       fontSize: 40,
+      fontWeight: 900,
       color: "#E0E0E0",
       backgroundColor: "#000000",
       backgroundOpacity: 0,
@@ -305,6 +327,7 @@ const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
     style: {
       fontFamily: "Roboto",
       fontSize: 44,
+      fontWeight: 900,
       color: "#FFFFFF",
       backgroundColor: "#000000",
       backgroundOpacity: 0,
@@ -324,6 +347,7 @@ const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
     style: {
       fontFamily: "Montserrat",
       fontSize: 42,
+      fontWeight: 900,
       color: "#FFFFFF",
       backgroundColor: "#000000",
       backgroundOpacity: 0,
@@ -343,6 +367,7 @@ const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
     style: {
       fontFamily: "Montserrat",
       fontSize: 42,
+      fontWeight: 900,
       color: "#FFFFFF",
       backgroundColor: "#1A1A2E",
       backgroundOpacity: 0.85,
@@ -362,6 +387,7 @@ const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
     style: {
       fontFamily: "Poppins",
       fontSize: 44,
+      fontWeight: 900,
       color: "#FFFFFF",
       backgroundColor: "#FF1493",
       backgroundOpacity: 0.9,
@@ -381,6 +407,7 @@ const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
     style: {
       fontFamily: "Montserrat",
       fontSize: 48,
+      fontWeight: 900,
       color: "#FFFFFF",
       backgroundColor: "#000000",
       backgroundOpacity: 0,
@@ -1621,9 +1648,9 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                           >
                             {template.style.displayMode === 'word-group' ? (
                               <span style={{
-                                fontFamily: `${template.style.fontFamily}, sans-serif`,
+                                fontFamily: resolveFontFamily(template.style.fontFamily),
                                 fontSize: "16px",
-                                fontWeight: 700,
+                                fontWeight: template.style.fontWeight ?? 700,
                                 textShadow,
                                 backgroundColor: !template.style.highlightBg ? previewBg : undefined,
                                 padding: !template.style.highlightBg && template.style.backgroundOpacity > 0 ? "2px 6px" : undefined,
@@ -1641,9 +1668,9 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                               <span
                                 style={{
                                   color: template.style.color,
-                                  fontFamily: `${template.style.fontFamily}, sans-serif`,
+                                  fontFamily: resolveFontFamily(template.style.fontFamily),
                                   fontSize: "18px",
-                                  fontWeight: 700,
+                                  fontWeight: template.style.fontWeight ?? 700,
                                   textShadow,
                                   backgroundColor: previewBg,
                                   padding: template.style.backgroundOpacity > 0 ? "2px 6px" : undefined,
@@ -1860,11 +1887,11 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                         onMouseDown={handleSubtitleMouseDown}
                       >
                         <div
-                          className="px-4 py-2 rounded-sm font-bold text-center"
+                          className="px-4 py-2 rounded-sm text-center"
                           style={{
-                            fontFamily: `${style.fontFamily}, sans-serif`,
+                            fontFamily: resolveFontFamily(style.fontFamily),
                             fontSize: `${Math.max(style.fontSize * scaleFactor, 12)}px`,
-                            fontWeight: 700,
+                            fontWeight: style.fontWeight ?? 700,
                             backgroundColor: (() => {
                               if (style.backgroundOpacity <= 0) return "transparent"
                               const hex = style.backgroundColor.replace('#', '')
@@ -1950,7 +1977,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                       onMouseDown={handleSubtitleMouseDown}
                     >
                       <div
-                        className="px-4 py-2 rounded-sm font-bold"
+                        className="px-4 py-2 rounded-sm"
                         style={{
                           backgroundColor: (() => {
                             if (style.backgroundOpacity <= 0) return "transparent"
@@ -1961,9 +1988,9 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                             return `rgba(${r}, ${g}, ${b}, ${style.backgroundOpacity})`
                           })(),
                           color: style.color,
-                          fontFamily: `${style.fontFamily}, sans-serif`,
+                          fontFamily: resolveFontFamily(style.fontFamily),
                           fontSize: `${Math.max(style.fontSize * scaleFactor, 12)}px`,
-                          fontWeight: 700,
+                          fontWeight: style.fontWeight ?? 700,
                           textAlign: style.alignment as any,
                           textShadow: (() => {
                             if (!style.outline || style.backgroundOpacity > 0) return "none"
