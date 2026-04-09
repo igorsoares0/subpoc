@@ -862,9 +862,41 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   }
 
   const updateSubtitleText = async (id: number, newText: string) => {
-    const updatedSubtitles = video.subtitles?.map(sub =>
-      sub.id === id ? { ...sub, text: newText } : sub
-    )
+    const updatedSubtitles = video.subtitles?.map(sub => {
+      if (sub.id !== id) return sub
+
+      // Rebuild words[] so word-group templates reflect the edit.
+      // The video overlay + ffmpeg renderer both read sub.words for word-group
+      // mode, so updating only sub.text leaves the rendered output stale.
+      const tokens = newText.split(/\s+/).filter(Boolean)
+      let newWords: SubtitleWord[] | undefined = sub.words
+
+      if (sub.words && sub.words.length > 0) {
+        if (tokens.length === 0) {
+          newWords = []
+        } else if (tokens.length === sub.words.length) {
+          // Same word count: keep original timings, just swap the text
+          // (typo fixes shouldn't shift highlight timing).
+          newWords = sub.words.map((w, i) => ({ ...w, word: tokens[i] }))
+        } else {
+          // Word count changed: redistribute [sub.start, sub.end] across the
+          // new tokens, proportionally to character length so longer words
+          // get slightly more time.
+          const totalChars = tokens.reduce((acc, t) => acc + t.length, 0) || tokens.length
+          const totalDuration = Math.max(sub.end - sub.start, 0)
+          let cursor = sub.start
+          newWords = tokens.map((t, i) => {
+            const share = totalChars > 0 ? (t.length || 1) / totalChars : 1 / tokens.length
+            const wStart = cursor
+            const wEnd = i === tokens.length - 1 ? sub.end : cursor + totalDuration * share
+            cursor = wEnd
+            return { word: t, start: wStart, end: wEnd }
+          })
+        }
+      }
+
+      return { ...sub, text: newText, words: newWords }
+    })
 
     setVideo({ ...video, subtitles: updatedSubtitles || null })
 
