@@ -1,18 +1,24 @@
 import subprocess
 import httpx
 import os
+import sys
 import tempfile
+import json
+import asyncio
 from config import get_settings
 from utils import (
     download_video,
     generate_srt_file,
-    generate_ass_file,
     upload_to_storage,
     cleanup_files,
-    _resolve_font,
 )
 
 settings = get_settings()
+
+# Path to the CLI renderer script and the venv Python interpreter
+_WORKER_DIR = os.path.dirname(os.path.abspath(__file__))
+_RENDER_CLI = os.path.join(_WORKER_DIR, "render_subtitles_cli.py")
+_PYTHON = sys.executable
 
 def get_video_info(video_path: str) -> dict:
     """
@@ -28,6 +34,7 @@ def get_video_info(video_path: str) -> dict:
                 '-v', 'quiet',
                 '-print_format', 'json',
                 '-show_streams',
+                '-show_format',
                 '-select_streams', 'v:0',
                 video_path
             ],
@@ -37,121 +44,137 @@ def get_video_info(video_path: str) -> dict:
         )
 
         if result.returncode == 0:
-            import json
             data = json.loads(result.stdout)
             streams = data.get('streams', [])
+            fmt = data.get('format', {})
+            duration = float(fmt.get('duration', 0))
             if streams:
                 video_stream = streams[0]
                 return {
                     'width': video_stream.get('width', 1920),
                     'height': video_stream.get('height', 1080),
-                    'codec': video_stream.get('codec_name', 'unknown')
+                    'codec': video_stream.get('codec_name', 'unknown'),
+                    'duration': duration,
                 }
 
-        return {'width': 1920, 'height': 1080}
+        return {'width': 1920, 'height': 1080, 'duration': 0}
 
     except Exception as e:
         print(f"[Video Info] Error getting video info: {e}")
-        return {'width': 1920, 'height': 1080}
+        return {'width': 1920, 'height': 1080, 'duration': 0}
 
-def hex_to_ffmpeg_color(hex_color: str, opacity: float = 1.0) -> str:
-    """Converter cor hex para formato FFmpeg ASS (&HAABBGGRR)"""
-    hex_color = hex_color.lstrip('#')
 
-    r = int(hex_color[0:2], 16)
-    g = int(hex_color[2:4], 16)
-    b = int(hex_color[4:6], 16)
+def _get_output_dimensions(format_type: str | None, src_w: int, src_h: int) -> tuple[int, int]:
+    """Determine final video dimensions based on format_type."""
+    if format_type in ("instagram_story", "tiktok"):
+        return 1080, 1920
+    elif format_type == "instagram_feed":
+        return 1080, 1080
+    elif format_type == "youtube":
+        return 1920, 1080
+    elif format_type == "classic":
+        return 1440, 1080
+    return src_w, src_h
 
-    # ASS Alpha: 00 = opaque, FF = transparent
-    # Invertemos a opacidade para transparência
-    a = int((1 - opacity) * 255)
 
-    # Formato FFmpeg: &HAABBGGRR (BGR, não RGB)
-    return f"&H{a:02X}{b:02X}{g:02X}{r:02X}"
-
-def build_subtitle_style(style: dict, video_width: int) -> str:
+def _render_subtitle_pngs(
+    subtitles: list[dict],
+    style: dict,
+    video_width: int,
+    video_height: int,
+    video_id: str,
+    trim_start: float = 0,
+) -> tuple[list[tuple[float, float, str]], str]:
     """
-    Construir força_style string para FFmpeg ASS
+    Render subtitle PNGs via a separate subprocess (avoids Playwright
+    event-loop conflicts with uvicorn on Windows).
 
-    Args:
-        style: Dicionário de estilo
-        video_width: Largura do vídeo em pixels
+    Returns (schedule, blank_png_path).
     """
-    primary_color = hex_to_ffmpeg_color(style.get("color", "#FFFFFF"), 1)
-    outline_color = hex_to_ffmpeg_color(style.get("outlineColor", "#000000"), 1)
+    input_path = os.path.join(tempfile.gettempdir(), f"subjob_{video_id}.json")
+    output_path = os.path.join(tempfile.gettempdir(), f"subresult_{video_id}.json")
 
-    background_opacity = style.get("backgroundOpacity", 0.8)
-    back_color = hex_to_ffmpeg_color(
-        style.get("backgroundColor", "#000000"),
-        background_opacity
-    )
+    job = {
+        "subtitles": subtitles,
+        "style": style,
+        "video_width": video_width,
+        "video_height": video_height,
+        "trim_start": trim_start,
+    }
+    with open(input_path, "w", encoding="utf-8") as f:
+        json.dump(job, f)
 
-    raw_family = style.get("fontFamily", "Arial")
-    font_weight = style.get("fontWeight", 700)
-    font_name, bold_flag = _resolve_font(raw_family, font_weight)
-    font_size = style.get("fontSize", 24)
-    has_outline = style.get("outline", False)
-    outline_width = style.get("outlineWidth", 2) if has_outline else 0
-
-    # Calcular margens laterais (5% de cada lado)
-    margin_percent = 0.05
-    margin_horizontal = int(video_width * margin_percent)
-
-    # Box padding scales with video width so it matches the preview (~1.5%)
-    box_padding = max(int(video_width * 0.015), 6)
-
-    # BorderStyle: 1 = outline apenas, 3 = opaque box (fundo)
-    border_style = 3 if background_opacity > 0 else 1
-
-    # Alignment=5 (middle-center): anchors \pos(x, y) on the text center,
-    # mirroring the preview's transform: translate(-50%, -50%). Without
-    # this, force_style inherits Alignment=2 from the ASS Style line and
-    # text renders with its bottom edge at the user-chosen y coordinate.
-    alignment = 5
-    shadow = 0
-
-    if border_style == 3:
-        # In BorderStyle=3, Outline is the box padding.
-        outline_width = box_padding
-
-        # BorderStyle=3: OutlineColour becomes the box color, Outline controls box padding
-        # Text outline is not separately available in this mode
-        force_style = (
-            f"FontName={font_name},"
-            f"FontSize={font_size},"
-            f"Bold={bold_flag},"
-            f"PrimaryColour={primary_color},"
-            f"OutlineColour={back_color},"
-            f"BackColour={back_color},"
-            f"BorderStyle={border_style},"
-            f"Outline={outline_width},"
-            f"Shadow={shadow},"
-            f"Alignment={alignment},"
-            f"MarginL={margin_horizontal},"
-            f"MarginR={margin_horizontal}"
+    try:
+        result = subprocess.run(
+            [_PYTHON, _RENDER_CLI, input_path, output_path],
+            capture_output=True,
+            text=True,
+            cwd=_WORKER_DIR,
+            timeout=300,
         )
-    else:
-        # BorderStyle=1: OutlineColour is the text outline color.
-        # Add a soft shadow to emulate the preview's multi-layer text-shadow
-        # "pop" for outline-only templates (Hormozi, Glow, etc).
-        if has_outline:
-            shadow = max(1, int(outline_width * 0.4))
-        force_style = (
-            f"FontName={font_name},"
-            f"FontSize={font_size},"
-            f"Bold={bold_flag},"
-            f"PrimaryColour={primary_color},"
-            f"OutlineColour={outline_color},"
-            f"BackColour={back_color},"
-            f"BorderStyle={border_style},"
-            f"Outline={outline_width},"
-            f"Shadow={shadow},"
-            f"Alignment={alignment},"
-            f"MarginL={margin_horizontal},"
-            f"MarginR={margin_horizontal}"
-        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Subtitle render subprocess failed (exit {result.returncode}):\n"
+                f"{result.stderr}"
+            )
 
-    return force_style
+        with open(output_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        schedule = [(s, e, p) for s, e, p in data["schedule"]]
+        blank_png = data["blank_png"]
+        return schedule, blank_png
+
+    finally:
+        for p in (input_path, output_path):
+            if os.path.exists(p):
+                os.remove(p)
+
+
+def _build_concat_file(
+    schedule: list[tuple[float, float, str]],
+    blank_png: str,
+    video_duration: float,
+    video_id: str,
+) -> str:
+    """
+    Build an FFmpeg concat demuxer file from the subtitle schedule.
+    Creates: blank → sub1 → blank → sub2 → ... → blank
+    """
+    concat_path = os.path.join(tempfile.gettempdir(), f"concat_{video_id}.txt")
+
+    entries: list[tuple[str, float]] = []
+    current_time = 0.0
+
+    for start, end, png_path in schedule:
+        gap = start - current_time
+        if gap > 0.01:
+            entries.append((blank_png, gap))
+        duration = end - start
+        if duration > 0.01:
+            entries.append((png_path, duration))
+            current_time = end
+
+    # Trailing blank to fill remaining video
+    if video_duration > 0 and current_time < video_duration:
+        entries.append((blank_png, video_duration - current_time))
+
+    if not entries:
+        # No subtitles — just a blank video for the full duration
+        entries.append((blank_png, max(video_duration, 1.0)))
+
+    with open(concat_path, "w", encoding="utf-8") as f:
+        f.write("ffconcat version 1.0\n")
+        for path, dur in entries:
+            safe = path.replace("\\", "/")
+            f.write(f"file '{safe}'\n")
+            f.write(f"duration {dur:.4f}\n")
+        # Concat demuxer needs a trailing file entry for the last duration
+        safe = entries[-1][0].replace("\\", "/")
+        f.write(f"file '{safe}'\n")
+
+    return concat_path
+
 
 async def process_rendering(
     video_id: str,
@@ -165,19 +188,18 @@ async def process_rendering(
     webhook_url: str
 ):
     """
-    Processar renderização do vídeo final
+    Renderizar vídeo final com legendas pixel-perfect via Playwright overlay.
 
+    Pipeline:
     1. Download do vídeo
-    2. Gerar arquivo SRT
-    3. Construir comando FFmpeg
-    4. Renderizar vídeo com legendas hardcoded
-    5. Upload do resultado
-    6. Notificar Next.js via webhook
-    7. Limpar arquivos temporários
+    2. Playwright renderiza cada legenda como PNG transparente (mesmo CSS do editor)
+    3. FFmpeg cria vídeo-legenda via concat demuxer
+    4. FFmpeg faz overlay do vídeo-legenda no vídeo principal
+    5. Upload + webhook
     """
     video_path = None
-    ass_path = None
     output_path = None
+    concat_path = None
 
     try:
         print(f"[Rendering] Starting for video {video_id}")
@@ -185,309 +207,230 @@ async def process_rendering(
         # 1. Download do vídeo
         video_path = await download_video(video_url, video_id)
 
-        # 2. Obter dimensões do vídeo
+        # 2. Obter dimensões e duração do vídeo
         video_info = get_video_info(video_path)
-        video_width = video_info.get('width', 1920)  # Fallback para Full HD
-        video_height = video_info.get('height', 1080)
-        print(f"[Rendering] Video dimensions: {video_width}x{video_height}")
+        src_w = video_info.get("width", 1920)
+        src_h = video_info.get("height", 1080)
+        video_duration = video_info.get("duration", 0)
+        print(f"[Rendering] Video: {src_w}x{src_h}, duration={video_duration:.1f}s")
 
-        # 3. Extrair posição das legendas do estilo
-        subtitle_position = None
-        if style and isinstance(style.get("position"), dict):
-            subtitle_position = style["position"]
+        # 3. Determinar dimensões finais (formato de saída)
+        out_w, out_h = _get_output_dimensions(format_type, src_w, src_h)
+        print(f"[Rendering] Output dimensions: {out_w}x{out_h}")
 
-        # 4. Gerar arquivo ASS com posicionamento personalizado
-        ass_path = generate_ass_file(
-            subtitles,
-            video_id,
-            position=subtitle_position,
-            video_width=video_width,
-            video_height=video_height,
-            style=style
+        # 4. Ajustar duração para trim
+        trim_start = 0.0
+        trim_end = video_duration
+        if trim:
+            if trim.get("start") is not None:
+                trim_start = float(trim["start"])
+            if trim.get("end") is not None:
+                trim_end = float(trim["end"])
+        effective_duration = trim_end - trim_start
+
+        # 5. Renderizar legendas como PNGs via subprocess (separate process)
+        print(f"[Rendering] Rendering subtitle PNGs at {out_w}x{out_h}...")
+        schedule, blank_png = await asyncio.to_thread(
+            _render_subtitle_pngs,
+            subtitles, style, out_w, out_h, video_id, trim_start,
         )
+        print(f"[Rendering] Generated {len(schedule)} subtitle frames")
 
-        # 5. Path do vídeo final
+        # 6. Criar concat file para o vídeo de legendas
+        concat_path = _build_concat_file(
+            schedule, blank_png, effective_duration, video_id
+        )
+        print(f"[Rendering] Concat file: {concat_path}")
+
+        # 7. Construir comando FFmpeg
         output_path = os.path.join(tempfile.gettempdir(), f"rendered_{video_id}.mp4")
+        command = ["ffmpeg", "-v", "info"]
 
-        # 5. Construir filtros FFmpeg
-        filters = []
-
-        # Formatos para redes sociais
-        if format_type == "instagram_story" or format_type == "tiktok":
-            filters.append(
-                "scale=1080:1920:force_original_aspect_ratio=decrease,"
-                "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black"
-            )
-        elif format_type == "instagram_feed":
-            filters.append(
-                "scale=1080:1080:force_original_aspect_ratio=decrease,"
-                "pad=1080:1080:(ow-iw)/2:(oh-ih)/2:black"
-            )
-        elif format_type == "youtube":
-            filters.append(
-                "scale=1920:1080:force_original_aspect_ratio=decrease,"
-                "pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black"
-            )
-        elif format_type == "classic":
-            filters.append(
-                "scale=1440:1080:force_original_aspect_ratio=decrease,"
-                "pad=1440:1080:(ow-iw)/2:(oh-ih)/2:black"
-            )
-
-        # Escape do caminho do ASS para FFmpeg
-        # No Windows, precisamos escapar as barras invertidas
-        # No Linux, precisamos escapar os dois pontos
-        import platform
-        is_windows = platform.system() == "Windows"
-
-        def _escape_filter_path(p: str) -> str:
-            """Escape a path for ffmpeg's subtitles filter argument."""
-            if is_windows:
-                return p.replace('\\', '\\\\\\\\').replace(':', '\\\\:')
-            return p.replace(':', '\\:')
-
-        ass_escaped = _escape_filter_path(ass_path)
-
-        # Bundled fonts directory. Without this, libass falls back to whatever
-        # the host has installed — which usually means Montserrat/Poppins/Inter
-        # become DejaVu or Arial and the final render looks nothing like the
-        # preview. Drop .ttf/.otf files into worker/fonts/ to enable this.
-        fonts_dir = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "fonts"
-        )
-        fonts_dir_arg = ""
-        if os.path.isdir(fonts_dir) and os.listdir(fonts_dir):
-            fonts_dir_escaped = _escape_filter_path(fonts_dir)
-            fonts_dir_arg = f":fontsdir={fonts_dir_escaped}"
-            print(f"[Rendering] Using bundled fonts dir: {fonts_dir}")
-        else:
-            print(
-                f"[Rendering] WARNING: {fonts_dir} is missing or empty — "
-                "libass will use system fallbacks, so template fonts "
-                "(Montserrat/Poppins/Inter/Roboto) may not render correctly."
-            )
-
-        # Word-group mode: style is fully baked into the ASS file (inline \c tags, etc.)
-        # Sentence mode: use force_style to override ASS defaults
-        display_mode = style.get('displayMode', 'sentence') if style else 'sentence'
-        if display_mode == 'word-group':
-            subtitle_filter = f"subtitles={ass_escaped}{fonts_dir_arg}"
-        else:
-            subtitle_style = build_subtitle_style(style, video_width)
-            subtitle_filter = (
-                f"subtitles={ass_escaped}{fonts_dir_arg}"
-                f":force_style='{subtitle_style}'"
-            )
-        filters.append(subtitle_filter)
-
-        # Combinar filtros base (sem logo ainda)
-        video_filter = ",".join(filters) if filters else None
-
-        # Logo overlay (será aplicado como input separado)
-        logo_path = None
-        logo_filter_complex = None
-        if logo_overlay and logo_overlay.get("logoUrl"):
-            logo_url = logo_overlay["logoUrl"]
-            position = logo_overlay.get("position", "top-right")
-            size = logo_overlay.get("size", 10)  # percentage
-            opacity = logo_overlay.get("opacity", 0.8)
-
-            # Download logo
-            try:
-                # Converter URL relativa para URL completa
-                if logo_url.startswith("/"):
-                    # Em produção, você precisará da URL base do Next.js
-                    app_url = "http://localhost:3000"
-                    logo_url = f"{app_url}{logo_url}"
-
-                # Download logo temporário
-                logo_temp_path = await download_video(logo_url, f"logo_{video_id}")
-                if logo_temp_path and os.path.exists(logo_temp_path):
-                    logo_path = logo_temp_path
-
-                    # Calcular posição
-                    padding = 20
-                    if position == "top-left":
-                        x_pos = str(padding)
-                        y_pos = str(padding)
-                    elif position == "top-right":
-                        x_pos = f"W-w-{padding}"
-                        y_pos = str(padding)
-                    elif position == "bottom-left":
-                        x_pos = str(padding)
-                        y_pos = f"H-h-{padding}"
-                    else:  # bottom-right
-                        x_pos = f"W-w-{padding}"
-                        y_pos = f"H-h-{padding}"
-
-                    # Filter complex para logo overlay
-                    # [0:v] = vídeo principal, [1:v] = logo
-                    # Aplicar escala e opacidade ao logo, depois overlay
-                    logo_width = f"iw*{size/100}"
-                    logo_filter_complex = f"[1:v]scale={logo_width}:-1,format=rgba,colorchannelmixer=aa={opacity}[logo];[0:v][logo]overlay={x_pos}:{y_pos}"
-
-                    print(f"[Rendering] Logo overlay will be applied from: {logo_path}")
-                    print(f"[Rendering] Logo filter complex: {logo_filter_complex}")
-
-            except Exception as e:
-                print(f"[Rendering] Warning: Failed to download/process logo: {e}")
-                logo_path = None
-
-        # 5. Construir comando FFmpeg
-        command = ["ffmpeg"]
-
-        # Trim (se especificado)
+        # Input 0: vídeo principal (com trim)
         if trim and trim.get("start") is not None:
             command.extend(["-ss", str(trim["start"])])
-
         command.extend(["-i", video_path])
-
-        # Adicionar logo como segundo input (se existe)
-        if logo_path and os.path.exists(logo_path):
-            command.extend(["-i", logo_path])
-
         if trim and trim.get("end") is not None:
             command.extend(["-to", str(trim["end"])])
 
-        # Filtros de vídeo
-        # Se temos logo, precisamos usar -filter_complex para combinar
-        if logo_path and logo_filter_complex:
-            # Aplicar filtros base primeiro no vídeo, depois overlay com logo
-            if video_filter:
-                # Aplicar filtros base ao vídeo [0:v], depois logo overlay
-                complex_filter = f"[0:v]{video_filter}[base];{logo_filter_complex.replace('[0:v]', '[base]')}"
-            else:
-                # Apenas logo overlay
-                complex_filter = logo_filter_complex
-            command.extend(["-filter_complex", complex_filter])
-        elif video_filter:
-            # Apenas filtros base (sem logo)
-            command.extend(["-vf", video_filter])
+        # Input 1: subtitle video via concat demuxer
+        command.extend(["-f", "concat", "-safe", "0", "-i", concat_path])
+
+        # Input 2 (optional): logo
+        logo_path = None
+        if logo_overlay and logo_overlay.get("logoUrl"):
+            logo_path = await _download_logo(logo_overlay, video_id)
+            if logo_path:
+                command.extend(["-i", logo_path])
+
+        # 8. Construir filter_complex
+        filter_parts = []
+
+        # Format scaling (if needed)
+        if format_type in ("instagram_story", "tiktok"):
+            filter_parts.append(
+                "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,"
+                "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black[scaled]"
+            )
+        elif format_type == "instagram_feed":
+            filter_parts.append(
+                "[0:v]scale=1080:1080:force_original_aspect_ratio=decrease,"
+                "pad=1080:1080:(ow-iw)/2:(oh-ih)/2:black[scaled]"
+            )
+        elif format_type == "youtube":
+            filter_parts.append(
+                "[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,"
+                "pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[scaled]"
+            )
+        elif format_type == "classic":
+            filter_parts.append(
+                "[0:v]scale=1440:1080:force_original_aspect_ratio=decrease,"
+                "pad=1440:1080:(ow-iw)/2:(oh-ih)/2:black[scaled]"
+            )
+
+        # Build the overlay chain
+        video_label = "[scaled]" if filter_parts else "[0:v]"
+
+        # Subtitle overlay: concat input → format rgba → overlay at 0,0
+        filter_parts.append(f"[1:v]format=rgba[subs]")
+        filter_parts.append(
+            f"{video_label}[subs]overlay=0:0:format=auto[withsubs]"
+        )
+
+        # Logo overlay (optional)
+        if logo_path:
+            logo_input = "[2:v]"
+            logo_cfg = logo_overlay or {}
+            pos = logo_cfg.get("position", "top-right")
+            size = logo_cfg.get("size", 10)
+            opacity = logo_cfg.get("opacity", 0.8)
+            padding = 20
+
+            pos_map = {
+                "top-left": (str(padding), str(padding)),
+                "top-right": (f"W-w-{padding}", str(padding)),
+                "bottom-left": (str(padding), f"H-h-{padding}"),
+                "bottom-right": (f"W-w-{padding}", f"H-h-{padding}"),
+            }
+            x_pos, y_pos = pos_map.get(pos, pos_map["top-right"])
+            logo_w = f"iw*{size/100}"
+            filter_parts.append(
+                f"{logo_input}scale={logo_w}:-1,format=rgba,"
+                f"colorchannelmixer=aa={opacity}[logo]"
+            )
+            filter_parts.append(
+                f"[withsubs][logo]overlay={x_pos}:{y_pos},format=yuv420p[final]"
+            )
+            final_label = "[final]"
+        else:
+            # Force yuv420p for player compatibility (overlay outputs yuva420p)
+            filter_parts.append("[withsubs]format=yuv420p[out]")
+            final_label = "[out]"
+
+        complex_filter = "; ".join(filter_parts)
+        command.extend(["-filter_complex", complex_filter])
+        command.extend(["-map", final_label])
+        command.extend(["-map", "0:a?"])
 
         # Codec e qualidade
         command.extend([
             "-c:v", "libx264",
-            "-preset", "medium",  # medium = boa qualidade/velocidade
-            "-crf", "23",         # 23 = boa qualidade (0-51, menor = melhor)
+            "-preset", "medium",
+            "-crf", "23",
             "-c:a", "aac",
             "-b:a", "128k",
-            "-movflags", "+faststart",  # Otimizar para streaming
-            "-y",  # Overwrite output
-            output_path
+            "-movflags", "+faststart",
+            "-y",
+            output_path,
         ])
-
-        # Enable libass debug logging so font matching decisions are visible
-        # in the worker output. This is the only way to tell whether libass
-        # is picking up the bundled fonts or falling back to system defaults.
-        command = command[:1] + ["-v", "info"] + command[1:]
 
         print(f"[Rendering] FFmpeg command: {' '.join(command)}")
 
-        # 6. Executar FFmpeg
+        # 9. Executar FFmpeg
         result = subprocess.run(
-            command,
-            check=True,
-            capture_output=True,
-            text=True
+            command, check=True, capture_output=True, text=True
         )
 
-        # ffmpeg writes everything (including libass font logs) to stderr.
-        # Surface the libass-relevant lines so we can diagnose font issues.
         if result.stderr:
-            libass_lines = [
-                line for line in result.stderr.splitlines()
-                if any(tag in line.lower() for tag in [
-                    "libass", "fontselect", "font ", "fontname", "glyph",
-                    "fallback", "family"
-                ])
+            # Show any warnings/errors from FFmpeg
+            err_lines = [
+                l for l in result.stderr.splitlines()
+                if any(k in l.lower() for k in ["error", "warning", "overlay", "concat"])
             ]
-            if libass_lines:
-                print("[Rendering] libass log:")
-                for line in libass_lines:
+            if err_lines:
+                for line in err_lines[:10]:
                     print(f"  {line}")
-            else:
-                print("[Rendering] (no libass font messages in ffmpeg output)")
 
-        print(f"[Rendering] Video rendered successfully: {output_path}")
-        print(f"[Rendering] Output file size: {os.path.getsize(output_path)} bytes")
+        print(f"[Rendering] Video rendered: {output_path}")
+        print(f"[Rendering] Output size: {os.path.getsize(output_path)} bytes")
 
-        # 7. Por enquanto, não vamos fazer upload - o arquivo fica no worker
-        # IMPORTANTE: Em produção, implemente upload para S3/R2
-        # output_url = await upload_to_storage(output_path, video_id)
-
-        # Salvar caminho do arquivo para servir depois
-        print(f"[Rendering] Video rendered at: {output_path}")
-
-        # URL para download direto do worker
-        from config import get_settings
-        settings = get_settings()
-        worker_base_url = "http://localhost:8000"  # Em produção, use a URL real do worker
+        # 10. URL para download direto do worker
+        worker_base_url = "http://localhost:8000"
         output_url = f"{worker_base_url}/download/{video_id}"
-
         print(f"[Rendering] Download URL: {output_url}")
 
-        # 8. Notificar Next.js com o caminho do arquivo
+        # 11. Notificar Next.js via webhook
         async with httpx.AsyncClient() as http_client:
             response = await http_client.post(
                 webhook_url,
                 json={
                     "videoId": video_id,
                     "outputUrl": output_url,
-                    "outputPath": output_path,  # Caminho local no worker
-                    "status": "completed"
+                    "outputPath": output_path,
+                    "status": "completed",
                 },
-                timeout=30.0
+                timeout=30.0,
             )
             response.raise_for_status()
 
         print(f"[Rendering] ✓ Success! Video {video_id} completed")
 
-        # NÃO deletar o arquivo ainda - ele será servido depois
-        cleanup_files(video_path or "", ass_path or "")
-        # output_path não é deletado!
+        # Cleanup (keep output_path for download)
+        cleanup_files(video_path or "", concat_path or "")
 
     except subprocess.CalledProcessError as e:
         print(f"[Rendering] ✗ FFmpeg error for video {video_id}:")
         print(f"[Rendering] stdout: {e.stdout}")
         print(f"[Rendering] stderr: {e.stderr}")
-
-        # Notificar erro ao Next.js
         try:
             async with httpx.AsyncClient() as http_client:
                 await http_client.post(
                     webhook_url,
                     json={
                         "videoId": video_id,
-                        "error": f"FFmpeg error: {e.stderr}",
-                        "status": "failed"
+                        "error": f"FFmpeg error: {e.stderr[:500]}",
+                        "status": "failed",
                     },
-                    timeout=30.0
+                    timeout=30.0,
                 )
-        except Exception as webhook_error:
-            print(f"[Rendering] Failed to send error webhook: {webhook_error}")
+        except Exception as we:
+            print(f"[Rendering] Failed to send error webhook: {we}")
 
     except Exception as e:
         print(f"[Rendering] ✗ Error processing video {video_id}: {e}")
-
-        # Notificar erro ao Next.js
         try:
             async with httpx.AsyncClient() as http_client:
                 await http_client.post(
                     webhook_url,
-                    json={
-                        "videoId": video_id,
-                        "error": str(e),
-                        "status": "failed"
-                    },
-                    timeout=30.0
+                    json={"videoId": video_id, "error": str(e), "status": "failed"},
+                    timeout=30.0,
                 )
-        except Exception as webhook_error:
-            print(f"[Rendering] Failed to send error webhook: {webhook_error}")
+        except Exception as we:
+            print(f"[Rendering] Failed to send error webhook: {we}")
 
     finally:
-        # 9. Limpar arquivos temporários (exceto output_path que será servido depois)
-        cleanup_files(
-            video_path or "",
-            ass_path or ""
-        )
-        # NOTA: output_path NÃO é deletado aqui - ele fica disponível para download
+        cleanup_files(video_path or "", concat_path or "")
+
+
+async def _download_logo(logo_overlay: dict, video_id: str) -> str | None:
+    """Download logo image and return local path, or None on failure."""
+    try:
+        logo_url = logo_overlay["logoUrl"]
+        if logo_url.startswith("/"):
+            logo_url = f"http://localhost:3000{logo_url}"
+        path = await download_video(logo_url, f"logo_{video_id}")
+        if path and os.path.exists(path):
+            return path
+    except Exception as e:
+        print(f"[Rendering] Warning: Failed to download logo: {e}")
+    return None

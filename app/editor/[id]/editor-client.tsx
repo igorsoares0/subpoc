@@ -1861,6 +1861,11 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                   // The worker renders at native resolution, so we scale proportionally
                   const scaleFactor = videoDimensions.width / nativeVideoWidth
 
+                  // Compute box padding to match the ASS renderer:
+                  // ASS uses max(int(video_width * 0.015), 6) at native res.
+                  // Scale it down for the preview.
+                  const boxPadding = Math.max(nativeVideoWidth * 0.015, 6) * scaleFactor
+
                   const isWordGroupMode = style.displayMode === 'word-group'
                   const hasWordData = video.subtitles?.some(s => s.words && s.words.length > 0)
 
@@ -1887,8 +1892,9 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                         onMouseDown={handleSubtitleMouseDown}
                       >
                         <div
-                          className="px-4 py-2 rounded-sm text-center"
+                          className="text-center"
                           style={{
+                            padding: `${boxPadding}px`,
                             fontFamily: resolveFontFamily(style.fontFamily),
                             fontSize: `${Math.max(style.fontSize * scaleFactor, 12)}px`,
                             fontWeight: style.fontWeight ?? 700,
@@ -1907,8 +1913,9 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                             const wordText = style.uppercase ? w.word.toUpperCase() : w.word
                             const outlineW = Math.max(style.outlineWidth * scaleFactor, 1)
                             const oc = style.outlineColor
+                            const shadowDepth = Math.max(1, Math.round(style.outlineWidth * scaleFactor * 0.4))
                             const textShadow = style.outline && style.backgroundOpacity <= 0
-                              ? `${outlineW}px 0 0 ${oc}, -${outlineW}px 0 0 ${oc}, 0 ${outlineW}px 0 ${oc}, 0 -${outlineW}px 0 ${oc}, ${outlineW}px ${outlineW}px 0 ${oc}, -${outlineW}px -${outlineW}px 0 ${oc}, ${outlineW}px -${outlineW}px 0 ${oc}, -${outlineW}px ${outlineW}px 0 ${oc}`
+                              ? `${outlineW}px 0 0 ${oc}, -${outlineW}px 0 0 ${oc}, 0 ${outlineW}px 0 ${oc}, 0 -${outlineW}px 0 ${oc}, ${outlineW}px ${outlineW}px 0 ${oc}, -${outlineW}px -${outlineW}px 0 ${oc}, ${outlineW}px -${outlineW}px 0 ${oc}, -${outlineW}px ${outlineW}px 0 ${oc}, ${shadowDepth}px ${shadowDepth}px 0 ${oc}`
                               : "none"
                             // Per-word highlight background
                             const wordBg = isActive && style.highlightBg
@@ -1977,8 +1984,8 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                       onMouseDown={handleSubtitleMouseDown}
                     >
                       <div
-                        className="px-4 py-2 rounded-sm"
                         style={{
+                          padding: `${boxPadding}px`,
                           backgroundColor: (() => {
                             if (style.backgroundOpacity <= 0) return "transparent"
                             const hex = style.backgroundColor.replace('#', '')
@@ -1996,7 +2003,8 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                             if (!style.outline || style.backgroundOpacity > 0) return "none"
                             const w = Math.max(style.outlineWidth * scaleFactor, 1)
                             const oc = style.outlineColor
-                            return `${w}px 0 0 ${oc}, -${w}px 0 0 ${oc}, 0 ${w}px 0 ${oc}, 0 -${w}px 0 ${oc}, ${w}px ${w}px 0 ${oc}, -${w}px -${w}px 0 ${oc}, ${w}px -${w}px 0 ${oc}, -${w}px ${w}px 0 ${oc}`
+                            const sd = Math.max(1, Math.round(style.outlineWidth * scaleFactor * 0.4))
+                            return `${w}px 0 0 ${oc}, -${w}px 0 0 ${oc}, 0 ${w}px 0 ${oc}, 0 -${w}px 0 ${oc}, ${w}px ${w}px 0 ${oc}, -${w}px -${w}px 0 ${oc}, ${w}px -${w}px 0 ${oc}, -${w}px ${w}px 0 ${oc}, ${sd}px ${sd}px 0 ${oc}`
                           })()
                         }}
                       >
