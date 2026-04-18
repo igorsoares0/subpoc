@@ -50,18 +50,30 @@ def get_video_info(video_path: str) -> dict:
             duration = float(fmt.get('duration', 0))
             if streams:
                 video_stream = streams[0]
+                # Parse framerate from r_frame_rate (e.g. "30/1", "30000/1001")
+                fps = 30.0
+                fps_str = video_stream.get('r_frame_rate', '30/1')
+                try:
+                    if '/' in fps_str:
+                        num, den = fps_str.split('/')
+                        fps = float(num) / float(den) if float(den) != 0 else 30.0
+                    else:
+                        fps = float(fps_str)
+                except (ValueError, ZeroDivisionError):
+                    fps = 30.0
                 return {
                     'width': video_stream.get('width', 1920),
                     'height': video_stream.get('height', 1080),
                     'codec': video_stream.get('codec_name', 'unknown'),
                     'duration': duration,
+                    'fps': fps,
                 }
 
-        return {'width': 1920, 'height': 1080, 'duration': 0}
+        return {'width': 1920, 'height': 1080, 'duration': 0, 'fps': 30.0}
 
     except Exception as e:
         print(f"[Video Info] Error getting video info: {e}")
-        return {'width': 1920, 'height': 1080, 'duration': 0}
+        return {'width': 1920, 'height': 1080, 'duration': 0, 'fps': 30.0}
 
 
 def _get_output_dimensions(format_type: str | None, src_w: int, src_h: int) -> tuple[int, int]:
@@ -147,11 +159,14 @@ def _build_concat_file(
     current_time = 0.0
 
     for start, end, png_path in schedule:
-        gap = start - current_time
-        if gap > 0.01:
+        # Clamp start to current_time to avoid overlapping entries
+        effective_start = max(start, current_time)
+        gap = effective_start - current_time
+        if gap > 0.001:
             entries.append((blank_png, gap))
-        duration = end - start
-        if duration > 0.01:
+            current_time += gap
+        duration = end - effective_start
+        if duration > 0.001:
             entries.append((png_path, duration))
             current_time = end
 
@@ -160,7 +175,6 @@ def _build_concat_file(
         entries.append((blank_png, video_duration - current_time))
 
     if not entries:
-        # No subtitles — just a blank video for the full duration
         entries.append((blank_png, max(video_duration, 1.0)))
 
     with open(concat_path, "w", encoding="utf-8") as f:
@@ -168,7 +182,7 @@ def _build_concat_file(
         for path, dur in entries:
             safe = path.replace("\\", "/")
             f.write(f"file '{safe}'\n")
-            f.write(f"duration {dur:.4f}\n")
+            f.write(f"duration {dur:.6f}\n")
         # Concat demuxer needs a trailing file entry for the last duration
         safe = entries[-1][0].replace("\\", "/")
         f.write(f"file '{safe}'\n")
@@ -212,7 +226,8 @@ async def process_rendering(
         src_w = video_info.get("width", 1920)
         src_h = video_info.get("height", 1080)
         video_duration = video_info.get("duration", 0)
-        print(f"[Rendering] Video: {src_w}x{src_h}, duration={video_duration:.1f}s")
+        video_fps = video_info.get("fps", 30.0)
+        print(f"[Rendering] Video: {src_w}x{src_h}, duration={video_duration:.1f}s, fps={video_fps:.2f}")
 
         # 3. Determinar dimensões finais (formato de saída)
         out_w, out_h = _get_output_dimensions(format_type, src_w, src_h)
@@ -250,8 +265,6 @@ async def process_rendering(
         if trim and trim.get("start") is not None:
             command.extend(["-ss", str(trim["start"])])
         command.extend(["-i", video_path])
-        if trim and trim.get("end") is not None:
-            command.extend(["-to", str(trim["end"])])
 
         # Input 1: subtitle video via concat demuxer
         command.extend(["-f", "concat", "-safe", "0", "-i", concat_path])
@@ -291,10 +304,13 @@ async def process_rendering(
         # Build the overlay chain
         video_label = "[scaled]" if filter_parts else "[0:v]"
 
-        # Subtitle overlay: concat input → format rgba → overlay at 0,0
-        filter_parts.append(f"[1:v]format=rgba[subs]")
+        # Subtitle overlay: normalize to video fps + reset timestamps for sync
+        fps_val = round(video_fps, 3)
         filter_parts.append(
-            f"{video_label}[subs]overlay=0:0:format=auto[withsubs]"
+            f"[1:v]fps={fps_val},setpts=PTS-STARTPTS,format=rgba[subs]"
+        )
+        filter_parts.append(
+            f"{video_label}[subs]overlay=0:0:format=auto:shortest=1[withsubs]"
         )
 
         # Logo overlay (optional)
@@ -331,6 +347,11 @@ async def process_rendering(
         command.extend(["-filter_complex", complex_filter])
         command.extend(["-map", final_label])
         command.extend(["-map", "0:a?"])
+
+        # Trim duration as output option (if trimmed, limit output to trimmed duration)
+        if trim and trim.get("end") is not None:
+            trim_duration = effective_duration
+            command.extend(["-t", f"{trim_duration:.6f}"])
 
         # Codec e qualidade
         command.extend([
