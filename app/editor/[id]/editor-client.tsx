@@ -120,6 +120,28 @@ function normalizePosition(position: { x: number; y: number } | string): { x: nu
   return position
 }
 
+// Default subtitle style – used as base when applying templates
+// to ensure optional fields from a previous template are cleared.
+const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
+  fontFamily: "Arial",
+  fontSize: 24,
+  fontWeight: 700,
+  color: "#FFFFFF",
+  backgroundColor: "#000000",
+  backgroundOpacity: 0,
+  position: { x: 50, y: 90 },
+  alignment: "center",
+  outline: false,
+  outlineColor: "#000000",
+  outlineWidth: 0,
+  highlightColor: undefined,
+  highlightBg: undefined,
+  highlightBgOpacity: undefined,
+  displayMode: 'sentence',
+  wordsPerGroup: 3,
+  uppercase: false,
+}
+
 // Subtitle style templates
 const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
   {
@@ -931,8 +953,11 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     await saveSubtitles(updatedSubtitles)
   }
 
-  const updateStyle = async (newStyle: Partial<SubtitleStyle>) => {
-    const updatedStyle = { ...video?.subtitleStyle, ...newStyle } as SubtitleStyle
+  const updateStyle = async (newStyle: Partial<SubtitleStyle>, isTemplate = false) => {
+    // When applying a template, start from defaults to clear residual fields
+    // (e.g. highlightBg, displayMode) from a previous template.
+    const base = isTemplate ? DEFAULT_SUBTITLE_STYLE : (video?.subtitleStyle ?? DEFAULT_SUBTITLE_STYLE)
+    const updatedStyle = { ...base, ...newStyle } as SubtitleStyle
     setVideo({ ...video, subtitleStyle: updatedStyle })
 
     // Save to backend
@@ -1558,6 +1583,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                           className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/[0.06] transition-all"
                           onClick={(e) => {
                             e.stopPropagation()
+                            seekToSubtitle(sub.start, sub.id)
                             setEditingSubtitle(sub.id)
                           }}
                           title="Edit subtitle"
@@ -1589,6 +1615,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                           }`}
                           onDoubleClick={(e) => {
                             e.stopPropagation()
+                            seekToSubtitle(sub.start, sub.id)
                             setEditingSubtitle(sub.id)
                           }}
                         >
@@ -1635,7 +1662,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                       return (
                         <button
                           key={template.name}
-                          onClick={() => updateStyle(template.style)}
+                          onClick={() => updateStyle(template.style, true)}
                           className={`flex flex-col items-center gap-1.5 rounded-lg p-2 transition-all border ${
                             isActive
                               ? "border-blue-500/50 bg-blue-600/10"
