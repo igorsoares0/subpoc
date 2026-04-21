@@ -6,6 +6,13 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { VideoTimeline } from "@/components/timeline/VideoTimeline"
 import {
+  SubtitleTrack,
+  resolveFontFamily,
+  type Subtitle,
+  type SubtitleStyle,
+  type SubtitleWord,
+} from "@/lib/subtitle-track"
+import {
   ArrowLeft,
   Play,
   Pause,
@@ -32,57 +39,6 @@ import {
   AlignCenter,
 } from "lucide-react"
 
-interface SubtitleWord {
-  word: string
-  start: number
-  end: number
-}
-
-interface Subtitle {
-  id: number
-  start: number
-  end: number
-  text: string
-  words?: SubtitleWord[]
-}
-
-interface SubtitleStyle {
-  fontFamily: string
-  fontSize: number
-  fontWeight?: number            // 400/700/900 — default 700; 900 = chunky Hormozi look
-  color: string
-  backgroundColor: string
-  backgroundOpacity: number
-  position: { x: number; y: number } | string  // Support both new {x, y} and legacy string formats
-  alignment: string
-  outline: boolean
-  outlineColor: string
-  outlineWidth: number
-  highlightColor?: string        // cor da palavra ativa (ex: "#FFD700")
-  highlightBg?: string           // cor de fundo só na palavra ativa (ex: "#E63946")
-  highlightBgOpacity?: number    // opacidade do fundo da palavra ativa (0-1)
-  displayMode?: 'sentence' | 'word-group'  // default 'sentence'
-  wordsPerGroup?: number         // palavras por grupo (default 3)
-  uppercase?: boolean            // forçar maiúsculas
-}
-
-// Maps logical template font names to the CSS variable exposed by next/font.
-// Keeps the preview rendering the same glyphs as the worker's libass renderer.
-// Families without a loaded web font fall back to the system stack.
-const FONT_FAMILY_CSS: Record<string, string> = {
-  Inter: "var(--font-inter), sans-serif",
-  Montserrat: "var(--font-montserrat), sans-serif",
-  Poppins: "var(--font-poppins), sans-serif",
-  Roboto: "var(--font-roboto), sans-serif",
-  Arial: "Arial, sans-serif",
-  Helvetica: "Helvetica, Arial, sans-serif",
-}
-
-function resolveFontFamily(family: string | undefined): string {
-  if (!family) return "var(--font-poppins), sans-serif"
-  return FONT_FAMILY_CSS[family] || `${family}, sans-serif`
-}
-
 interface LogoOverlay {
   logoUrl: string | null
   position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
@@ -105,19 +61,6 @@ interface VideoProject {
 
 interface EditorClientProps {
   video: VideoProject
-}
-
-// Helper function to normalize position from legacy string format to {x, y} coordinates
-function normalizePosition(position: { x: number; y: number } | string): { x: number; y: number } {
-  if (typeof position === 'string') {
-    switch (position) {
-      case 'top': return { x: 50, y: 10 }
-      case 'center': return { x: 50, y: 50 }
-      case 'bottom':
-      default: return { x: 50, y: 90 }
-    }
-  }
-  return position
 }
 
 // Default subtitle style – used as base when applying templates
@@ -467,41 +410,6 @@ function getFormatLabel(backendValue: string | null): string {
 function getFormatAspectRatio(backendValue: string | null): number | null {
   const format = FORMAT_OPTIONS.find(f => f.value === backendValue)
   return format?.aspectRatio || null
-}
-
-// Get display content for word-group mode
-function getWordGroupDisplay(
-  subtitles: Subtitle[],
-  currentTime: number,
-  wordsPerGroup: number
-): { words: SubtitleWord[]; activeIndex: number } | null {
-  // Flatten all words from all subtitles
-  const allWords: SubtitleWord[] = []
-  for (const sub of subtitles) {
-    if (sub.words) {
-      allWords.push(...sub.words)
-    }
-  }
-  if (allWords.length === 0) return null
-
-  // Find which word is active
-  let activeWordIdx = -1
-  for (let i = 0; i < allWords.length; i++) {
-    if (currentTime >= allWords[i].start && currentTime < allWords[i].end) {
-      activeWordIdx = i
-      break
-    }
-  }
-  if (activeWordIdx === -1) return null
-
-  // Determine group: which group of N words contains the active word
-  const groupIndex = Math.floor(activeWordIdx / wordsPerGroup)
-  const groupStart = groupIndex * wordsPerGroup
-  const groupEnd = Math.min(groupStart + wordsPerGroup, allWords.length)
-  const groupWords = allWords.slice(groupStart, groupEnd)
-  const activeIndexInGroup = activeWordIdx - groupStart
-
-  return { words: groupWords, activeIndex: activeIndexInGroup }
 }
 
 export default function EditorClient({ video: initialVideo }: EditorClientProps) {
@@ -1797,6 +1705,40 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                   />
                 </div>
 
+                {/* Submagic-style pop animation toggle */}
+                {style.displayMode === 'word-group' && (
+                  <div>
+                    <button
+                      onClick={() =>
+                        updateStyle({
+                          animationMode: style.animationMode === 'pop' ? 'none' : 'pop',
+                        })
+                      }
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors text-[12px] ${
+                        style.animationMode === 'pop'
+                          ? 'bg-blue-600/20 border-blue-500/40 text-blue-300 hover:bg-blue-600/30'
+                          : 'bg-white/[0.04] border-white/[0.06] text-zinc-300 hover:bg-white/[0.08]'
+                      }`}
+                    >
+                      <span className="font-medium">Animação Submagic</span>
+                      <span
+                        className={`relative inline-block w-9 h-5 rounded-full transition-colors ${
+                          style.animationMode === 'pop' ? 'bg-blue-500' : 'bg-zinc-700'
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                            style.animationMode === 'pop' ? 'translate-x-4' : ''
+                          }`}
+                        />
+                      </span>
+                    </button>
+                    <p className="text-[11px] text-zinc-600 mt-2">
+                      Pop + bounce na palavra ativa (estilo Submagic).
+                    </p>
+                  </div>
+                )}
+
                 {/* Position Reset */}
                 <div>
                   <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Position</label>
@@ -1871,173 +1813,26 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                   </video>
 
                   {/* Subtitle Preview Overlay */}
-                {displayedSubtitle && (() => {
-                  const position = normalizePosition(style.position)
+                {(() => {
                   const videoContainer = videoRef.current?.getBoundingClientRect()
                   if (!videoContainer || videoDimensions.width === 0) return null
-
-                  // Calculate letterboxing offset
                   const offsetX = (videoContainer.width - videoDimensions.width) / 2
                   const offsetY = (videoContainer.height - videoDimensions.height) / 2
-
-                  // Convert percentage to pixels
-                  const leftPx = offsetX + (position.x / 100) * videoDimensions.width
-                  const topPx = offsetY + (position.y / 100) * videoDimensions.height
-
-                  // Scale factor: ratio between preview width and native video width
-                  // The worker renders at native resolution, so we scale proportionally
-                  const scaleFactor = videoDimensions.width / nativeVideoWidth
-
-                  // Compute box padding to match the ASS renderer:
-                  // ASS uses max(int(video_width * 0.015), 6) at native res.
-                  // Scale it down for the preview.
-                  const boxPadding = Math.max(nativeVideoWidth * 0.015, 6) * scaleFactor
-
-                  const isWordGroupMode = style.displayMode === 'word-group'
-                  const hasWordData = video.subtitles?.some(s => s.words && s.words.length > 0)
-
-                  // Word-group mode rendering
-                  if (isWordGroupMode && hasWordData && video.subtitles) {
-                    const wordGroup = getWordGroupDisplay(
-                      video.subtitles,
-                      displayTime,
-                      style.wordsPerGroup || 3
-                    )
-                    if (!wordGroup) return null
-
-                    return (
-                      <div
-                        className="absolute"
-                        style={{
-                          left: `${leftPx}px`,
-                          top: `${topPx}px`,
-                          transform: 'translate(-50%, -50%)',
-                          cursor: isDraggingSubtitle ? 'grabbing' : 'grab',
-                          pointerEvents: 'auto',
-                          maxWidth: `${Math.min(videoDimensions.width * 0.9, videoDimensions.width - 32)}px`,
-                        }}
-                        onMouseDown={handleSubtitleMouseDown}
-                      >
-                        <div
-                          className="text-center"
-                          style={{
-                            padding: `${boxPadding}px`,
-                            fontFamily: resolveFontFamily(style.fontFamily),
-                            fontSize: `${Math.max(style.fontSize * scaleFactor, 12)}px`,
-                            fontWeight: style.fontWeight ?? 700,
-                            backgroundColor: (() => {
-                              if (style.backgroundOpacity <= 0) return "transparent"
-                              const hex = style.backgroundColor.replace('#', '')
-                              const r = parseInt(hex.substring(0, 2), 16)
-                              const g = parseInt(hex.substring(2, 4), 16)
-                              const b = parseInt(hex.substring(4, 6), 16)
-                              return `rgba(${r}, ${g}, ${b}, ${style.backgroundOpacity})`
-                            })(),
-                          }}
-                        >
-                          {wordGroup.words.map((w, idx) => {
-                            const isActive = idx === wordGroup.activeIndex
-                            const wordText = style.uppercase ? w.word.toUpperCase() : w.word
-                            const outlineW = Math.max(style.outlineWidth * scaleFactor, 1)
-                            const oc = style.outlineColor
-                            const shadowDepth = Math.max(1, Math.round(style.outlineWidth * scaleFactor * 0.4))
-                            const textShadow = style.outline && style.backgroundOpacity <= 0
-                              ? `${outlineW}px 0 0 ${oc}, -${outlineW}px 0 0 ${oc}, 0 ${outlineW}px 0 ${oc}, 0 -${outlineW}px 0 ${oc}, ${outlineW}px ${outlineW}px 0 ${oc}, -${outlineW}px -${outlineW}px 0 ${oc}, ${outlineW}px -${outlineW}px 0 ${oc}, -${outlineW}px ${outlineW}px 0 ${oc}, ${shadowDepth}px ${shadowDepth}px 0 ${oc}`
-                              : "none"
-                            // Per-word highlight background
-                            const wordBg = isActive && style.highlightBg
-                              ? (() => {
-                                  const hex = style.highlightBg!.replace('#', '')
-                                  const r = parseInt(hex.substring(0, 2), 16)
-                                  const g = parseInt(hex.substring(2, 4), 16)
-                                  const b = parseInt(hex.substring(4, 6), 16)
-                                  return `rgba(${r}, ${g}, ${b}, ${style.highlightBgOpacity ?? 0.95})`
-                                })()
-                              : undefined
-                            return (
-                              <span
-                                key={idx}
-                                style={{
-                                  color: isActive && style.highlightBg ? (style.highlightColor || '#FFFFFF') : isActive ? (style.highlightColor || '#FFD700') : style.color,
-                                  textShadow: isActive && style.highlightBg ? 'none' : textShadow,
-                                  marginRight: idx < wordGroup.words.length - 1 ? '0.3em' : undefined,
-                                  backgroundColor: wordBg,
-                                  padding: wordBg ? '2px 6px' : undefined,
-                                  borderRadius: wordBg ? '4px' : undefined,
-                                }}
-                              >
-                                {wordText}
-                              </span>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  }
-
-                  // Word-group mode selected but no word data available
-                  if (isWordGroupMode && !hasWordData) {
-                    return (
-                      <div
-                        className="absolute"
-                        style={{
-                          left: `${leftPx}px`,
-                          top: `${topPx}px`,
-                          transform: 'translate(-50%, -50%)',
-                          pointerEvents: 'auto',
-                        }}
-                      >
-                        <div className="bg-yellow-900/80 text-yellow-200 px-4 py-2 rounded text-sm text-center max-w-[300px]">
-                          Word-level data not available. Re-transcribe the video to enable word-by-word display.
-                        </div>
-                      </div>
-                    )
-                  }
-
-                  // Default sentence mode
-                  const displayText = style.uppercase ? displayedSubtitle.text.toUpperCase() : displayedSubtitle.text
-
                   return (
-                    <div
-                      className="absolute"
-                      style={{
-                        left: `${leftPx}px`,
-                        top: `${topPx}px`,
-                        transform: 'translate(-50%, -50%)',
-                        cursor: isDraggingSubtitle ? 'grabbing' : 'grab',
-                        pointerEvents: 'auto',
-                        maxWidth: `${Math.min(videoDimensions.width * 0.9, videoDimensions.width - 32)}px`,
-                      }}
+                    <SubtitleTrack
+                      currentTime={displayTime}
+                      subtitles={video.subtitles || []}
+                      style={style}
+                      videoWidth={videoDimensions.width}
+                      videoHeight={videoDimensions.height}
+                      nativeVideoWidth={nativeVideoWidth}
+                      offsetX={offsetX}
+                      offsetY={offsetY}
+                      overrideSubtitle={displayedSubtitle ?? null}
+                      interactive
+                      isDragging={isDraggingSubtitle}
                       onMouseDown={handleSubtitleMouseDown}
-                    >
-                      <div
-                        style={{
-                          padding: `${boxPadding}px`,
-                          backgroundColor: (() => {
-                            if (style.backgroundOpacity <= 0) return "transparent"
-                            const hex = style.backgroundColor.replace('#', '')
-                            const r = parseInt(hex.substring(0, 2), 16)
-                            const g = parseInt(hex.substring(2, 4), 16)
-                            const b = parseInt(hex.substring(4, 6), 16)
-                            return `rgba(${r}, ${g}, ${b}, ${style.backgroundOpacity})`
-                          })(),
-                          color: style.color,
-                          fontFamily: resolveFontFamily(style.fontFamily),
-                          fontSize: `${Math.max(style.fontSize * scaleFactor, 12)}px`,
-                          fontWeight: style.fontWeight ?? 700,
-                          textAlign: style.alignment as any,
-                          textShadow: (() => {
-                            if (!style.outline || style.backgroundOpacity > 0) return "none"
-                            const w = Math.max(style.outlineWidth * scaleFactor, 1)
-                            const oc = style.outlineColor
-                            const sd = Math.max(1, Math.round(style.outlineWidth * scaleFactor * 0.4))
-                            return `${w}px 0 0 ${oc}, -${w}px 0 0 ${oc}, 0 ${w}px 0 ${oc}, 0 -${w}px 0 ${oc}, ${w}px ${w}px 0 ${oc}, -${w}px -${w}px 0 ${oc}, ${w}px -${w}px 0 ${oc}, -${w}px ${w}px 0 ${oc}, ${sd}px ${sd}px 0 ${oc}`
-                          })()
-                        }}
-                      >
-                        {displayText}
-                      </div>
-                    </div>
+                    />
                   )
                 })()}
 

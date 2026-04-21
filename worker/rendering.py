@@ -96,10 +96,16 @@ def _render_subtitle_pngs(
     video_height: int,
     video_id: str,
     trim_start: float = 0,
+    effective_duration: float | None = None,
+    video_fps: float | None = None,
 ) -> tuple[list[tuple[float, float, str]], str]:
     """
     Render subtitle PNGs via a separate subprocess (avoids Playwright
     event-loop conflicts with uvicorn on Windows).
+
+    The subprocess drives the Next.js /render/[id] route headlessly, so the
+    editor's <SubtitleTrack /> component is the single source of truth for
+    subtitle visuals.
 
     Returns (schedule, blank_png_path).
     """
@@ -107,11 +113,16 @@ def _render_subtitle_pngs(
     output_path = os.path.join(tempfile.gettempdir(), f"subresult_{video_id}.json")
 
     job = {
+        "video_id": video_id,
         "subtitles": subtitles,
         "style": style,
         "video_width": video_width,
         "video_height": video_height,
         "trim_start": trim_start,
+        "next_app_url": settings.next_app_url,
+        "worker_secret": settings.worker_secret,
+        "effective_duration": effective_duration,
+        "video_fps": video_fps,
     }
     with open(input_path, "w", encoding="utf-8") as f:
         json.dump(job, f)
@@ -248,6 +259,7 @@ async def process_rendering(
         schedule, blank_png = await asyncio.to_thread(
             _render_subtitle_pngs,
             subtitles, style, out_w, out_h, video_id, trim_start,
+            effective_duration, video_fps,
         )
         print(f"[Rendering] Generated {len(schedule)} subtitle frames")
 
@@ -304,10 +316,13 @@ async def process_rendering(
         # Build the overlay chain
         video_label = "[scaled]" if filter_parts else "[0:v]"
 
-        # Subtitle overlay: normalize to video fps + reset timestamps for sync
+        # Subtitle overlay: normalize to video fps + reset timestamps for sync.
+        # Subtitle PNGs are captured at 2x (device_scale_factor=2) for better
+        # glyph antialiasing — downscale with lanczos for sharp edges.
         fps_val = round(video_fps, 3)
         filter_parts.append(
-            f"[1:v]fps={fps_val},setpts=PTS-STARTPTS,format=rgba[subs]"
+            f"[1:v]fps={fps_val},setpts=PTS-STARTPTS,"
+            f"scale={out_w}:{out_h}:flags=lanczos,format=rgba[subs]"
         )
         filter_parts.append(
             f"{video_label}[subs]overlay=0:0:format=auto:shortest=1[withsubs]"

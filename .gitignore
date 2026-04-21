@@ -43,3 +43,8 @@ next-env.d.ts
 # uploads
 /public/uploads/**/*
 !/public/uploads/.gitkeep
+
+# worker test artifacts
+/worker/prototype_output/
+/worker/venv/
+/worker/__pycache__/

@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # Ambiente
     environment: str = "development"
 
+    # URL do Next.js (usado pelo subtitle renderer via rota /render/[id])
+    next_app_url: str = "http://localhost:3000"
+
     class Config:
         env_file = ".env"
         case_sensitive = False

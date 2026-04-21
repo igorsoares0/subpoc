@@ -1,419 +1,320 @@
 """
-Subtitle renderer using Playwright (headless Chromium).
+Subtitle renderer via Next.js /render/[id] route.
 
-Renders subtitle text with the EXACT same CSS as the Next.js editor preview,
-producing transparent PNG images that FFmpeg can overlay onto the video.
-This guarantees pixel-perfect WYSIWYG: preview == final render.
+Opens the /render/[id] page in headless Chromium, drives window.__setTime(t)
+to capture full-frame transparent PNGs at each visual key-moment, and returns
+(schedule, blank_png) — the same contract the old in-Python HTML renderer had,
+so FFmpeg concat-demuxer composition downstream is unchanged.
+
+The display-mode logic (sentence vs word-group) lives entirely in
+<SubtitleTrack /> now; this file only schedules which timestamps to sample.
 """
 
+import asyncio
 import os
 import tempfile
-import hashlib
-from pathlib import Path
-from playwright.sync_api import sync_playwright, Browser
-
-FONTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
-
-# Mapping from logical font name to the local .ttf files in worker/fonts/.
-# Each entry lists (file, weight, style) tuples so we can generate @font-face rules.
-_FONT_FILES: dict[str, list[tuple[str, int, str]]] = {
-    "Inter": [
-        ("Inter-VF.ttf", 400, "normal"),
-    ],
-    "Montserrat": [
-        ("Montserrat-Regular.ttf", 400, "normal"),
-        ("Montserrat-Medium.ttf", 500, "normal"),
-        ("Montserrat-SemiBold.ttf", 600, "normal"),
-        ("Montserrat-Bold.ttf", 700, "normal"),
-        ("Montserrat-Black.ttf", 900, "normal"),
-    ],
-    "Poppins": [
-        ("Poppins-Regular.ttf", 400, "normal"),
-        ("Poppins-Medium.ttf", 500, "normal"),
-        ("Poppins-SemiBold.ttf", 600, "normal"),
-        ("Poppins-Bold.ttf", 700, "normal"),
-        ("Poppins-Black.ttf", 900, "normal"),
-    ],
-    "Roboto": [
-        ("Roboto-VF.ttf", 400, "normal"),
-    ],
-}
+from playwright.async_api import async_playwright
 
 
-def _build_font_face_css() -> str:
-    """Generate @font-face rules for all bundled fonts."""
-    rules = []
-    for family, files in _FONT_FILES.items():
-        for filename, weight, style in files:
-            font_path = os.path.join(FONTS_DIR, filename).replace("\\", "/")
-            # Variable fonts cover all weights; set a range
-            if filename.endswith("-VF.ttf"):
-                weight_str = "100 900"
-            else:
-                weight_str = str(weight)
-            rules.append(
-                f"@font-face {{\n"
-                f"  font-family: '{family}';\n"
-                f"  src: url('file:///{font_path}') format('truetype');\n"
-                f"  font-weight: {weight_str};\n"
-                f"  font-style: {style};\n"
-                f"}}"
-            )
-    return "\n".join(rules)
+def _build_keyframes(
+    subtitles: list[dict],
+    style: dict,
+    trim_start: float,
+) -> list[tuple[float, float, float]]:
+    """
+    Returns (start, end, sample_t) tuples where:
+      - start/end are in the post-trim output timeline
+      - sample_t is in the original (pre-trim) timeline (what __setTime expects)
+
+    sentence mode    → one keyframe per subtitle
+    word-group mode  → one keyframe per active word
+    """
+    display_mode = (style or {}).get("displayMode", "sentence")
+    keyframes: list[tuple[float, float, float]] = []
+
+    if display_mode == "word-group":
+        for sub in subtitles:
+            for w in sub.get("words", []) or []:
+                orig_start = float(w.get("start", 0))
+                orig_end = float(w.get("end", 0))
+                out_end = orig_end - trim_start
+                if out_end <= 0 or orig_end <= orig_start:
+                    continue
+                out_start = max(0.0, orig_start - trim_start)
+                # sample at a stable point inside the word (avoid boundary races)
+                sample_t = orig_start + (orig_end - orig_start) * 0.5
+                keyframes.append((out_start, out_end, sample_t))
+    else:
+        for sub in subtitles:
+            text = (sub.get("text") or "").strip()
+            if not text:
+                continue
+            orig_start = float(sub.get("start", 0))
+            orig_end = float(sub.get("end", 0))
+            out_end = orig_end - trim_start
+            if out_end <= 0 or orig_end <= orig_start:
+                continue
+            out_start = max(0.0, orig_start - trim_start)
+            sample_t = orig_start + (orig_end - orig_start) * 0.5
+            keyframes.append((out_start, out_end, sample_t))
+
+    keyframes.sort(key=lambda x: x[0])
+    return keyframes
 
 
-def _hex_to_rgba(hex_color: str, opacity: float = 1.0) -> str:
-    """Convert #RRGGBB hex to rgba() CSS string."""
-    hex_color = hex_color.lstrip("#")
-    r = int(hex_color[0:2], 16)
-    g = int(hex_color[2:4], 16)
-    b = int(hex_color[4:6], 16)
-    return f"rgba({r}, {g}, {b}, {opacity})"
+async def render_subtitles_via_browser(
+    video_id: str,
+    subtitles: list[dict],
+    style: dict,
+    video_width: int,
+    video_height: int,
+    trim_start: float,
+    next_app_url: str,
+    worker_secret: str,
+    out_dir: str | None = None,
+) -> tuple[list[tuple[float, float, str]], str]:
+    """
+    Drives the /render/[id] page and produces one full-frame transparent PNG
+    per visual keyframe. Returns (schedule, blank_png).
+    """
+    if out_dir is None:
+        out_dir = os.path.join(tempfile.gettempdir(), f"subs_{video_id}")
+    os.makedirs(out_dir, exist_ok=True)
 
+    keyframes = _build_keyframes(subtitles, style, trim_start)
 
-def _build_text_shadow(outline_width: int, outline_color: str) -> str:
-    """Build the same 8-directional + drop-shadow CSS text-shadow as the editor."""
-    w = outline_width
-    oc = outline_color
-    sd = max(1, round(w * 0.4))
-    return (
-        f"{w}px 0 0 {oc}, -{w}px 0 0 {oc}, "
-        f"0 {w}px 0 {oc}, 0 -{w}px 0 {oc}, "
-        f"{w}px {w}px 0 {oc}, -{w}px -{w}px 0 {oc}, "
-        f"{w}px -{w}px 0 {oc}, -{w}px {w}px 0 {oc}, "
-        f"{sd}px {sd}px 0 {oc}"
+    url = (
+        f"{next_app_url.rstrip('/')}/render/{video_id}"
+        f"?token={worker_secret}&w={video_width}&h={video_height}"
     )
 
+    schedule: list[tuple[float, float, str]] = []
+    blank_png = os.path.join(out_dir, "blank.png")
 
-def _build_sentence_html(
-    text: str,
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        try:
+            context = await browser.new_context(
+                viewport={"width": video_width, "height": video_height},
+                # 2x supersampling: Chromium rasterizes text in 2x, screenshot
+                # comes back at 2x resolution. FFmpeg downscales with lanczos,
+                # producing much sharper glyph edges than DSF=1 (which matches
+                # what the user sees in the editor on a retina/HiDPI display).
+                device_scale_factor=2,
+            )
+            page = await context.new_page()
+
+            print(f"[SubRender] Navigating: {url}")
+            await page.goto(url, wait_until="networkidle")
+            await page.wait_for_function(
+                "() => window.__ready === true", timeout=20000
+            )
+            print(f"[SubRender] Ready. Keyframes: {len(keyframes)}")
+
+            # Blank frame — sample at a time where no subtitle is active.
+            # Using -9999 guarantees no match in either display mode.
+            await page.evaluate("window.__setTime(-9999)")
+            await page.screenshot(path=blank_png, omit_background=True)
+
+            # Dedup identical (sentence) keyframes by sample_t to avoid redundant
+            # screenshots when, e.g., a subtitle spans a long duration.
+            for idx, (start, end, sample_t) in enumerate(keyframes):
+                png = os.path.join(out_dir, f"sub_{idx:05d}.png")
+                await page.evaluate(f"window.__setTime({sample_t})")
+                await page.screenshot(path=png, omit_background=True)
+                schedule.append((start, end, png))
+        finally:
+            await browser.close()
+
+    return schedule, blank_png
+
+
+def _build_active_intervals(
+    subtitles: list[dict],
+    style: dict,
+    trim_start: float,
+) -> list[tuple[float, float]]:
+    """
+    Post-trim time intervals where *any* subtitle/word is active.
+    Used by the framewise renderer to skip empty frames.
+    """
+    display_mode = (style or {}).get("displayMode", "sentence")
+    intervals: list[tuple[float, float]] = []
+
+    if display_mode == "word-group":
+        for sub in subtitles:
+            for w in sub.get("words", []) or []:
+                s = float(w.get("start", 0)) - trim_start
+                e = float(w.get("end", 0)) - trim_start
+                if e > 0 and e > s:
+                    intervals.append((max(0.0, s), e))
+    else:
+        for sub in subtitles:
+            if not (sub.get("text") or "").strip():
+                continue
+            s = float(sub.get("start", 0)) - trim_start
+            e = float(sub.get("end", 0)) - trim_start
+            if e > 0 and e > s:
+                intervals.append((max(0.0, s), e))
+
+    intervals.sort()
+    return intervals
+
+
+def _is_active(t_out: float, intervals: list[tuple[float, float]]) -> bool:
+    """Linear scan — fine for typical subtitle counts (hundreds)."""
+    for s, e in intervals:
+        if t_out < s:
+            return False
+        if t_out < e:
+            return True
+    return False
+
+
+async def render_subtitles_framewise(
+    video_id: str,
+    subtitles: list[dict],
     style: dict,
     video_width: int,
     video_height: int,
-    position: dict | None = None,
-) -> str:
-    """Build the HTML for a single sentence-mode subtitle frame."""
-    font_face_css = _build_font_face_css()
-    font_family = style.get("fontFamily", "Arial")
-    font_size = style.get("fontSize", 20)
-    font_weight = style.get("fontWeight", 700)
-    color = style.get("color", "#FFFFFF")
-    bg_color = style.get("backgroundColor", "#000000")
-    bg_opacity = style.get("backgroundOpacity", 0)
-    alignment = style.get("alignment", "center")
-    has_outline = style.get("outline", False)
-    outline_color = style.get("outlineColor", "#000000")
-    outline_width = style.get("outlineWidth", 2)
-    uppercase = style.get("uppercase", False)
-
-    # Position (percentage)
-    x_pct = 50
-    y_pct = 90
-    if position and isinstance(position, dict):
-        x_pct = position.get("x", 50)
-        y_pct = position.get("y", 90)
-
-    display_text = text.upper() if uppercase else text
-
-    # Background
-    if bg_opacity > 0:
-        bg_css = _hex_to_rgba(bg_color, bg_opacity)
-    else:
-        bg_css = "transparent"
-
-    # Outline via text-shadow (same as editor)
-    if has_outline and bg_opacity <= 0:
-        text_shadow = _build_text_shadow(outline_width, outline_color)
-    else:
-        text_shadow = "none"
-
-    # Box padding matching the editor's formula
-    box_padding = max(int(video_width * 0.015), 6)
-
-    # Max width: 90% of video (matching editor's maxWidth constraint)
-    max_width = int(video_width * 0.9)
-
-    return f"""<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-{font_face_css}
-* {{ margin: 0; padding: 0; box-sizing: border-box; }}
-body {{
-  width: {video_width}px;
-  height: {video_height}px;
-  background: transparent;
-  position: relative;
-  overflow: hidden;
-}}
-.subtitle-container {{
-  position: absolute;
-  left: {x_pct}%;
-  top: {y_pct}%;
-  transform: translate(-50%, -50%);
-  max-width: {max_width}px;
-  text-align: {alignment};
-}}
-.subtitle-text {{
-  font-family: '{font_family}', sans-serif;
-  font-size: {font_size}px;
-  font-weight: {font_weight};
-  color: {color};
-  background-color: {bg_css};
-  padding: {box_padding}px;
-  text-shadow: {text_shadow};
-  text-align: {alignment};
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}}
-</style>
-</head>
-<body>
-  <div class="subtitle-container">
-    <div class="subtitle-text">{display_text}</div>
-  </div>
-</body>
-</html>"""
-
-
-def _build_wordgroup_html(
-    words: list[dict],
-    active_index: int,
-    style: dict,
-    video_width: int,
-    video_height: int,
-    position: dict | None = None,
-) -> str:
-    """Build HTML for a word-group subtitle frame (karaoke/Hormozi style)."""
-    font_face_css = _build_font_face_css()
-    font_family = style.get("fontFamily", "Arial")
-    font_size = style.get("fontSize", 20)
-    font_weight = style.get("fontWeight", 700)
-    base_color = style.get("color", "#FFFFFF")
-    bg_color = style.get("backgroundColor", "#000000")
-    bg_opacity = style.get("backgroundOpacity", 0)
-    has_outline = style.get("outline", False)
-    outline_color = style.get("outlineColor", "#000000")
-    outline_width = style.get("outlineWidth", 2)
-    highlight_color = style.get("highlightColor", "#FFD700")
-    highlight_bg = style.get("highlightBg")
-    highlight_bg_opacity = style.get("highlightBgOpacity", 0.95)
-    uppercase = style.get("uppercase", False)
-
-    # Position (percentage)
-    x_pct = 50
-    y_pct = 90
-    if position and isinstance(position, dict):
-        x_pct = position.get("x", 50)
-        y_pct = position.get("y", 90)
-
-    # Background
-    if bg_opacity > 0:
-        bg_css = _hex_to_rgba(bg_color, bg_opacity)
-    else:
-        bg_css = "transparent"
-
-    # Outline text-shadow (only when no background box)
-    if has_outline and bg_opacity <= 0:
-        text_shadow = _build_text_shadow(outline_width, outline_color)
-    else:
-        text_shadow = "none"
-
-    box_padding = max(int(video_width * 0.015), 6)
-    max_width = int(video_width * 0.9)
-
-    # Build word spans
-    word_spans = []
-    for idx, w in enumerate(words):
-        word_text = w["word"].upper() if uppercase else w["word"]
-        is_active = idx == active_index
-
-        span_styles = []
-        margin = "margin-right: 0.3em;" if idx < len(words) - 1 else ""
-
-        if is_active and highlight_bg:
-            # Active word with background highlight
-            hbg = _hex_to_rgba(highlight_bg, highlight_bg_opacity)
-            span_styles.append(f"color: {highlight_color or '#FFFFFF'};")
-            span_styles.append("text-shadow: none;")
-            span_styles.append(f"background-color: {hbg};")
-            span_styles.append("padding: 2px 6px;")
-            span_styles.append("border-radius: 4px;")
-        elif is_active:
-            # Active word with color highlight only
-            span_styles.append(f"color: {highlight_color};")
-            span_styles.append(f"text-shadow: {text_shadow};")
-        else:
-            # Inactive word
-            span_styles.append(f"color: {base_color};")
-            if highlight_bg:
-                span_styles.append("text-shadow: none;" if bg_opacity > 0 else f"text-shadow: {text_shadow};")
-            else:
-                span_styles.append(f"text-shadow: {text_shadow};")
-
-        style_str = " ".join(span_styles) + " " + margin
-        word_spans.append(f'<span style="{style_str}">{word_text}</span>')
-
-    words_html = "".join(word_spans)
-
-    return f"""<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-{font_face_css}
-* {{ margin: 0; padding: 0; box-sizing: border-box; }}
-body {{
-  width: {video_width}px;
-  height: {video_height}px;
-  background: transparent;
-  position: relative;
-  overflow: hidden;
-}}
-.subtitle-container {{
-  position: absolute;
-  left: {x_pct}%;
-  top: {y_pct}%;
-  transform: translate(-50%, -50%);
-  max-width: {max_width}px;
-  text-align: center;
-}}
-.subtitle-text {{
-  font-family: '{font_family}', sans-serif;
-  font-size: {font_size}px;
-  font-weight: {font_weight};
-  background-color: {bg_css};
-  padding: {box_padding}px;
-  text-align: center;
-  white-space: nowrap;
-}}
-</style>
-</head>
-<body>
-  <div class="subtitle-container">
-    <div class="subtitle-text">{words_html}</div>
-  </div>
-</body>
-</html>"""
-
-
-def _content_hash(html: str) -> str:
-    """Short hash of HTML content for caching/dedup."""
-    return hashlib.md5(html.encode("utf-8")).hexdigest()[:12]
-
-
-class SubtitleRenderer:
+    trim_start: float,
+    effective_duration: float,
+    video_fps: float,
+    next_app_url: str,
+    worker_secret: str,
+    out_dir: str | None = None,
+) -> tuple[list[tuple[float, float, str]], str]:
     """
-    Renders subtitle HTML to transparent PNG using Playwright (sync API).
-    Called via asyncio.to_thread() from the async rendering pipeline to
-    avoid Windows SelectorEventLoop subprocess limitations.
-    Reuses a single browser instance across renders for performance.
+    Frame-by-frame capture for animated modes (Submagic-style pop).
+
+    Samples the /render/[id] DOM at every frame of the output video; frames
+    where no subtitle is active reuse a single blank PNG to keep disk/FFmpeg
+    work linear in active-frame count, not total-frame count.
+
+    Returns (schedule, blank_png) where each schedule entry covers one frame
+    (duration = 1/fps). The caller's concat-demuxer builder already handles
+    short per-entry durations.
     """
+    if out_dir is None:
+        out_dir = os.path.join(tempfile.gettempdir(), f"subs_{video_id}")
+    os.makedirs(out_dir, exist_ok=True)
 
-    def __init__(self):
-        self._playwright = None
-        self._browser: Browser | None = None
-        self._png_cache: dict[str, str] = {}  # html_hash -> png_path
+    intervals = _build_active_intervals(subtitles, style, trim_start)
+    frame_dt = 1.0 / video_fps
+    total_frames = max(1, int(round(effective_duration * video_fps)))
 
-    def _ensure_browser(self):
-        if self._browser is None:
-            self._playwright = sync_playwright().start()
-            self._browser = self._playwright.chromium.launch(headless=True)
+    url = (
+        f"{next_app_url.rstrip('/')}/render/{video_id}"
+        f"?token={worker_secret}&w={video_width}&h={video_height}"
+    )
 
-    def close(self):
-        if self._browser:
-            self._browser.close()
-            self._browser = None
-        if self._playwright:
-            self._playwright.stop()
-            self._playwright = None
+    schedule: list[tuple[float, float, str]] = []
+    blank_png = os.path.join(out_dir, "blank.png")
 
-    def render_html_to_png(
-        self,
-        html: str,
-        video_width: int,
-        video_height: int,
-        output_path: str | None = None,
-        full_frame: bool = True,
-    ) -> str:
-        """
-        Render HTML string to a transparent PNG.
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        try:
+            context = await browser.new_context(
+                viewport={"width": video_width, "height": video_height},
+                # 2x supersampling: Chromium rasterizes text in 2x, screenshot
+                # comes back at 2x resolution. FFmpeg downscales with lanczos,
+                # producing much sharper glyph edges than DSF=1 (which matches
+                # what the user sees in the editor on a retina/HiDPI display).
+                device_scale_factor=2,
+            )
+            page = await context.new_page()
 
-        If full_frame=True, captures entire page (video resolution) for direct overlay.
-        If full_frame=False, captures just the subtitle element (tight crop).
-        Returns the path to the PNG file.
-        """
-        # Check cache
-        h = _content_hash(html)
-        if h in self._png_cache and os.path.exists(self._png_cache[h]):
-            return self._png_cache[h]
-
-        self._ensure_browser()
-
-        if output_path is None:
-            output_path = os.path.join(
-                tempfile.gettempdir(), f"sub_{h}.png"
+            print(f"[SubRender/frame] Navigating: {url}")
+            await page.goto(url, wait_until="networkidle")
+            await page.wait_for_function(
+                "() => window.__ready === true", timeout=20000
             )
 
-        page = self._browser.new_page(
-            viewport={"width": video_width, "height": video_height},
-        )
-        try:
-            page.set_content(html, wait_until="networkidle")
-            if full_frame:
-                page.screenshot(path=output_path, omit_background=True)
-            else:
-                element = page.query_selector(".subtitle-container")
-                if element:
-                    element.screenshot(path=output_path, omit_background=True)
-                else:
-                    page.screenshot(path=output_path, omit_background=True)
+            # Blank sample (far past any timestamp)
+            await page.evaluate("window.__setTime(-9999)")
+            await page.screenshot(path=blank_png, omit_background=True)
+
+            active_count = 0
+            for i in range(total_frames):
+                t_out = i * frame_dt
+                entry_start = t_out
+                entry_end = t_out + frame_dt
+
+                if not _is_active(t_out, intervals):
+                    schedule.append((entry_start, entry_end, blank_png))
+                    continue
+
+                t_orig = t_out + trim_start
+                png = os.path.join(out_dir, f"frame_{i:06d}.png")
+                await page.evaluate(f"window.__setTime({t_orig})")
+                await page.screenshot(path=png, omit_background=True)
+                schedule.append((entry_start, entry_end, png))
+                active_count += 1
+
+            print(
+                f"[SubRender/frame] Captured {active_count}/{total_frames} "
+                f"active frames @ {video_fps:.2f}fps"
+            )
         finally:
-            page.close()
+            await browser.close()
 
-        self._png_cache[h] = output_path
-        return output_path
+    return schedule, blank_png
 
-    def render_sentence(
-        self,
-        text: str,
-        style: dict,
-        video_width: int,
-        video_height: int,
-        position: dict | None = None,
-    ) -> str:
-        """Render a sentence-mode subtitle to full-frame PNG. Returns PNG path."""
-        html = _build_sentence_html(
-            text, style, video_width, video_height, position
-        )
-        return self.render_html_to_png(
-            html, video_width, video_height, full_frame=True
+
+def render_subtitles_via_browser_sync(
+    video_id: str,
+    subtitles: list[dict],
+    style: dict,
+    video_width: int,
+    video_height: int,
+    trim_start: float,
+    next_app_url: str,
+    worker_secret: str,
+    out_dir: str | None = None,
+    effective_duration: float | None = None,
+    video_fps: float | None = None,
+) -> tuple[list[tuple[float, float, str]], str]:
+    """
+    Sync wrapper used by the CLI subprocess.
+
+    Routes to framewise capture when style.animationMode == "pop" (needs both
+    effective_duration and video_fps); otherwise uses the keyframe path.
+    """
+    animation_mode = (style or {}).get("animationMode", "none")
+    use_framewise = (
+        animation_mode == "pop"
+        and effective_duration is not None
+        and video_fps is not None
+        and video_fps > 0
+    )
+
+    if use_framewise:
+        return asyncio.run(
+            render_subtitles_framewise(
+                video_id=video_id,
+                subtitles=subtitles,
+                style=style,
+                video_width=video_width,
+                video_height=video_height,
+                trim_start=trim_start,
+                effective_duration=effective_duration,
+                video_fps=video_fps,
+                next_app_url=next_app_url,
+                worker_secret=worker_secret,
+                out_dir=out_dir,
+            )
         )
 
-    def render_wordgroup(
-        self,
-        words: list[dict],
-        active_index: int,
-        style: dict,
-        video_width: int,
-        video_height: int,
-        position: dict | None = None,
-    ) -> str:
-        """Render a word-group subtitle frame to full-frame PNG. Returns PNG path."""
-        html = _build_wordgroup_html(
-            words, active_index, style, video_width, video_height, position
+    return asyncio.run(
+        render_subtitles_via_browser(
+            video_id=video_id,
+            subtitles=subtitles,
+            style=style,
+            video_width=video_width,
+            video_height=video_height,
+            trim_start=trim_start,
+            next_app_url=next_app_url,
+            worker_secret=worker_secret,
+            out_dir=out_dir,
         )
-        return self.render_html_to_png(
-            html, video_width, video_height, full_frame=True
-        )
-
-    def render_blank_frame(self, video_width: int, video_height: int) -> str:
-        """Render a blank transparent frame at video resolution."""
-        html = f"""<!DOCTYPE html>
-<html><head><style>
-body {{ width: {video_width}px; height: {video_height}px; background: transparent; }}
-</style></head><body></body></html>"""
-        return self.render_html_to_png(
-            html, video_width, video_height, full_frame=True
-        )
+    )
