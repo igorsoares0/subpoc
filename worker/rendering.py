@@ -324,8 +324,13 @@ async def process_rendering(
             f"[1:v]fps={fps_val},setpts=PTS-STARTPTS,"
             f"scale={out_w}:{out_h}:flags=lanczos,format=rgba[subs]"
         )
+        # format=rgb forces the alpha blend to happen in RGB space instead of
+        # the default YUV. YUV blending at antialiased edges (partial alpha)
+        # desaturates — the penumbra around glyphs goes muddy. RGB blend keeps
+        # color at edges, then we do a single BT.709 RGB→YUV conversion at the
+        # end of the chain.
         filter_parts.append(
-            f"{video_label}[subs]overlay=0:0:format=auto:shortest=1[withsubs]"
+            f"{video_label}[subs]overlay=0:0:format=rgb:shortest=1[withsubs]"
         )
 
         # Logo overlay (optional)
@@ -350,12 +355,20 @@ async def process_rendering(
                 f"colorchannelmixer=aa={opacity}[logo]"
             )
             filter_parts.append(
-                f"[withsubs][logo]overlay={x_pos}:{y_pos},format=yuv420p[final]"
+                f"[withsubs][logo]overlay={x_pos}:{y_pos}:format=rgb,"
+                f"scale=iw:ih:in_color_matrix=bt709:out_color_matrix=bt709,"
+                f"format=yuv420p[final]"
             )
             final_label = "[final]"
         else:
-            # Force yuv420p for player compatibility (overlay outputs yuva420p)
-            filter_parts.append("[withsubs]format=yuv420p[out]")
+            # Force yuv420p for player compatibility (overlay outputs RGB now).
+            # scale steers RGB→YUV through BT.709 (HD standard) instead of the
+            # default BT.601 — matches what browsers/mobile players assume on
+            # decode, so saturated reds/blues don't get crushed.
+            filter_parts.append(
+                "[withsubs]scale=iw:ih:in_color_matrix=bt709:out_color_matrix=bt709,"
+                "format=yuv420p[out]"
+            )
             final_label = "[out]"
 
         complex_filter = "; ".join(filter_parts)
@@ -368,11 +381,18 @@ async def process_rendering(
             trim_duration = effective_duration
             command.extend(["-t", f"{trim_duration:.6f}"])
 
-        # Codec e qualidade
+        # Codec e qualidade. Tags BT.709 no container dizem ao player qual
+        # matriz usar na decodificação — tem que bater com a matriz usada no
+        # filter (in/out_color_matrix=bt709 acima), senão o player desfaz a
+        # conversão errada e desatura a imagem.
         command.extend([
             "-c:v", "libx264",
             "-preset", "medium",
             "-crf", "23",
+            "-colorspace", "bt709",
+            "-color_primaries", "bt709",
+            "-color_trc", "bt709",
+            "-color_range", "tv",
             "-c:a", "aac",
             "-b:a", "128k",
             "-movflags", "+faststart",

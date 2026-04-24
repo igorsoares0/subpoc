@@ -113,8 +113,9 @@ def compose_video(
         f"[0:v]trim=duration={duration},setpts=PTS-STARTPTS[base];"
         f"[1:v]fps={fps_val},setpts=PTS-STARTPTS,"
         f"scale={video_w}:{video_h}:flags=lanczos,format=rgba[subs];"
-        f"[base][subs]overlay=0:0:format=auto:shortest=1[withsubs];"
-        f"[withsubs]format=yuv420p[out]"
+        f"[base][subs]overlay=0:0:format=rgb:shortest=1[withsubs];"
+        f"[withsubs]scale=iw:ih:in_color_matrix=bt709:out_color_matrix=bt709,"
+        f"format=yuv420p[out]"
     )
     cmd = [
         "ffmpeg", "-v", "info", "-y",
@@ -126,6 +127,8 @@ def compose_video(
         "-map", "0:a?",
         "-t", f"{duration:.6f}",
         "-c:v", "libx264", "-preset", "medium", "-crf", "23",
+        "-colorspace", "bt709", "-color_primaries", "bt709",
+        "-color_trc", "bt709", "-color_range", "tv",
         "-c:a", "aac", "-b:a", "128k",
         "-movflags", "+faststart",
         str(output),
