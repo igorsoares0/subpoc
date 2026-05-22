@@ -100,6 +100,14 @@ export function SubtitleTrack({
     top: `${topPx}px`,
     transform: "translate(-50%, -50%)",
     maxWidth: `${Math.min(videoWidth * 0.9, videoWidth - 32)}px`,
+    // Without an explicit width hint, an absolutely-positioned shrink-to-fit
+    // element gets constrained by `containingBlock.width - left`. For a
+    // subtitle near the canvas center, that's ~half the canvas — so maxWidth
+    // is silently overridden and the text wraps much earlier than intended
+    // (most visible in the worker render, where the containing block matches
+    // the canvas exactly). `max-content` makes the element prefer its full
+    // unwrapped width, which maxWidth then caps cleanly.
+    width: "max-content",
     ...interactiveWrapper,
   };
 
