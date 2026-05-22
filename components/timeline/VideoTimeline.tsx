@@ -17,9 +17,7 @@ interface VideoTimelineProps {
   onPlayPause: () => void
   onToggleMute: () => void
   onSeek: (time: number) => void
-  onSetTrimStart: () => void
-  onSetTrimEnd: () => void
-  onClearTrim: () => void
+  onToggleTrim: () => void
   onTrimHandleDragStart: (handle: 'start' | 'end') => void
 }
 
@@ -35,9 +33,7 @@ export function VideoTimeline({
   onPlayPause,
   onToggleMute,
   onSeek,
-  onSetTrimStart,
-  onSetTrimEnd,
-  onClearTrim,
+  onToggleTrim,
   onTrimHandleDragStart
 }: VideoTimelineProps) {
   const filmstripContainerRef = useRef<HTMLDivElement>(null)
@@ -69,9 +65,7 @@ export function VideoTimeline({
             trim={trim}
             onPlayPause={onPlayPause}
             onToggleMute={onToggleMute}
-            onSetTrimStart={onSetTrimStart}
-            onSetTrimEnd={onSetTrimEnd}
-            onClearTrim={onClearTrim}
+            onToggleTrim={onToggleTrim}
           />
 
           {/* Time markers */}

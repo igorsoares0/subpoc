@@ -8,9 +8,7 @@ interface TimelineControlsProps {
   trim: { start: number; end: number } | null
   onPlayPause: () => void
   onToggleMute: () => void
-  onSetTrimStart: () => void
-  onSetTrimEnd: () => void
-  onClearTrim: () => void
+  onToggleTrim: () => void
 }
 
 function formatTime(seconds: number): string {
@@ -29,10 +27,10 @@ export function TimelineControls({
   trim,
   onPlayPause,
   onToggleMute,
-  onSetTrimStart,
-  onSetTrimEnd,
-  onClearTrim
+  onToggleTrim
 }: TimelineControlsProps) {
+  const trimActive = trim !== null
+
   return (
     <div className="flex items-center gap-2 mb-1.5 justify-center">
       <button
@@ -53,40 +51,21 @@ export function TimelineControls({
 
       <div className="w-px h-4 bg-white/[0.08]" />
 
-      {/* Trim controls */}
-      <div className="flex items-center gap-0.5">
-        <button
-          onClick={onSetTrimStart}
-          className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors text-zinc-400 hover:text-white"
-          title="Set In Point (I)"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-          </svg>
-        </button>
-
-        <button
-          onClick={onSetTrimEnd}
-          className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors text-zinc-400 hover:text-white"
-          title="Set Out Point (O)"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-          </svg>
-        </button>
-
-        {trim && (
-          <button
-            onClick={onClearTrim}
-            className="p-1.5 hover:bg-red-500/10 rounded-md transition-colors text-red-400"
-            title="Clear trim"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
-      </div>
+      {/* Trim toggle — single button that creates or clears a trim */}
+      <button
+        onClick={onToggleTrim}
+        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors text-[11px] font-medium ${
+          trimActive
+            ? 'bg-blue-500/15 text-blue-300 hover:bg-blue-500/25'
+            : 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
+        }`}
+        title={trimActive ? 'Remover corte' : 'Cortar vídeo (arraste as alças nas pontas)'}
+      >
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
+        </svg>
+        <span>{trimActive ? 'Remover corte' : 'Cortar'}</span>
+      </button>
 
       <div className="w-px h-4 bg-white/[0.08]" />
 
@@ -94,7 +73,6 @@ export function TimelineControls({
         <span className="text-zinc-300">{formatTime(currentTime)}</span>
         <span className="mx-1">/</span>
         <span>{formatTime(duration)}</span>
-        {trim && <span className="text-blue-400 ml-1.5 text-[10px]">trimmed</span>}
       </div>
 
       <div className="w-px h-4 bg-white/[0.08]" />

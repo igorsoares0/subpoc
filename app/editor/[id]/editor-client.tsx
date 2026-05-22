@@ -700,6 +700,28 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     }
   }, [isDraggingTrimHandle, trim])
 
+  // Keyboard shortcuts: I = trim start, O = trim end (power-user)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      const tag = target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      if (e.key === 'i' || e.key === 'I') {
+        e.preventDefault()
+        setTrimStart()
+      } else if (e.key === 'o' || e.key === 'O') {
+        e.preventDefault()
+        setTrimEnd()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [trim, currentTime])
+
   // Cleanup subtitle update timer on unmount
   useEffect(() => {
     return () => {
@@ -1177,6 +1199,16 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       setCurrentTime(0)
     }
     console.log('[Trim] Cleared trim')
+  }
+
+  const toggleTrim = () => {
+    if (trim) {
+      clearTrim()
+      return
+    }
+    const videoDuration = videoRef.current?.duration
+    if (!videoDuration || !isFinite(videoDuration)) return
+    updateTrim({ start: 0, end: videoDuration })
   }
 
   const handleTrimHandleDragStart = (handle: 'start' | 'end') => {
@@ -1927,9 +1959,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                 videoRef.current.currentTime = time
               }
             }}
-            onSetTrimStart={setTrimStart}
-            onSetTrimEnd={setTrimEnd}
-            onClearTrim={clearTrim}
+            onToggleTrim={toggleTrim}
             onTrimHandleDragStart={handleTrimHandleDragStart}
           />
         </main>
