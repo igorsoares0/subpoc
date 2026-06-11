@@ -319,10 +319,15 @@ async def process_rendering(
         # Subtitle overlay: normalize to video fps + reset timestamps for sync.
         # Subtitle PNGs are captured at 2x (device_scale_factor=2) for better
         # glyph antialiasing — downscale with lanczos for sharp edges.
+        # premultiply antes do scale: screenshots do Chromium têm alpha straight
+        # com RGB preto nos pixels transparentes — escalar direto mistura esse
+        # preto nas bordas antialiased dos glifos (franja escura ao redor do
+        # texto). Premultiplicado, o scale interpola cor e alpha juntos.
         fps_val = round(video_fps, 3)
         filter_parts.append(
-            f"[1:v]fps={fps_val},setpts=PTS-STARTPTS,"
-            f"scale={out_w}:{out_h}:flags=lanczos,format=rgba[subs]"
+            f"[1:v]fps={fps_val},setpts=PTS-STARTPTS,format=rgba,"
+            f"premultiply=inplace=1,scale={out_w}:{out_h}:flags=lanczos,"
+            f"unpremultiply=inplace=1[subs]"
         )
         # format=rgb forces the alpha blend to happen in RGB space instead of
         # the default YUV. YUV blending at antialiased edges (partial alpha)
@@ -387,8 +392,11 @@ async def process_rendering(
         # conversão errada e desatura a imagem.
         command.extend([
             "-c:v", "libx264",
-            "-preset", "medium",
-            "-crf", "23",
+            # CRF 18 + slow: texto de alto contraste sobre vídeo em movimento é
+            # o pior caso do x264 — CRF 23 borra as bordas dos glifos. 18/slow
+            # equivale ao bitrate de export dos apps de legenda (~8-16 Mbps).
+            "-preset", "slow",
+            "-crf", "18",
             "-colorspace", "bt709",
             "-color_primaries", "bt709",
             "-color_trc", "bt709",
