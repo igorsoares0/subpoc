@@ -15,6 +15,8 @@ export interface Subtitle {
 export interface SubtitleStyle {
   fontFamily: string;
   fontSize: number;
+  /** Largura da caixa de legenda em % da largura do vídeo. Default 90. */
+  boxWidth?: number;
   fontWeight?: number;
   color: string;
   backgroundColor: string;

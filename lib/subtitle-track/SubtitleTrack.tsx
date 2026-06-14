@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import type { CSSProperties, MouseEvent } from "react";
 import type { Subtitle, SubtitleStyle } from "./types";
 import { resolveFontFamily } from "./fonts";
@@ -26,6 +27,77 @@ export interface SubtitleTrackProps {
   interactive?: boolean;
   isDragging?: boolean;
   onMouseDown?: (e: MouseEvent) => void;
+  /** Editor-only: a corner handle ("font") or side handle ("width") started a resize drag. */
+  onResizeStart?: (handle: "font" | "width", e: MouseEvent) => void;
+}
+
+const HANDLE_COLOR = "#7c5cff";
+
+const handleBase: CSSProperties = {
+  position: "absolute",
+  width: 10,
+  height: 10,
+  background: "#fff",
+  border: `1.5px solid ${HANDLE_COLOR}`,
+  borderRadius: 2,
+  pointerEvents: "auto",
+  zIndex: 2,
+};
+
+/**
+ * Canva-style selection box drawn around the subtitle in the editor.
+ * Corner handles resize the font; left/right handles resize the box width
+ * (which controls how the text wraps). Rendered only in interactive mode.
+ */
+function SelectionHandles({
+  onResizeStart,
+}: {
+  onResizeStart?: (handle: "font" | "width", e: MouseEvent) => void;
+}) {
+  const start = (handle: "font" | "width") => (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onResizeStart?.(handle, e);
+  };
+
+  const corners: Array<{ pos: CSSProperties; cursor: string }> = [
+    { pos: { top: 0, left: 0, transform: "translate(-50%, -50%)" }, cursor: "nwse-resize" },
+    { pos: { top: 0, right: 0, transform: "translate(50%, -50%)" }, cursor: "nesw-resize" },
+    { pos: { bottom: 0, left: 0, transform: "translate(-50%, 50%)" }, cursor: "nesw-resize" },
+    { pos: { bottom: 0, right: 0, transform: "translate(50%, 50%)" }, cursor: "nwse-resize" },
+  ];
+  const sides: Array<{ pos: CSSProperties }> = [
+    { pos: { top: "50%", left: 0, transform: "translate(-50%, -50%)" } },
+    { pos: { top: "50%", right: 0, transform: "translate(50%, -50%)" } },
+  ];
+
+  return (
+    <>
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          border: `1.5px solid ${HANDLE_COLOR}`,
+          pointerEvents: "none",
+          zIndex: 1,
+        }}
+      />
+      {corners.map((c, i) => (
+        <div
+          key={`c${i}`}
+          onMouseDown={start("font")}
+          style={{ ...handleBase, ...c.pos, cursor: c.cursor }}
+        />
+      ))}
+      {sides.map((s, i) => (
+        <div
+          key={`s${i}`}
+          onMouseDown={start("width")}
+          style={{ ...handleBase, ...s.pos, cursor: "ew-resize" }}
+        />
+      ))}
+    </>
+  );
 }
 
 function hexToRgba(hex: string, opacity: number): string {
@@ -80,6 +152,7 @@ export function SubtitleTrack({
   interactive = false,
   isDragging = false,
   onMouseDown,
+  onResizeStart,
 }: SubtitleTrackProps) {
   if (!videoWidth || !videoHeight) return null;
 
@@ -99,7 +172,7 @@ export function SubtitleTrack({
     left: `${leftPx}px`,
     top: `${topPx}px`,
     transform: "translate(-50%, -50%)",
-    maxWidth: `${Math.min(videoWidth * 0.9, videoWidth - 32)}px`,
+    maxWidth: `${((style.boxWidth ?? 90) / 100) * videoWidth}px`,
     // Without an explicit width hint, an absolutely-positioned shrink-to-fit
     // element gets constrained by `containingBlock.width - left`. For a
     // subtitle near the canvas center, that's ~half the canvas — so maxWidth
@@ -147,6 +220,7 @@ export function SubtitleTrack({
 
     return (
       <div style={wrapperStyle} onMouseDown={onMouseDown}>
+        {interactive && <SelectionHandles onResizeStart={onResizeStart} />}
         <div
           className="text-center"
           style={{
@@ -187,26 +261,30 @@ export function SubtitleTrack({
               : style.highlightColor || "#FFD700";
 
             return (
-              <span
-                key={idx}
-                style={{
-                  ...groupStroke,
-                  color: isActive ? activeColor : style.color,
-                  marginRight:
-                    idx < wordGroup.words.length - 1 ? "0.3em" : undefined,
-                  backgroundColor: wordBg,
-                  padding: wordBg ? "2px 6px" : undefined,
-                  borderRadius: wordBg ? "8px" : undefined,
-                  display: popEnabled ? "inline-block" : undefined,
-                  transform:
-                    popEnabled && isActive
-                      ? `scale(${popScale})`
-                      : undefined,
-                  transformOrigin: popEnabled ? "center" : undefined,
-                }}
-              >
-                {wordText}
-              </span>
+              // The space between words is a real, breakable whitespace node so
+              // the group can wrap onto multiple lines when the box is narrow.
+              // (Plain inline spans with only marginRight give the browser no
+              // soft-wrap opportunity, so the text would overflow instead.)
+              <Fragment key={idx}>
+                <span
+                  style={{
+                    ...groupStroke,
+                    color: isActive ? activeColor : style.color,
+                    backgroundColor: wordBg,
+                    padding: wordBg ? "2px 6px" : undefined,
+                    borderRadius: wordBg ? "8px" : undefined,
+                    display: popEnabled ? "inline-block" : undefined,
+                    transform:
+                      popEnabled && isActive
+                        ? `scale(${popScale})`
+                        : undefined,
+                    transformOrigin: popEnabled ? "center" : undefined,
+                  }}
+                >
+                  {wordText}
+                </span>
+                {idx < wordGroup.words.length - 1 ? " " : null}
+              </Fragment>
             );
           })}
         </div>
@@ -262,6 +340,7 @@ export function SubtitleTrack({
 
   return (
     <div style={wrapperStyle} onMouseDown={onMouseDown}>
+      {interactive && <SelectionHandles onResizeStart={onResizeStart} />}
       <div
         style={{
           padding: `${boxPadding}px`,

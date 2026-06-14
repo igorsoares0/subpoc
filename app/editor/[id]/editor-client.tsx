@@ -69,6 +69,7 @@ interface EditorClientProps {
 const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
   fontFamily: "Arial",
   fontSize: 24,
+  boxWidth: 90,
   fontWeight: 700,
   color: "#FFFFFF",
   backgroundColor: "#000000",
@@ -437,6 +438,14 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const logoUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [isDraggingSubtitle, setIsDraggingSubtitle] = useState(false)
   const subtitleUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
+  // Canva-style resize via handles: corner = font size, side = box width
+  const [resize, setResize] = useState<{
+    handle: 'font' | 'width'
+    centerX: number
+    centerY: number
+    startDist: number
+    startFontSize: number
+  } | null>(null)
   const [showFormatDropdown, setShowFormatDropdown] = useState(false)
   const formatUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
   const formatButtonRef = useRef<HTMLButtonElement>(null)
@@ -687,6 +696,22 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       }
     }
   }, [isDraggingSubtitle, videoDimensions])
+
+  // Handle subtitle resizing (font via corner handles, width via side handles)
+  useEffect(() => {
+    if (resize) {
+      const handleMove = (e: MouseEvent) => handleResizeMove(e)
+      const handleUp = () => setResize(null)
+
+      window.addEventListener('mousemove', handleMove)
+      window.addEventListener('mouseup', handleUp)
+
+      return () => {
+        window.removeEventListener('mousemove', handleMove)
+        window.removeEventListener('mouseup', handleUp)
+      }
+    }
+  }, [resize, videoDimensions, video])
 
   // Handle trim handle dragging
   useEffect(() => {
@@ -1113,6 +1138,89 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     }, 500)
   }
 
+  // Local update + debounced save (used during continuous resize drags)
+  const commitStyle = (partial: Partial<SubtitleStyle>) => {
+    const updatedStyle = {
+      ...(video?.subtitleStyle ?? DEFAULT_SUBTITLE_STYLE),
+      ...partial,
+    } as SubtitleStyle
+
+    setVideo({ ...video, subtitleStyle: updatedStyle })
+
+    if (subtitleUpdateTimerRef.current) {
+      clearTimeout(subtitleUpdateTimerRef.current)
+    }
+    subtitleUpdateTimerRef.current = setTimeout(async () => {
+      try {
+        await fetch(`/api/videos/${video.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subtitleStyle: updatedStyle }),
+        })
+      } catch (error) {
+        console.error('Error updating subtitle style:', error)
+      }
+    }, 500)
+  }
+
+  const handleResizeStart = (handle: 'font' | 'width', e: React.MouseEvent) => {
+    const wrapper = (e.currentTarget as HTMLElement).parentElement
+    if (!wrapper) return
+    const rect = wrapper.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+    const startDist = Math.hypot(e.clientX - centerX, e.clientY - centerY)
+
+    setResize({
+      handle,
+      centerX,
+      centerY,
+      startDist: startDist || 1,
+      startFontSize: (video?.subtitleStyle as SubtitleStyle | undefined)?.fontSize ?? DEFAULT_SUBTITLE_STYLE.fontSize,
+    })
+
+    if (videoRef.current && !videoRef.current.paused) {
+      videoRef.current.pause()
+    }
+  }
+
+  const handleResizeMove = (e: MouseEvent) => {
+    if (!resize) return
+
+    if (resize.handle === 'font') {
+      const dist = Math.hypot(e.clientX - resize.centerX, e.clientY - resize.centerY)
+      const ratio = dist / resize.startDist
+      const newSize = Math.round(Math.max(8, Math.min(resize.startFontSize * ratio, 120)))
+      commitStyle({ fontSize: newSize })
+    } else {
+      if (!videoDimensions.width) return
+      const widthPx = 2 * Math.abs(e.clientX - resize.centerX)
+      const pct = Math.max(20, Math.min((widthPx / videoDimensions.width) * 100, 100))
+      commitStyle({ boxWidth: Math.round(pct) })
+    }
+  }
+
+  // Line count control (1/2/3): estimate the box width that fits the current
+  // subtitle in ~N lines, by measuring its one-line width with the active font.
+  const applyLineCount = (n: number) => {
+    const subs = (video?.subtitles as Subtitle[] | undefined) ?? []
+    const text = displayedSubtitle?.text || subs[0]?.text || ''
+    if (!text) {
+      commitStyle({ boxWidth: n === 1 ? 100 : n === 2 ? 60 : 40 })
+      return
+    }
+    const s = (video?.subtitleStyle as SubtitleStyle | undefined) ?? DEFAULT_SUBTITLE_STYLE
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.font = `${s.fontWeight ?? 700} ${s.fontSize}px ${s.fontFamily}`
+    const oneLine = ctx.measureText(text).width
+    const padding = Math.max(nativeVideoWidth * 0.015, 6) * 2
+    const target = (oneLine * 1.1) / n + padding
+    const pct = Math.max(20, Math.min((target / nativeVideoWidth) * 100, 100))
+    commitStyle({ boxWidth: Math.round(pct) })
+  }
+
   const updateFormat = (newFormat: string | null) => {
     // Atualizar estado local imediatamente
     setVideo({ ...video, format: newFormat })
@@ -1252,6 +1360,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const style = video?.subtitleStyle || {
     fontFamily: "Montserrat",
     fontSize: 24,
+    boxWidth: 90,
     color: "#FFFF00",
     backgroundColor: "#FF00FF",
     backgroundOpacity: 0.8,
@@ -1728,14 +1837,33 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                   <input
                     type="range"
                     min="12"
-                    max="72"
+                    max="120"
                     value={style.fontSize}
                     onChange={(e) => updateStyle({ fontSize: parseInt(e.target.value) })}
                     className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer slider-blue"
                     style={{
-                      background: `linear-gradient(to right, rgb(37, 99, 235) 0%, rgb(37, 99, 235) ${((style.fontSize - 12) / (72 - 12)) * 100}%, rgb(39, 39, 42) ${((style.fontSize - 12) / (72 - 12)) * 100}%, rgb(39, 39, 42) 100%)`
+                      background: `linear-gradient(to right, rgb(37, 99, 235) 0%, rgb(37, 99, 235) ${((style.fontSize - 12) / (120 - 12)) * 100}%, rgb(39, 39, 42) ${((style.fontSize - 12) / (120 - 12)) * 100}%, rgb(39, 39, 42) 100%)`
                     }}
                   />
+                </div>
+
+                {/* Number of lines (adjusts box width so the text wraps in ~N lines) */}
+                <div>
+                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Linhas</label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => applyLineCount(n)}
+                        className="flex-1 flex items-center justify-center bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg px-3 py-2 text-[12px] font-medium transition-colors"
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-zinc-600 mt-2">
+                    Ajusta a largura da caixa. Arraste as alças laterais para ajuste fino.
+                  </p>
                 </div>
 
                 {/* Submagic-style pop animation toggle */}
@@ -1865,6 +1993,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                       interactive
                       isDragging={isDraggingSubtitle}
                       onMouseDown={handleSubtitleMouseDown}
+                      onResizeStart={handleResizeStart}
                     />
                   )
                 })()}
