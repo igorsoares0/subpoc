@@ -14,16 +14,32 @@ export async function POST(req: Request) {
       )
     }
 
-    if (password.length < 6) {
+    if (typeof email !== "string" || typeof password !== "string") {
       return NextResponse.json(
-        { error: "Password must be at least 6 characters" },
+        { error: "Invalid input" },
+        { status: 400 }
+      )
+    }
+
+    const normalizedEmail = email.trim().toLowerCase()
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(normalizedEmail) || normalizedEmail.length > 254) {
+      return NextResponse.json(
+        { error: "Invalid email address" },
+        { status: 400 }
+      )
+    }
+
+    if (password.length < 8 || password.length > 200) {
+      return NextResponse.json(
+        { error: "Password must be at least 8 characters" },
         { status: 400 }
       )
     }
 
     // Verificar se usuário já existe
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email: normalizedEmail }
     })
 
     if (existingUser) {
@@ -34,12 +50,12 @@ export async function POST(req: Request) {
     }
 
     // Hash da senha
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = await bcrypt.hash(password, 12)
 
     // Criar usuário
     const user = await prisma.user.create({
       data: {
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         name: name || null,
         subscription: {
