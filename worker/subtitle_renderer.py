@@ -72,6 +72,7 @@ async def render_subtitles_via_browser(
     next_app_url: str,
     worker_secret: str,
     out_dir: str | None = None,
+    native_width: int | None = None,
 ) -> tuple[list[tuple[float, float, str]], str]:
     """
     Drives the /render/[id] page and produces one full-frame transparent PNG
@@ -83,9 +84,10 @@ async def render_subtitles_via_browser(
 
     keyframes = _build_keyframes(subtitles, style, trim_start)
 
+    nw = native_width if native_width else video_width
     url = (
         f"{next_app_url.rstrip('/')}/render/{video_id}"
-        f"?token={worker_secret}&w={video_width}&h={video_height}"
+        f"?token={worker_secret}&w={video_width}&h={video_height}&nw={nw}"
     )
 
     schedule: list[tuple[float, float, str]] = []
@@ -183,6 +185,7 @@ async def render_subtitles_framewise(
     next_app_url: str,
     worker_secret: str,
     out_dir: str | None = None,
+    native_width: int | None = None,
 ) -> tuple[list[tuple[float, float, str]], str]:
     """
     Frame-by-frame capture for animated modes (Submagic-style pop).
@@ -203,9 +206,10 @@ async def render_subtitles_framewise(
     frame_dt = 1.0 / video_fps
     total_frames = max(1, int(round(effective_duration * video_fps)))
 
+    nw = native_width if native_width else video_width
     url = (
         f"{next_app_url.rstrip('/')}/render/{video_id}"
-        f"?token={worker_secret}&w={video_width}&h={video_height}"
+        f"?token={worker_secret}&w={video_width}&h={video_height}&nw={nw}"
     )
 
     schedule: list[tuple[float, float, str]] = []
@@ -273,6 +277,7 @@ def render_subtitles_via_browser_sync(
     out_dir: str | None = None,
     effective_duration: float | None = None,
     video_fps: float | None = None,
+    native_width: int | None = None,
 ) -> tuple[list[tuple[float, float, str]], str]:
     """
     Sync wrapper used by the CLI subprocess.
@@ -302,6 +307,7 @@ def render_subtitles_via_browser_sync(
                 next_app_url=next_app_url,
                 worker_secret=worker_secret,
                 out_dir=out_dir,
+                native_width=native_width,
             )
         )
 
@@ -316,5 +322,6 @@ def render_subtitles_via_browser_sync(
             next_app_url=next_app_url,
             worker_secret=worker_secret,
             out_dir=out_dir,
+            native_width=native_width,
         )
     )

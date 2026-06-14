@@ -20,9 +20,10 @@ interface Props {
   style: SubtitleStyle;
   videoWidth: number;
   videoHeight: number;
+  nativeVideoWidth: number;
 }
 
-export function RenderClient({ subtitles, style, videoWidth, videoHeight }: Props) {
+export function RenderClient({ subtitles, style, videoWidth, videoHeight, nativeVideoWidth }: Props) {
   const [currentTime, setCurrentTime] = useState(0);
   const [ready, setReady] = useState(false);
 
@@ -62,7 +63,7 @@ export function RenderClient({ subtitles, style, videoWidth, videoHeight }: Prop
           style={style}
           videoWidth={videoWidth}
           videoHeight={videoHeight}
-          nativeVideoWidth={videoWidth}
+          nativeVideoWidth={nativeVideoWidth}
         />
       </div>
     </>

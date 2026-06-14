@@ -11,6 +11,7 @@ interface PageProps {
     token?: string;
     w?: string;
     h?: string;
+    nw?: string;
   }>;
 }
 
@@ -39,6 +40,10 @@ export default async function RenderPage({ params, searchParams }: PageProps) {
 
   const width = sp.w ? parseInt(sp.w, 10) : 1080;
   const height = sp.h ? parseInt(sp.h, 10) : 1920;
+  // Native source width — anchors the subtitle font scale so the final render
+  // matches the editor preview (which scales relative to the source resolution,
+  // not the output format resolution). Falls back to the output width.
+  const nativeWidth = sp.nw ? parseInt(sp.nw, 10) : width;
 
   return (
     <RenderClient
@@ -46,6 +51,7 @@ export default async function RenderPage({ params, searchParams }: PageProps) {
       style={style}
       videoWidth={width}
       videoHeight={height}
+      nativeVideoWidth={nativeWidth}
     />
   );
 }

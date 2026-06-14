@@ -98,6 +98,7 @@ def _render_subtitle_pngs(
     trim_start: float = 0,
     effective_duration: float | None = None,
     video_fps: float | None = None,
+    native_width: int | None = None,
 ) -> tuple[list[tuple[float, float, str]], str]:
     """
     Render subtitle PNGs via a separate subprocess (avoids Playwright
@@ -118,6 +119,7 @@ def _render_subtitle_pngs(
         "style": style,
         "video_width": video_width,
         "video_height": video_height,
+        "native_width": native_width if native_width else video_width,
         "trim_start": trim_start,
         "next_app_url": settings.next_app_url,
         "worker_secret": settings.worker_secret,
@@ -259,7 +261,7 @@ async def process_rendering(
         schedule, blank_png = await asyncio.to_thread(
             _render_subtitle_pngs,
             subtitles, style, out_w, out_h, video_id, trim_start,
-            effective_duration, video_fps,
+            effective_duration, video_fps, src_w,
         )
         print(f"[Rendering] Generated {len(schedule)} subtitle frames")
 

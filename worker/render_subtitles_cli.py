@@ -37,6 +37,7 @@ def main():
         worker_secret=job["worker_secret"],
         effective_duration=job.get("effective_duration"),
         video_fps=job.get("video_fps"),
+        native_width=job.get("native_width", job["video_width"]),
     )
 
     result = {
