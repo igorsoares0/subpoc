@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import { createEmailVerificationToken } from "@/lib/tokens"
+import { sendVerificationEmail } from "@/lib/email"
 
 export async function POST(req: Request) {
   try {
@@ -74,9 +76,18 @@ export async function POST(req: Request) {
       }
     })
 
+    // Send the verification email. If it fails we still keep the account (the
+    // user can request a new link), but we log it for visibility.
+    try {
+      const rawToken = await createEmailVerificationToken(normalizedEmail)
+      await sendVerificationEmail(normalizedEmail, rawToken)
+    } catch (emailError) {
+      console.error("Failed to send verification email:", emailError)
+    }
+
     return NextResponse.json(
       {
-        message: "User created successfully",
+        message: "User created successfully. Please check your email to verify your account.",
         user
       },
       { status: 201 }

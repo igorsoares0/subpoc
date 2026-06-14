@@ -37,6 +37,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null
         }
 
+        // Block sign-in until the email address is verified.
+        if (!user.emailVerified) {
+          return null
+        }
+
         return {
           id: user.id,
           email: user.email,

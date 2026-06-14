@@ -67,6 +67,16 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+model PasswordResetToken {
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique // stored hashed (sha256), never the raw token
+  expires DateTime
+
+  @@unique([email, token])
+  @@index([email])
+}
+
 // ============================================
 // Subscription & Billing
 // ============================================

@@ -1,17 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Mail, Lock, User, Loader2, ArrowRight } from "lucide-react"
+import { Mail, Lock, User, Loader2, ArrowRight, MailCheck } from "lucide-react"
 
 export default function RegisterPage() {
-  const router = useRouter()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,9 +35,9 @@ export default function RegisterPage() {
       if (!response.ok) {
         setError(data.error || "Something went wrong")
       } else {
-        router.push("/login?registered=true")
+        setSubmitted(true)
       }
-    } catch (error) {
+    } catch {
       setError("Something went wrong")
     } finally {
       setIsLoading(false)
@@ -61,6 +60,23 @@ export default function RegisterPage() {
         </div>
 
         <div className="bg-[#16161a] rounded-2xl p-8 border border-white/[0.04]">
+          {submitted ? (
+            <div className="text-center space-y-4">
+              <MailCheck className="w-10 h-10 text-blue-400 mx-auto" />
+              <p className="text-[15px] text-white font-medium">Check your email</p>
+              <p className="text-[13px] text-zinc-400">
+                We sent a verification link to <span className="text-zinc-200">{email}</span>.
+                Click it to activate your account, then sign in.
+              </p>
+              <Link
+                href="/login"
+                className="inline-block text-blue-400 hover:text-blue-300 text-[13px] transition-colors"
+              >
+                Go to sign in
+              </Link>
+            </div>
+          ) : (
+          <>
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl text-[13px]">
@@ -152,6 +168,8 @@ export default function RegisterPage() {
               </Link>
             </p>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>
