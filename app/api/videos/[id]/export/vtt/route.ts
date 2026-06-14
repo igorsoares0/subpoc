@@ -22,7 +22,7 @@ function formatVTTTime(seconds: number): string {
 // GET - Export subtitles as VTT file
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
@@ -51,14 +51,14 @@ export async function GET(
       )
     }
 
-    if (!video.subtitles || (video.subtitles as Subtitle[]).length === 0) {
+    if (!video.subtitles || (video.subtitles as unknown as Subtitle[]).length === 0) {
       return NextResponse.json(
         { error: "No subtitles to export" },
         { status: 400 }
       )
     }
 
-    const subtitles = video.subtitles as Subtitle[]
+    const subtitles = video.subtitles as unknown as Subtitle[]
 
     // Generate VTT content
     let vttContent = "WEBVTT\n\n"

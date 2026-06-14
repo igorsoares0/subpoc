@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import EditorClient from "./editor-client"
+import EditorClient, { type VideoProject } from "./editor-client"
 
 interface EditorPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default async function EditorPage({ params }: EditorPageProps) {
@@ -31,5 +31,7 @@ export default async function EditorPage({ params }: EditorPageProps) {
     redirect("/dashboard")
   }
 
-  return <EditorClient video={video} />
+  // Prisma returns Json fields as JsonValue; the editor consumes the concrete
+  // stored shapes, so cast through unknown at this boundary.
+  return <EditorClient video={video as unknown as VideoProject} />
 }

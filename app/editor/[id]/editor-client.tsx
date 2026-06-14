@@ -46,7 +46,7 @@ interface LogoOverlay {
   opacity: number  // 0-1
 }
 
-interface VideoProject {
+export interface VideoProject {
   id: string
   title: string
   videoUrl: string
@@ -57,6 +57,7 @@ interface VideoProject {
   logoOverlay: LogoOverlay | null
   format: string | null
   trim: { start: number; end: number } | null
+  outputUrl: string | null
 }
 
 interface EditorClientProps {
@@ -1089,7 +1090,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     const updatedStyle = {
       ...video.subtitleStyle,
       position: newPosition
-    }
+    } as SubtitleStyle
 
     // Update local state immediately for instant feedback
     setVideo({ ...video, subtitleStyle: updatedStyle })

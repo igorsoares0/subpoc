@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { unlink } from "fs/promises"
@@ -53,7 +54,7 @@ export async function DELETE(
     const updatedVideo = await prisma.videoProject.update({
       where: { id: videoId },
       data: {
-        logoOverlay: null
+        logoOverlay: Prisma.DbNull
       }
     })
 

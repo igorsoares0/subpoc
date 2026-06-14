@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 // POST - Send video to worker for transcription
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()

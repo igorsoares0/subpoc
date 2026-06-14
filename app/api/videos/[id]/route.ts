@@ -80,7 +80,7 @@ function sanitizePatchBody(body: unknown): Prisma.VideoProjectUpdateInput {
 // GET - Get single video project
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
@@ -122,7 +122,7 @@ export async function GET(
 // PATCH - Update video project
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
@@ -184,7 +184,7 @@ export async function PATCH(
 // DELETE - Delete video project
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
