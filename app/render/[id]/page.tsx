@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import type { Subtitle, SubtitleStyle } from "@/lib/subtitle-track";
+import type { Subtitle, SubtitleStyle, HookOverlayData } from "@/lib/subtitle-track";
 import { RenderClient } from "./render-client";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +30,7 @@ export default async function RenderPage({ params, searchParams }: PageProps) {
       id: true,
       subtitles: true,
       subtitleStyle: true,
+      hookOverlay: true,
     },
   });
 
@@ -37,6 +38,7 @@ export default async function RenderPage({ params, searchParams }: PageProps) {
 
   const subtitles = (video.subtitles ?? []) as unknown as Subtitle[];
   const style = (video.subtitleStyle ?? {}) as unknown as SubtitleStyle;
+  const hook = (video.hookOverlay ?? null) as unknown as HookOverlayData | null;
 
   const width = sp.w ? parseInt(sp.w, 10) : 1080;
   const height = sp.h ? parseInt(sp.h, 10) : 1920;
@@ -49,6 +51,7 @@ export default async function RenderPage({ params, searchParams }: PageProps) {
     <RenderClient
       subtitles={subtitles}
       style={style}
+      hook={hook}
       videoWidth={width}
       videoHeight={height}
       nativeVideoWidth={nativeWidth}

@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The worker is a separate Python service; its venv ships huge bundled
+    // .d.ts files (Playwright) that ESLint must not lint. Flat config does not
+    // read .gitignore, so ignore it explicitly here.
+    "worker/**",
   ]),
 ]);
 

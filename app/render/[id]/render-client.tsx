@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import {
   SubtitleTrack,
+  HookOverlay,
   type Subtitle,
   type SubtitleStyle,
+  type HookOverlayData,
 } from "@/lib/subtitle-track";
 
 declare global {
@@ -18,12 +20,13 @@ declare global {
 interface Props {
   subtitles: Subtitle[];
   style: SubtitleStyle;
+  hook?: HookOverlayData | null;
   videoWidth: number;
   videoHeight: number;
   nativeVideoWidth: number;
 }
 
-export function RenderClient({ subtitles, style, videoWidth, videoHeight, nativeVideoWidth }: Props) {
+export function RenderClient({ subtitles, style, hook, videoWidth, videoHeight, nativeVideoWidth }: Props) {
   const [currentTime, setCurrentTime] = useState(0);
   const [ready, setReady] = useState(false);
 
@@ -61,6 +64,12 @@ export function RenderClient({ subtitles, style, videoWidth, videoHeight, native
           currentTime={currentTime}
           subtitles={subtitles}
           style={style}
+          videoWidth={videoWidth}
+          videoHeight={videoHeight}
+          nativeVideoWidth={nativeVideoWidth}
+        />
+        <HookOverlay
+          hook={hook}
           videoWidth={videoWidth}
           videoHeight={videoHeight}
           nativeVideoWidth={nativeVideoWidth}

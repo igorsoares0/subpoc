@@ -1,14 +1,25 @@
 import type { Subtitle, SubtitleWord } from "./types";
+import {
+  buildSegments,
+  findSegmentForWord,
+  type SegmentOptions,
+} from "./segments";
 
 export interface WordGroupDisplay {
   words: SubtitleWord[];
   activeIndex: number;
 }
 
+/**
+ * Returns the caption chunk to show at `currentTime` plus which word inside it
+ * is currently active. Chunk boundaries come from the deterministic auto-split
+ * (item 4) instead of mechanical fixed-size slicing, so pauses and long lines
+ * break the caption where a viewer would expect.
+ */
 export function getWordGroupDisplay(
   subtitles: Subtitle[],
   currentTime: number,
-  wordsPerGroup: number,
+  options?: Partial<SegmentOptions>,
 ): WordGroupDisplay | null {
   const allWords: SubtitleWord[] = [];
   for (const sub of subtitles) {
@@ -27,12 +38,13 @@ export function getWordGroupDisplay(
   }
   if (activeWordIdx === -1) return null;
 
-  const groupIndex = Math.floor(activeWordIdx / wordsPerGroup);
-  const groupStart = groupIndex * wordsPerGroup;
-  const groupEnd = Math.min(groupStart + wordsPerGroup, allWords.length);
+  const segments = buildSegments(allWords, options);
+  const segment = findSegmentForWord(segments, activeWordIdx);
+  if (!segment) return null;
+
   return {
-    words: allWords.slice(groupStart, groupEnd),
-    activeIndex: activeWordIdx - groupStart,
+    words: segment.words,
+    activeIndex: activeWordIdx - segment.firstIndex,
   };
 }
 

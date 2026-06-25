@@ -141,6 +141,11 @@ model VideoProject {
   //   outlineWidth: 2
   // }
 
+  // Hook/headline overlay (JSON) — static title/CTA drawn on top of the video
+  // Estrutura: { text, position: {x, y}, fontFamily, fontSize, color,
+  //   backgroundColor, backgroundOpacity, outline, outlineColor, outlineWidth }
+  hookOverlay       Json?
+
   // Logo/Watermark overlay (JSON)
   logoOverlay       Json?
   // Estrutura: {

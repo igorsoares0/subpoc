@@ -7,10 +7,14 @@ import { useRouter } from "next/navigation"
 import { VideoTimeline } from "@/components/timeline/VideoTimeline"
 import {
   SubtitleTrack,
+  HookOverlay,
   resolveFontFamily,
+  annotateSubtitleKeywords,
+  clearSubtitleKeywords,
   type Subtitle,
   type SubtitleStyle,
   type SubtitleWord,
+  type HookOverlayData,
 } from "@/lib/subtitle-track"
 import {
   ArrowLeft,
@@ -54,6 +58,7 @@ export interface VideoProject {
   status: string
   subtitles: Subtitle[] | null
   subtitleStyle: SubtitleStyle | null
+  hookOverlay: HookOverlayData | null
   logoOverlay: LogoOverlay | null
   format: string | null
   trim: { start: number; end: number } | null
@@ -85,6 +90,22 @@ const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
   displayMode: 'sentence',
   wordsPerGroup: 3,
   uppercase: false,
+}
+
+// Default hook/headline overlay used when the user first adds one (item 5).
+const DEFAULT_HOOK: HookOverlayData = {
+  text: "SEU TÍTULO AQUI",
+  position: { x: 50, y: 12 },
+  fontFamily: "Montserrat",
+  fontSize: 40,
+  fontWeight: 800,
+  color: "#FFFFFF",
+  backgroundColor: "#000000",
+  backgroundOpacity: 0,
+  outline: true,
+  outlineColor: "#000000",
+  outlineWidth: 4,
+  uppercase: true,
 }
 
 // Subtitle style templates
@@ -436,6 +457,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
   const logoUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const hookUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [isDraggingSubtitle, setIsDraggingSubtitle] = useState(false)
   const subtitleUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
   // Canva-style resize via handles: corner = font size, side = box width
@@ -677,6 +699,9 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     return () => {
       if (logoUpdateTimerRef.current) {
         clearTimeout(logoUpdateTimerRef.current)
+      }
+      if (hookUpdateTimerRef.current) {
+        clearTimeout(hookUpdateTimerRef.current)
       }
     }
   }, [])
@@ -944,6 +969,55 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     } finally {
       setIsSaving(false)
     }
+  }
+
+  // Item 5: hook/headline overlay — debounced save like the logo overlay.
+  const updateHook = (partial: Partial<HookOverlayData>) => {
+    const base = video.hookOverlay ?? DEFAULT_HOOK
+    const updated = { ...base, ...partial }
+    setVideo({ ...video, hookOverlay: updated })
+
+    if (hookUpdateTimerRef.current) clearTimeout(hookUpdateTimerRef.current)
+    hookUpdateTimerRef.current = setTimeout(async () => {
+      try {
+        await fetch(`/api/videos/${video.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hookOverlay: updated }),
+        })
+      } catch (error) {
+        console.error('Error updating hook:', error)
+      }
+    }, 500)
+  }
+
+  const removeHook = async () => {
+    if (hookUpdateTimerRef.current) clearTimeout(hookUpdateTimerRef.current)
+    setVideo({ ...video, hookOverlay: null })
+    try {
+      await fetch(`/api/videos/${video.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hookOverlay: null }),
+      })
+    } catch (error) {
+      console.error('Error removing hook:', error)
+    }
+  }
+
+  // Item 2: auto-flag keyword words for persistent emphasis coloring.
+  const autoHighlightKeywords = async () => {
+    if (!video.subtitles) return
+    const updated = annotateSubtitleKeywords(video.subtitles)
+    setVideo({ ...video, subtitles: updated })
+    await saveSubtitles(updated)
+  }
+
+  const clearKeywordHighlights = async () => {
+    if (!video.subtitles) return
+    const updated = clearSubtitleKeywords(video.subtitles)
+    setVideo({ ...video, subtitles: updated })
+    await saveSubtitles(updated)
   }
 
   const formatTime = (seconds: number) => {
@@ -1866,36 +1940,139 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                   </p>
                 </div>
 
-                {/* Submagic-style pop animation toggle */}
+                {/* Per-word entrance animation selector (item 3) */}
                 {style.displayMode === 'word-group' && (
                   <div>
-                    <button
-                      onClick={() =>
-                        updateStyle({
-                          animationMode: style.animationMode === 'pop' ? 'none' : 'pop',
-                        })
-                      }
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors text-[12px] ${
-                        style.animationMode === 'pop'
-                          ? 'bg-blue-600/20 border-blue-500/40 text-blue-300 hover:bg-blue-600/30'
-                          : 'bg-white/[0.04] border-white/[0.06] text-zinc-300 hover:bg-white/[0.08]'
-                      }`}
-                    >
-                      <span className="font-medium">Animação Submagic</span>
-                      <span
-                        className={`relative inline-block w-9 h-5 rounded-full transition-colors ${
-                          style.animationMode === 'pop' ? 'bg-blue-500' : 'bg-zinc-700'
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
-                            style.animationMode === 'pop' ? 'translate-x-4' : ''
-                          }`}
-                        />
-                      </span>
-                    </button>
+                    <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">
+                      Animação
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        { value: 'none', label: 'Nenhuma' },
+                        { value: 'pop', label: 'Pop' },
+                        { value: 'scale', label: 'Escala' },
+                        { value: 'slide-up', label: 'Slide-up' },
+                        { value: 'fade', label: 'Fade' },
+                      ] as const).map((opt) => {
+                        const active = (style.animationMode ?? 'none') === opt.value
+                        return (
+                          <button
+                            key={opt.value}
+                            onClick={() => updateStyle({ animationMode: opt.value })}
+                            className={`px-2 py-2 rounded-lg border text-[12px] font-medium transition-colors ${
+                              active
+                                ? 'bg-blue-600/20 border-blue-500/40 text-blue-300 hover:bg-blue-600/30'
+                                : 'bg-white/[0.04] border-white/[0.06] text-zinc-300 hover:bg-white/[0.08]'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        )
+                      })}
+                    </div>
                     <p className="text-[11px] text-zinc-600 mt-2">
-                      Pop + bounce na palavra ativa (estilo Submagic).
+                      Cada palavra entra animada ao ser falada (estilo Submagic).
+                    </p>
+                  </div>
+                )}
+
+                {/* Auto-split (item 4): controls how words are chunked into
+                    on-screen caption blocks. Re-chunks live (computed on the fly). */}
+                {style.displayMode === 'word-group' && (
+                  <div>
+                    <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">
+                      Auto-split
+                    </label>
+
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between text-[12px] text-zinc-400 mb-1.5">
+                          <span>Máx. palavras / bloco</span>
+                          <span className="text-zinc-200 font-medium">{style.wordsPerGroup ?? 4}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={1}
+                          max={6}
+                          step={1}
+                          value={style.wordsPerGroup ?? 4}
+                          onChange={(e) => updateStyle({ wordsPerGroup: Number(e.target.value) })}
+                          className="w-full accent-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between text-[12px] text-zinc-400 mb-1.5">
+                          <span>Máx. caracteres / bloco</span>
+                          <span className="text-zinc-200 font-medium">{style.maxCharsPerGroup ?? 24}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={10}
+                          max={40}
+                          step={1}
+                          value={style.maxCharsPerGroup ?? 24}
+                          onChange={(e) => updateStyle({ maxCharsPerGroup: Number(e.target.value) })}
+                          className="w-full accent-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between text-[12px] text-zinc-400 mb-1.5">
+                          <span>Quebra por pausa</span>
+                          <span className="text-zinc-200 font-medium">{(style.splitPauseGap ?? 0.35).toFixed(2)}s</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.1}
+                          max={1}
+                          step={0.05}
+                          value={style.splitPauseGap ?? 0.35}
+                          onChange={(e) => updateStyle({ splitPauseGap: Number(e.target.value) })}
+                          className="w-full accent-blue-500"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-zinc-600 mt-2">
+                      Divide a fala em blocos legíveis por pausa e tamanho.
+                    </p>
+                  </div>
+                )}
+
+                {/* Keyword highlight (item 2) */}
+                {style.displayMode === 'word-group' && (
+                  <div>
+                    <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">
+                      Palavras-chave
+                    </label>
+                    <div className="flex items-center gap-3 mb-3">
+                      <input
+                        type="color"
+                        value={style.emphasisColor || '#FFD700'}
+                        onChange={(e) => updateStyle({ emphasisColor: e.target.value })}
+                        className="w-10 h-10 rounded-full cursor-pointer border-2 border-zinc-700"
+                        style={{ backgroundColor: style.emphasisColor || '#FFD700' }}
+                      />
+                      <span className="text-[12px] text-zinc-400">Cor do destaque</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={autoHighlightKeywords}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 rounded-lg px-3 py-2 text-[12px] transition-colors"
+                      >
+                        <Palette className="w-3 h-3" />
+                        Destacar auto
+                      </button>
+                      <button
+                        onClick={clearKeywordHighlights}
+                        className="flex items-center justify-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg px-3 py-2 text-[12px] transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                        Limpar
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-zinc-600 mt-2">
+                      Destaca palavras-chave numa cor fixa (heurística). Requer dados word-by-word.
                     </p>
                   </div>
                 )}
@@ -1923,6 +2100,98 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     <Move className="w-3 h-3" />
                     Drag subtitle on video to reposition
                   </p>
+                </div>
+
+                {/* Hook / headline overlay (item 5) */}
+                <div>
+                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">
+                    Hook / Título
+                  </label>
+                  {!video.hookOverlay ? (
+                    <button
+                      onClick={() => updateHook({})}
+                      className="w-full flex items-center justify-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg px-3 py-2 text-[12px] transition-colors"
+                    >
+                      <Type className="w-3 h-3" />
+                      Adicionar hook
+                    </button>
+                  ) : (() => {
+                    const hook = video.hookOverlay
+                    return (
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          value={hook.text}
+                          onChange={(e) => updateHook({ text: e.target.value })}
+                          placeholder="Texto do hook"
+                          className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50"
+                        />
+
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="color"
+                            value={hook.color}
+                            onChange={(e) => updateHook({ color: e.target.value })}
+                            className="w-10 h-10 rounded-full cursor-pointer border-2 border-zinc-700"
+                            style={{ backgroundColor: hook.color }}
+                          />
+                          <span className="text-[12px] text-zinc-400">Cor do texto</span>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between text-[12px] text-zinc-400 mb-1.5">
+                            <span>Tamanho</span>
+                            <span className="text-zinc-200 font-medium">{hook.fontSize}</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={16}
+                            max={96}
+                            step={1}
+                            value={hook.fontSize}
+                            onChange={(e) => updateHook({ fontSize: Number(e.target.value) })}
+                            className="w-full accent-blue-500"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between text-[12px] text-zinc-400 mb-1.5">
+                            <span>Posição vertical</span>
+                            <span className="text-zinc-200 font-medium">{Math.round(hook.position.y)}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={2}
+                            max={98}
+                            step={1}
+                            value={hook.position.y}
+                            onChange={(e) => updateHook({ position: { x: hook.position.x, y: Number(e.target.value) } })}
+                            className="w-full accent-blue-500"
+                          />
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => updateHook({ uppercase: !hook.uppercase })}
+                            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12px] border transition-colors ${
+                              hook.uppercase
+                                ? 'bg-blue-600/20 border-blue-500/40 text-blue-300 hover:bg-blue-600/30'
+                                : 'bg-white/[0.04] border-white/[0.06] text-zinc-300 hover:bg-white/[0.08]'
+                            }`}
+                          >
+                            MAIÚSCULAS
+                          </button>
+                          <button
+                            onClick={removeHook}
+                            className="flex items-center justify-center gap-1.5 bg-white/[0.04] hover:bg-red-600/20 border border-white/[0.06] hover:border-red-500/40 text-zinc-300 hover:text-red-300 rounded-lg px-3 py-2 text-[12px] transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Remover
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
             )}
@@ -1994,6 +2263,24 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                       isDragging={isDraggingSubtitle}
                       onMouseDown={handleSubtitleMouseDown}
                       onResizeStart={handleResizeStart}
+                    />
+                  )
+                })()}
+
+                {/* Hook Preview Overlay (item 5) */}
+                {video.hookOverlay && videoDimensions.width > 0 && (() => {
+                  const videoContainer = videoRef.current?.getBoundingClientRect()
+                  if (!videoContainer) return null
+                  const offsetX = (videoContainer.width - videoDimensions.width) / 2
+                  const offsetY = (videoContainer.height - videoDimensions.height) / 2
+                  return (
+                    <HookOverlay
+                      hook={video.hookOverlay}
+                      videoWidth={videoDimensions.width}
+                      videoHeight={videoDimensions.height}
+                      nativeVideoWidth={nativeVideoWidth}
+                      offsetX={offsetX}
+                      offsetY={offsetY}
                     />
                   )
                 })()}

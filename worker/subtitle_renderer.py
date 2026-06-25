@@ -282,12 +282,13 @@ def render_subtitles_via_browser_sync(
     """
     Sync wrapper used by the CLI subprocess.
 
-    Routes to framewise capture when style.animationMode == "pop" (needs both
+    Routes to framewise capture for any per-word entrance animation (needs both
     effective_duration and video_fps); otherwise uses the keyframe path.
     """
     animation_mode = (style or {}).get("animationMode", "none")
+    is_animated = animation_mode not in (None, "", "none")
     use_framewise = (
-        animation_mode == "pop"
+        is_animated
         and effective_duration is not None
         and video_fps is not None
         and video_fps > 0

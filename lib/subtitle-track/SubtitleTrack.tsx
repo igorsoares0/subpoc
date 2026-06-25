@@ -5,6 +5,7 @@ import type { CSSProperties, MouseEvent } from "react";
 import type { Subtitle, SubtitleStyle } from "./types";
 import { resolveFontFamily } from "./fonts";
 import { getWordGroupDisplay, normalizePosition } from "./word-group";
+import { DEFAULT_SEGMENT_OPTIONS } from "./segments";
 
 export interface SubtitleTrackProps {
   currentTime: number;
@@ -118,6 +119,56 @@ function easeOutBack(t: number): number {
   return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
 }
 
+function easeOutCubic(t: number): number {
+  const x = Math.min(Math.max(t, 0), 1);
+  return 1 - Math.pow(1 - x, 3);
+}
+
+type AnimMode = NonNullable<SubtitleStyle["animationMode"]>;
+
+interface WordAnimation {
+  transform?: string;
+  opacity?: number;
+  /** 0→1 ramp for fading in a highlight background pill alongside the word. */
+  bgProgress: number;
+}
+
+/** Per-mode entrance duration (seconds) for the active word. */
+const ANIM_DURATION: Record<AnimMode, number> = {
+  none: 0,
+  pop: POP_DURATION,
+  scale: 0.15,
+  "slide-up": 0.18,
+  fade: 0.18,
+};
+
+/**
+ * Computes the entrance transform/opacity for the active word, `elapsed`
+ * seconds after it became active. Each mode eases 0→1 over its duration and
+ * then holds at rest. `pop` is kept byte-for-byte identical to the original
+ * (scale 0.72→1 with overshoot) so existing projects don't shift.
+ */
+function computeWordAnimation(mode: AnimMode, elapsed: number): WordAnimation {
+  const dur = ANIM_DURATION[mode] || POP_DURATION;
+  const t = Math.min(Math.max(elapsed / dur, 0), 1);
+  const bgProgress = Math.min(Math.max(elapsed / BG_FADE_DURATION, 0), 1);
+
+  switch (mode) {
+    case "pop":
+      return { transform: `scale(${0.72 + (easeOutBack(t) - 0.72)})`, bgProgress };
+    case "scale":
+      return { transform: `scale(${0.6 + 0.4 * easeOutCubic(t)})`, opacity: t, bgProgress };
+    case "slide-up": {
+      const dy = (1 - easeOutCubic(t)) * 0.4; // em, relative to font size
+      return { transform: `translateY(${dy}em)`, opacity: t, bgProgress };
+    }
+    case "fade":
+      return { opacity: easeOutCubic(t), bgProgress };
+    default:
+      return { bgProgress: 1 };
+  }
+}
+
 /**
  * Vector outline using -webkit-text-stroke + paint-order.
  * Replaces the old stacked text-shadow approach, which rasterized 9 copies
@@ -191,11 +242,11 @@ export function SubtitleTrack({
 
   // Word-group mode with word-level data
   if (isWordGroupMode && hasWordData) {
-    const wordGroup = getWordGroupDisplay(
-      subtitles,
-      currentTime,
-      style.wordsPerGroup || 3,
-    );
+    const wordGroup = getWordGroupDisplay(subtitles, currentTime, {
+      maxWords: style.wordsPerGroup ?? DEFAULT_SEGMENT_OPTIONS.maxWords,
+      maxChars: style.maxCharsPerGroup ?? DEFAULT_SEGMENT_OPTIONS.maxChars,
+      pauseGap: style.splitPauseGap ?? DEFAULT_SEGMENT_OPTIONS.pauseGap,
+    });
     if (!wordGroup) return null;
 
     const containerBg =
@@ -215,7 +266,8 @@ export function SubtitleTrack({
       groupStrokeEnabled,
     );
 
-    const popEnabled = style.animationMode === "pop";
+    const animMode: AnimMode = style.animationMode ?? "none";
+    const animEnabled = animMode !== "none";
     const activeWord = wordGroup.words[wordGroup.activeIndex];
 
     return (
@@ -235,16 +287,9 @@ export function SubtitleTrack({
             const isActive = idx === wordGroup.activeIndex;
             const wordText = style.uppercase ? w.word.toUpperCase() : w.word;
 
-            let popScale = 1;
-            let bgProgress = 1;
-            if (popEnabled && isActive && activeWord) {
-              const elapsed = currentTime - activeWord.start;
-              const popT = Math.min(Math.max(elapsed / POP_DURATION, 0), 1);
-              popScale = 0.72 + (easeOutBack(popT) - 0.72);
-              bgProgress = Math.min(
-                Math.max(elapsed / BG_FADE_DURATION, 0),
-                1,
-              );
+            let anim: WordAnimation = { bgProgress: 1 };
+            if (animEnabled && isActive && activeWord) {
+              anim = computeWordAnimation(animMode, currentTime - activeWord.start);
             }
 
             const baseHighlightOpacity = style.highlightBgOpacity ?? 0.95;
@@ -252,13 +297,22 @@ export function SubtitleTrack({
               isActive && style.highlightBg
                 ? hexToRgba(
                     style.highlightBg,
-                    baseHighlightOpacity * (popEnabled ? bgProgress : 1),
+                    baseHighlightOpacity * (animEnabled ? anim.bgProgress : 1),
                   )
                 : undefined;
 
             const activeColor = style.highlightBg
               ? style.highlightColor || "#FFFFFF"
               : style.highlightColor || "#FFD700";
+
+            // Color precedence: the time-based active word wins; otherwise a
+            // keyword (emphasis) word gets the persistent emphasis color; else
+            // the base subtitle color.
+            const wordColor = isActive
+              ? activeColor
+              : w.emphasis
+                ? style.emphasisColor || "#FFD700"
+                : style.color;
 
             return (
               // The space between words is a real, breakable whitespace node so
@@ -269,16 +323,14 @@ export function SubtitleTrack({
                 <span
                   style={{
                     ...groupStroke,
-                    color: isActive ? activeColor : style.color,
+                    color: wordColor,
                     backgroundColor: wordBg,
                     padding: wordBg ? "2px 6px" : undefined,
                     borderRadius: wordBg ? "8px" : undefined,
-                    display: popEnabled ? "inline-block" : undefined,
-                    transform:
-                      popEnabled && isActive
-                        ? `scale(${popScale})`
-                        : undefined,
-                    transformOrigin: popEnabled ? "center" : undefined,
+                    display: animEnabled ? "inline-block" : undefined,
+                    transform: isActive ? anim.transform : undefined,
+                    opacity: isActive ? anim.opacity : undefined,
+                    transformOrigin: animEnabled ? "center" : undefined,
                   }}
                 >
                   {wordText}

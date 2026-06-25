@@ -46,6 +46,16 @@ function sanitizePatchBody(body: unknown): Prisma.VideoProjectUpdateInput {
     }
   }
 
+  if ("hookOverlay" in input) {
+    if (input.hookOverlay === null) {
+      data.hookOverlay = Prisma.DbNull
+    } else if (typeof input.hookOverlay === "object" && !Array.isArray(input.hookOverlay)) {
+      data.hookOverlay = input.hookOverlay as Prisma.InputJsonValue
+    } else {
+      throw new Error("Invalid hookOverlay")
+    }
+  }
+
   if ("format" in input) {
     if (input.format !== null && (typeof input.format !== "string" || !ALLOWED_FORMATS.has(input.format))) {
       throw new Error("Invalid format")
