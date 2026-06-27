@@ -26,3 +26,10 @@ export {
   clearSubtitleKeywords,
 } from "./keywords";
 export type { KeywordOptions } from "./keywords";
+export {
+  DEFAULT_SUBTITLE_STYLE,
+  SUBTITLE_PRESETS,
+  matchesPreset,
+  findActivePreset,
+} from "./presets";
+export type { SubtitlePreset } from "./presets";

@@ -11,6 +11,9 @@ import {
   resolveFontFamily,
   annotateSubtitleKeywords,
   clearSubtitleKeywords,
+  DEFAULT_SUBTITLE_STYLE,
+  SUBTITLE_PRESETS,
+  matchesPreset,
   type Subtitle,
   type SubtitleStyle,
   type SubtitleWord,
@@ -41,6 +44,7 @@ import {
   Move,
   RotateCcw,
   AlignCenter,
+  Sparkles,
 } from "lucide-react"
 
 interface LogoOverlay {
@@ -69,29 +73,6 @@ interface EditorClientProps {
   video: VideoProject
 }
 
-// Default subtitle style – used as base when applying templates
-// to ensure optional fields from a previous template are cleared.
-const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
-  fontFamily: "Arial",
-  fontSize: 24,
-  boxWidth: 90,
-  fontWeight: 700,
-  color: "#FFFFFF",
-  backgroundColor: "#000000",
-  backgroundOpacity: 0,
-  position: { x: 50, y: 90 },
-  alignment: "center",
-  outline: false,
-  outlineColor: "#000000",
-  outlineWidth: 0,
-  highlightColor: undefined,
-  highlightBg: undefined,
-  highlightBgOpacity: undefined,
-  displayMode: 'sentence',
-  wordsPerGroup: 3,
-  uppercase: false,
-}
-
 // Default hook/headline overlay used when the user first adds one (item 5).
 const DEFAULT_HOOK: HookOverlayData = {
   text: "SEU TÍTULO AQUI",
@@ -107,312 +88,6 @@ const DEFAULT_HOOK: HookOverlayData = {
   outlineWidth: 4,
   uppercase: true,
 }
-
-// Subtitle style templates
-const SUBTITLE_TEMPLATES: { name: string; style: SubtitleStyle }[] = [
-  {
-    name: "Classic",
-    style: {
-      fontFamily: "Arial",
-      fontSize: 24,
-      color: "#FFFFFF",
-      backgroundColor: "#000000",
-      backgroundOpacity: 0.6,
-      position: { x: 50, y: 90 },
-      alignment: "center",
-      outline: false,
-      outlineColor: "#000000",
-      outlineWidth: 0,
-    },
-  },
-  {
-    name: "Bold Yellow",
-    style: {
-      fontFamily: "Montserrat",
-      fontSize: 36,
-      color: "#FFFF00",
-      backgroundColor: "#000000",
-      backgroundOpacity: 0,
-      position: { x: 50, y: 85 },
-      alignment: "center",
-      outline: true,
-      outlineColor: "#000000",
-      outlineWidth: 4,
-    },
-  },
-  {
-    name: "Neon",
-    style: {
-      fontFamily: "Montserrat",
-      fontSize: 28,
-      color: "#39FF14",
-      backgroundColor: "#000000",
-      backgroundOpacity: 0,
-      position: { x: 50, y: 85 },
-      alignment: "center",
-      outline: true,
-      outlineColor: "#000000",
-      outlineWidth: 2,
-    },
-  },
-  {
-    name: "Karaoke",
-    style: {
-      fontFamily: "Montserrat",
-      fontSize: 24,
-      color: "#FFFF00",
-      backgroundColor: "#FF00FF",
-      backgroundOpacity: 0.8,
-      position: { x: 50, y: 90 },
-      alignment: "center",
-      outline: false,
-      outlineColor: "#000000",
-      outlineWidth: 2,
-    },
-  },
-  {
-    name: "Minimal",
-    style: {
-      fontFamily: "Inter",
-      fontSize: 18,
-      color: "#FFFFFF",
-      backgroundColor: "#000000",
-      backgroundOpacity: 0,
-      position: { x: 50, y: 92 },
-      alignment: "center",
-      outline: true,
-      outlineColor: "#000000",
-      outlineWidth: 1,
-    },
-  },
-  {
-    name: "Cinema",
-    style: {
-      fontFamily: "Helvetica",
-      fontSize: 22,
-      color: "#FFFFFF",
-      backgroundColor: "#000000",
-      backgroundOpacity: 1,
-      position: { x: 50, y: 92 },
-      alignment: "center",
-      outline: false,
-      outlineColor: "#000000",
-      outlineWidth: 0,
-    },
-  },
-  {
-    name: "Pop",
-    style: {
-      fontFamily: "Poppins",
-      fontSize: 26,
-      color: "#FF69B4",
-      backgroundColor: "#FFFFFF",
-      backgroundOpacity: 0.9,
-      position: { x: 50, y: 85 },
-      alignment: "center",
-      outline: false,
-      outlineColor: "#000000",
-      outlineWidth: 0,
-    },
-  },
-  {
-    name: "Glow",
-    style: {
-      fontFamily: "Montserrat",
-      fontSize: 28,
-      color: "#FFFFFF",
-      backgroundColor: "#000000",
-      backgroundOpacity: 0,
-      position: { x: 50, y: 85 },
-      alignment: "center",
-      outline: true,
-      outlineColor: "#3B82F6",
-      outlineWidth: 4,
-    },
-  },
-  {
-    name: "Hormozi",
-    style: {
-      fontFamily: "Montserrat",
-      fontSize: 42,
-      fontWeight: 900,
-      color: "#FFFFFF",
-      backgroundColor: "#000000",
-      backgroundOpacity: 0,
-      position: { x: 50, y: 50 },
-      alignment: "center",
-      outline: true,
-      outlineColor: "#000000",
-      outlineWidth: 5,
-      highlightColor: "#FFD700",
-      displayMode: "word-group",
-      wordsPerGroup: 3,
-      uppercase: true,
-    },
-  },
-  {
-    name: "Hormozi Fire",
-    style: {
-      fontFamily: "Poppins",
-      fontSize: 46,
-      fontWeight: 900,
-      color: "#FFFFFF",
-      backgroundColor: "#000000",
-      backgroundOpacity: 0,
-      position: { x: 50, y: 50 },
-      alignment: "center",
-      outline: true,
-      outlineColor: "#000000",
-      outlineWidth: 5,
-      highlightColor: "#FF4500",
-      displayMode: "word-group",
-      wordsPerGroup: 2,
-      uppercase: true,
-    },
-  },
-  {
-    name: "Hormozi Neon",
-    style: {
-      fontFamily: "Montserrat",
-      fontSize: 44,
-      fontWeight: 900,
-      color: "#FFFFFF",
-      backgroundColor: "#000000",
-      backgroundOpacity: 0,
-      position: { x: 50, y: 50 },
-      alignment: "center",
-      outline: true,
-      outlineColor: "#0D0D0D",
-      outlineWidth: 4,
-      highlightColor: "#00FF88",
-      displayMode: "word-group",
-      wordsPerGroup: 3,
-      uppercase: true,
-    },
-  },
-  {
-    name: "Hormozi Ice",
-    style: {
-      fontFamily: "Inter",
-      fontSize: 40,
-      fontWeight: 900,
-      color: "#E0E0E0",
-      backgroundColor: "#000000",
-      backgroundOpacity: 0,
-      position: { x: 50, y: 50 },
-      alignment: "center",
-      outline: true,
-      outlineColor: "#000000",
-      outlineWidth: 5,
-      highlightColor: "#00BFFF",
-      displayMode: "word-group",
-      wordsPerGroup: 4,
-      uppercase: true,
-    },
-  },
-  {
-    name: "Hormozi Purple",
-    style: {
-      fontFamily: "Roboto",
-      fontSize: 44,
-      fontWeight: 900,
-      color: "#FFFFFF",
-      backgroundColor: "#000000",
-      backgroundOpacity: 0,
-      position: { x: 50, y: 50 },
-      alignment: "center",
-      outline: true,
-      outlineColor: "#1A1A2E",
-      outlineWidth: 5,
-      highlightColor: "#BF40BF",
-      displayMode: "word-group",
-      wordsPerGroup: 3,
-      uppercase: true,
-    },
-  },
-  {
-    name: "Hormozi Sunset",
-    style: {
-      fontFamily: "Montserrat",
-      fontSize: 42,
-      fontWeight: 900,
-      color: "#FFFFFF",
-      backgroundColor: "#000000",
-      backgroundOpacity: 0,
-      position: { x: 50, y: 50 },
-      alignment: "center",
-      outline: true,
-      outlineColor: "#000000",
-      outlineWidth: 5,
-      highlightColor: "#FF6B35",
-      displayMode: "word-group",
-      wordsPerGroup: 2,
-      uppercase: true,
-    },
-  },
-  {
-    name: "Hormozi Box",
-    style: {
-      fontFamily: "Montserrat",
-      fontSize: 42,
-      fontWeight: 900,
-      color: "#FFFFFF",
-      backgroundColor: "#1A1A2E",
-      backgroundOpacity: 0.85,
-      position: { x: 50, y: 50 },
-      alignment: "center",
-      outline: false,
-      outlineColor: "#000000",
-      outlineWidth: 0,
-      highlightColor: "#FFD700",
-      displayMode: "word-group",
-      wordsPerGroup: 3,
-      uppercase: true,
-    },
-  },
-  {
-    name: "Hormozi Candy",
-    style: {
-      fontFamily: "Poppins",
-      fontSize: 44,
-      fontWeight: 900,
-      color: "#FFFFFF",
-      backgroundColor: "#FF1493",
-      backgroundOpacity: 0.9,
-      position: { x: 50, y: 50 },
-      alignment: "center",
-      outline: false,
-      outlineColor: "#000000",
-      outlineWidth: 0,
-      highlightColor: "#FFFF00",
-      displayMode: "word-group",
-      wordsPerGroup: 3,
-      uppercase: true,
-    },
-  },
-  {
-    name: "Hormozi Flash",
-    style: {
-      fontFamily: "Montserrat",
-      fontSize: 48,
-      fontWeight: 900,
-      color: "#FFFFFF",
-      backgroundColor: "#000000",
-      backgroundOpacity: 0,
-      position: { x: 50, y: 50 },
-      alignment: "center",
-      outline: true,
-      outlineColor: "#000000",
-      outlineWidth: 5,
-      highlightColor: "#FFFFFF",
-      highlightBg: "#E63946",
-      highlightBgOpacity: 0.95,
-      displayMode: "word-group",
-      wordsPerGroup: 3,
-      uppercase: true,
-    },
-  },
-]
 
 // Mapeamento de formatos para exibição e backend
 const FORMAT_OPTIONS = [
@@ -1756,16 +1431,8 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                 <div>
                   <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-3">Templates</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {SUBTITLE_TEMPLATES.map((template) => {
-                      const isActive = style.color === template.style.color
-                        && style.backgroundColor === template.style.backgroundColor
-                        && style.backgroundOpacity === template.style.backgroundOpacity
-                        && style.fontFamily === template.style.fontFamily
-                        && style.fontSize === template.style.fontSize
-                        && style.outline === template.style.outline
-                        && style.outlineColor === template.style.outlineColor
-                        && style.outlineWidth === template.style.outlineWidth
-                        && (style.displayMode || 'sentence') === (template.style.displayMode || 'sentence')
+                    {SUBTITLE_PRESETS.map((template) => {
+                      const isActive = matchesPreset(style, template)
 
                       const previewBg = (() => {
                         if (template.style.backgroundOpacity <= 0) return "transparent"
@@ -1783,9 +1450,12 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                         ? `${w}px 0 0 ${oc}, -${w}px 0 0 ${oc}, 0 ${w}px 0 ${oc}, 0 -${w}px 0 ${oc}, ${w}px ${w}px 0 ${oc}, -${w}px -${w}px 0 ${oc}, ${w}px -${w}px 0 ${oc}, -${w}px ${w}px 0 ${oc}`
                         : "none"
 
+                      const animMode = template.style.animationMode
+                      const isAnimated = !!animMode && animMode !== 'none'
+
                       return (
                         <button
-                          key={template.name}
+                          key={template.id}
                           onClick={() => updateStyle(template.style, true)}
                           className={`flex flex-col items-center gap-1.5 rounded-lg p-2 transition-all border ${
                             isActive
@@ -1794,9 +1464,17 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                           }`}
                         >
                           <div
-                            className="w-full h-[48px] rounded flex items-center justify-center"
+                            className="relative w-full h-[48px] rounded flex items-center justify-center overflow-hidden"
                             style={{ backgroundColor: "#18181b" }}
                           >
+                            {isAnimated && (
+                              <div
+                                className="absolute top-1 right-1 flex items-center justify-center rounded-full bg-black/60 p-0.5"
+                                title={`Animação: ${animMode}`}
+                              >
+                                <Sparkles className="w-2.5 h-2.5 text-amber-300 animate-pulse" />
+                              </div>
+                            )}
                             {template.style.displayMode === 'word-group' ? (
                               <span style={{
                                 fontFamily: resolveFontFamily(template.style.fontFamily),
