@@ -1099,6 +1099,13 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     outlineWidth: 2
   }
 
+  // Whether any word currently carries keyword emphasis — drives the
+  // "Destacar auto" button's on/off appearance so it reflects real state
+  // instead of looking permanently selected.
+  const keywordsActive = !!video?.subtitles?.some(
+    (sub) => sub.words?.some((w) => w.emphasis),
+  )
+
   return (
     <div className="min-h-screen bg-[#0c0c0e] text-white flex flex-col p-4 gap-3">
       {/* Header */}
@@ -1696,7 +1703,11 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     <div className="flex gap-2">
                       <button
                         onClick={autoHighlightKeywords}
-                        className="flex-1 flex items-center justify-center gap-1.5 bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 rounded-lg px-3 py-2 text-[12px] transition-colors"
+                        className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12px] transition-colors border ${
+                          keywordsActive
+                            ? "bg-blue-600/20 border-blue-500/40 text-blue-300 hover:bg-blue-600/30"
+                            : "bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.06] text-zinc-300"
+                        }`}
                       >
                         <Palette className="w-3 h-3" />
                         Destacar auto
