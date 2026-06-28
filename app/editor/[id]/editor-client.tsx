@@ -949,27 +949,6 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     }
   }
 
-  // Line count control (1/2/3): estimate the box width that fits the current
-  // subtitle in ~N lines, by measuring its one-line width with the active font.
-  const applyLineCount = (n: number) => {
-    const subs = (video?.subtitles as Subtitle[] | undefined) ?? []
-    const text = displayedSubtitle?.text || subs[0]?.text || ''
-    if (!text) {
-      commitStyle({ boxWidth: n === 1 ? 100 : n === 2 ? 60 : 40 })
-      return
-    }
-    const s = (video?.subtitleStyle as SubtitleStyle | undefined) ?? DEFAULT_SUBTITLE_STYLE
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.font = `${s.fontWeight ?? 700} ${s.fontSize}px ${s.fontFamily}`
-    const oneLine = ctx.measureText(text).width
-    const padding = Math.max(nativeVideoWidth * 0.015, 6) * 2
-    const target = (oneLine * 1.1) / n + padding
-    const pct = Math.max(20, Math.min((target / nativeVideoWidth) * 100, 100))
-    commitStyle({ boxWidth: Math.round(pct) })
-  }
-
   const updateFormat = (newFormat: string | null) => {
     // Atualizar estado local imediatamente
     setVideo({ ...video, format: newFormat })
@@ -1597,25 +1576,6 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                       background: `linear-gradient(to right, rgb(37, 99, 235) 0%, rgb(37, 99, 235) ${((style.fontSize - 12) / (120 - 12)) * 100}%, rgb(39, 39, 42) ${((style.fontSize - 12) / (120 - 12)) * 100}%, rgb(39, 39, 42) 100%)`
                     }}
                   />
-                </div>
-
-                {/* Number of lines (adjusts box width so the text wraps in ~N lines) */}
-                <div>
-                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Linhas</label>
-                  <div className="flex gap-2">
-                    {[1, 2, 3].map((n) => (
-                      <button
-                        key={n}
-                        onClick={() => applyLineCount(n)}
-                        className="flex-1 flex items-center justify-center bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg px-3 py-2 text-[12px] font-medium transition-colors"
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-[11px] text-zinc-600 mt-2">
-                    Ajusta a largura da caixa. Arraste as alças laterais para ajuste fino.
-                  </p>
                 </div>
 
                 {/* Per-word entrance animation selector (item 3) */}
