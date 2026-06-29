@@ -134,6 +134,10 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [videoDimensions, setVideoDimensions] = useState({ width: 0, height: 0 })
+  // Display size (CSS px) of the full preview frame — i.e. the aspect-ratio
+  // wrapper. With a fixed format this equals the export canvas (video content
+  // + letterbox bars); for "Original" it equals the video element box.
+  const [frameDimensions, setFrameDimensions] = useState({ width: 0, height: 0 })
   const [nativeVideoWidth, setNativeVideoWidth] = useState(1920)
   const [editingSubtitle, setEditingSubtitle] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -382,11 +386,18 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
       console.log(`[Video Dimensions] Calculated: ${actualWidth.toFixed(0)}x${actualHeight.toFixed(0)} (native: ${videoWidth}x${videoHeight})`)
       setVideoDimensions({ width: actualWidth, height: actualHeight })
+      setFrameDimensions({ width: containerWidth, height: containerHeight })
       setNativeVideoWidth(videoWidth)
     }
 
     videoElement.addEventListener('loadedmetadata', updateVideoDimensions)
     window.addEventListener('resize', updateVideoDimensions)
+
+    // Recompute when the video element itself resizes — this fires when the
+    // format dropdown changes the wrapper's aspect ratio, keeping the subtitle
+    // overlay in sync without waiting for a window resize.
+    const resizeObserver = new ResizeObserver(() => updateVideoDimensions())
+    resizeObserver.observe(videoElement)
 
     // Trigger if already loaded
     if (videoElement.readyState >= 1) {
@@ -396,6 +407,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     return () => {
       videoElement.removeEventListener('loadedmetadata', updateVideoDimensions)
       window.removeEventListener('resize', updateVideoDimensions)
+      resizeObserver.disconnect()
     }
   }, [])
 
@@ -1175,26 +1187,42 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     }
   }
 
+  // Geometry of the export frame within the preview, given the wrapper box.
+  // With a fixed format, subtitles/overlays are positioned relative to the full
+  // export canvas (including letterbox bars) — exactly like the worker render.
+  // For "Original" the export canvas is the source video, so we anchor to the
+  // letterboxed content area and center it within the wrapper.
+  const computeFrameGeometry = (containerW: number, containerH: number) => {
+    const hasFormat = getFormatAspectRatio(video.format) !== null
+    if (hasFormat) {
+      return { width: containerW, height: containerH, offsetX: 0, offsetY: 0 }
+    }
+    return {
+      width: videoDimensions.width,
+      height: videoDimensions.height,
+      offsetX: (containerW - videoDimensions.width) / 2,
+      offsetY: (containerH - videoDimensions.height) / 2,
+    }
+  }
+
   const handleSubtitleMouseMove = (e: MouseEvent) => {
     if (!isDraggingSubtitle || !videoDimensions.width || !videoRef.current) return
 
     const videoContainer = videoRef.current.getBoundingClientRect()
+    const frame = computeFrameGeometry(videoContainer.width, videoContainer.height)
+    if (!frame.width || !frame.height) return
 
-    // Calculate letterboxing offset
-    const offsetX = (videoContainer.width - videoDimensions.width) / 2
-    const offsetY = (videoContainer.height - videoDimensions.height) / 2
+    // Calculate position relative to the export frame
+    const relativeX = e.clientX - videoContainer.left - frame.offsetX
+    const relativeY = e.clientY - videoContainer.top - frame.offsetY
 
-    // Calculate position relative to video
-    const relativeX = e.clientX - videoContainer.left - offsetX
-    const relativeY = e.clientY - videoContainer.top - offsetY
-
-    // Clamp to video bounds
-    const clampedX = Math.max(0, Math.min(relativeX, videoDimensions.width))
-    const clampedY = Math.max(0, Math.min(relativeY, videoDimensions.height))
+    // Clamp to frame bounds
+    const clampedX = Math.max(0, Math.min(relativeX, frame.width))
+    const clampedY = Math.max(0, Math.min(relativeY, frame.height))
 
     // Convert to percentage
-    const xPercent = (clampedX / videoDimensions.width) * 100
-    const yPercent = (clampedY / videoDimensions.height) * 100
+    const xPercent = (clampedX / frame.width) * 100
+    const yPercent = (clampedY / frame.height) * 100
 
     updateSubtitlePosition({ x: xPercent, y: yPercent })
   }
@@ -1285,9 +1313,12 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       const newSize = Math.round(Math.max(8, Math.min(resize.startFontSize * ratio, 120)))
       commitStyle({ fontSize: newSize })
     } else {
-      if (!videoDimensions.width) return
+      if (!videoDimensions.width || !videoRef.current) return
+      const containerRect = videoRef.current.getBoundingClientRect()
+      const frame = computeFrameGeometry(containerRect.width, containerRect.height)
+      if (!frame.width) return
       const widthPx = 2 * Math.abs(e.clientX - resize.centerX)
-      const pct = Math.max(20, Math.min((widthPx / videoDimensions.width) * 100, 100))
+      const pct = Math.max(20, Math.min((widthPx / frame.width) * 100, 100))
       commitStyle({ boxWidth: Math.round(pct) })
     }
   }
@@ -2342,20 +2373,18 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
                   {/* Subtitle Preview Overlay */}
                 {(() => {
-                  const videoContainer = videoRef.current?.getBoundingClientRect()
-                  if (!videoContainer || videoDimensions.width === 0) return null
-                  const offsetX = (videoContainer.width - videoDimensions.width) / 2
-                  const offsetY = (videoContainer.height - videoDimensions.height) / 2
+                  if (frameDimensions.width === 0 || videoDimensions.width === 0) return null
+                  const frame = computeFrameGeometry(frameDimensions.width, frameDimensions.height)
                   return (
                     <SubtitleTrack
                       currentTime={displayTime}
                       subtitles={video.subtitles || []}
                       style={style}
-                      videoWidth={videoDimensions.width}
-                      videoHeight={videoDimensions.height}
+                      videoWidth={frame.width}
+                      videoHeight={frame.height}
                       nativeVideoWidth={nativeVideoWidth}
-                      offsetX={offsetX}
-                      offsetY={offsetY}
+                      offsetX={frame.offsetX}
+                      offsetY={frame.offsetY}
                       overrideSubtitle={displayedSubtitle ?? null}
                       interactive
                       isDragging={isDraggingSubtitle}
@@ -2366,36 +2395,31 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                 })()}
 
                 {/* Hook Preview Overlay (item 5) */}
-                {video.hookOverlay && videoDimensions.width > 0 && (() => {
-                  const videoContainer = videoRef.current?.getBoundingClientRect()
-                  if (!videoContainer) return null
-                  const offsetX = (videoContainer.width - videoDimensions.width) / 2
-                  const offsetY = (videoContainer.height - videoDimensions.height) / 2
+                {video.hookOverlay && videoDimensions.width > 0 && frameDimensions.width > 0 && (() => {
+                  const frame = computeFrameGeometry(frameDimensions.width, frameDimensions.height)
                   return (
                     <HookOverlay
                       hook={video.hookOverlay}
-                      videoWidth={videoDimensions.width}
-                      videoHeight={videoDimensions.height}
+                      videoWidth={frame.width}
+                      videoHeight={frame.height}
                       nativeVideoWidth={nativeVideoWidth}
-                      offsetX={offsetX}
-                      offsetY={offsetY}
+                      offsetX={frame.offsetX}
+                      offsetY={frame.offsetY}
                     />
                   )
                 })()}
 
                 {/* Logo Preview Overlay */}
-                {video.logoOverlay && video.logoOverlay.logoUrl && videoDimensions.width > 0 && (
+                {video.logoOverlay && video.logoOverlay.logoUrl && videoDimensions.width > 0 && frameDimensions.width > 0 && (
                   (() => {
-                    // Calculate video container dimensions
-                    const containerRect = videoRef.current?.getBoundingClientRect()
-                    if (!containerRect) return null
+                    // Anchor the logo to the export frame corners — with a fixed
+                    // format that includes the letterbox bars, matching the render.
+                    const frame = computeFrameGeometry(frameDimensions.width, frameDimensions.height)
+                    const offsetX = frame.offsetX
+                    const offsetY = frame.offsetY
 
-                    // Calculate offset to center video within container (letterboxing)
-                    const offsetX = (containerRect.width - videoDimensions.width) / 2
-                    const offsetY = (containerRect.height - videoDimensions.height) / 2
-
-                    // Calculate logo size based on video width
-                    const logoMaxSize = (videoDimensions.width * video.logoOverlay.size) / 100
+                    // Calculate logo size based on frame width
+                    const logoMaxSize = (frame.width * video.logoOverlay.size) / 100
                     const padding = 16 // 1rem = 16px
 
                     // Calculate position based on selected corner

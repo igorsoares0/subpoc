@@ -356,9 +356,15 @@ async def process_rendering(
                 "bottom-right": (f"W-w-{padding}", f"H-h-{padding}"),
             }
             x_pos, y_pos = pos_map.get(pos, pos_map["top-right"])
-            logo_w = f"iw*{size/100}"
+            # Size is a percentage of the output frame width (matches the editor
+            # preview). `iw` inside scale refers to the logo's own width, so we
+            # compute the target in output pixels from out_w instead. The editor
+            # caps both width and height to this value with object-fit:contain,
+            # so fit the logo into a square box of that side, preserving aspect.
+            logo_box = max(1, round(out_w * size / 100))
             filter_parts.append(
-                f"{logo_input}scale={logo_w}:-1,format=rgba,"
+                f"{logo_input}scale={logo_box}:{logo_box}:"
+                f"force_original_aspect_ratio=decrease,format=rgba,"
                 f"colorchannelmixer=aa={opacity}[logo]"
             )
             filter_parts.append(
