@@ -5,6 +5,7 @@ import { createPortal } from "react-dom"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { VideoTimeline } from "@/components/timeline/VideoTimeline"
+import { toast } from "@/lib/toast"
 import {
   SubtitleTrack,
   HookOverlay,
@@ -45,6 +46,9 @@ import {
   RotateCcw,
   AlignCenter,
   Sparkles,
+  Plus,
+  Scissors,
+  Combine,
 } from "lucide-react"
 
 interface LogoOverlay {
@@ -52,6 +56,16 @@ interface LogoOverlay {
   position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
   size: number  // percentage (5-20)
   opacity: number  // 0-1
+}
+
+// Snapshot of everything undo/redo tracks (item 4).
+interface EditorDoc {
+  subtitles: Subtitle[] | null
+  subtitleStyle: SubtitleStyle | null
+  hookOverlay: HookOverlayData | null
+  logoOverlay: LogoOverlay | null
+  format: string | null
+  trim: { start: number; end: number } | null
 }
 
 export interface VideoProject {
@@ -75,7 +89,7 @@ interface EditorClientProps {
 
 // Default hook/headline overlay used when the user first adds one (item 5).
 const DEFAULT_HOOK: HookOverlayData = {
-  text: "SEU TÍTULO AQUI",
+  text: "YOUR TITLE HERE",
   position: { x: 50, y: 12 },
   fontFamily: "Montserrat",
   fontSize: 40,
@@ -128,6 +142,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
   const [showLogoModal, setShowLogoModal] = useState(false)
+  const [showRenderPreview, setShowRenderPreview] = useState(false)
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
@@ -150,6 +165,21 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const trimUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [isDraggingTrimHandle, setIsDraggingTrimHandle] = useState<'start' | 'end' | null>(null)
   const [selectedSubtitleId, setSelectedSubtitleId] = useState<number | null>(null)
+  // Which long-running job is in flight, so the polling loop knows what failed
+  // and the retry banner can offer the right action.
+  const activeJobRef = useRef<"transcribe" | "render" | null>(null)
+  const [failedJob, setFailedJob] = useState<"transcribe" | "render" | null>(null)
+  // Ref to the active cue card, used to auto-scroll the list during playback.
+  const activeCueRef = useRef<HTMLDivElement>(null)
+  // Undo/redo history (item 4). Snapshots of the editable document, coalesced
+  // by a debounce so a slider drag becomes a single undo step.
+  const presentDocRef = useRef<EditorDoc | null>(null)
+  const undoStackRef = useRef<EditorDoc[]>([])
+  const redoStackRef = useRef<EditorDoc[]>([])
+  const isApplyingHistoryRef = useRef(false)
+  const historyTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
 
   // Current subtitle based on video time (adjusted for trim)
   const displayTime = trim ? currentTime + trim.start : currentTime
@@ -170,6 +200,13 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       setSelectedSubtitleId(null)
     }
   }, [currentSubtitle?.id, isPlaying, selectedSubtitleId])
+
+  // Auto-scroll the cue list to the active subtitle so it stays in view as the
+  // video plays. block:'nearest' avoids jumping when the cue is already visible.
+  useEffect(() => {
+    if (activeTab !== "subtitles") return
+    activeCueRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+  }, [highlightedSubtitleId, activeTab])
 
   // Polling for video updates
   const startPolling = () => {
@@ -194,15 +231,22 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
             if (data.video.status === 'ready' && oldStatus !== 'ready') {
               console.log('[Polling] Transcription complete! Subtitles loaded.')
               setIsTranscribing(false)
+              activeJobRef.current = null
+              toast.success('Transcription complete')
             }
             if (data.video.status === 'completed' && oldStatus !== 'completed') {
               console.log('[Polling] Rendering complete! Video ready for download.')
               setIsRendering(false)
+              activeJobRef.current = null
+              setShowRenderPreview(true)
+              toast.success('Video rendered — ready to download')
             }
             if (data.video.status === 'failed') {
               console.error('[Polling] Processing failed.')
               setIsRendering(false)
               setIsTranscribing(false)
+              setFailedJob(activeJobRef.current)
+              activeJobRef.current = null
             }
             clearInterval(interval)
             setPollingInterval(null)
@@ -435,7 +479,30 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       if (tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
 
-      if (e.key === 'i' || e.key === 'I') {
+      const v = videoRef.current
+
+      // Seek within trim bounds (or full video when no trim).
+      const seekBy = (delta: number) => {
+        if (!v) return
+        const lower = trim ? trim.start : 0
+        const upper = trim ? trim.end : (v.duration || duration)
+        v.currentTime = Math.max(lower, Math.min(v.currentTime + delta, upper))
+      }
+
+      if (e.key === ' ' || e.code === 'Space') {
+        // preventDefault also stops Space from re-activating a focused button.
+        e.preventDefault()
+        if (v) {
+          if (v.paused) v.play()
+          else v.pause()
+        }
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        seekBy(5)
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        seekBy(-5)
+      } else if (e.key === 'i' || e.key === 'I') {
         e.preventDefault()
         setTrimStart()
       } else if (e.key === 'o' || e.key === 'O') {
@@ -446,7 +513,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [trim, currentTime])
+  }, [trim, currentTime, duration])
 
   // Cleanup subtitle update timer on unmount
   useEffect(() => {
@@ -509,7 +576,9 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   }, [showExportMenu])
 
   const transcribeVideo = async () => {
+    setFailedJob(null)
     setIsTranscribing(true)
+    activeJobRef.current = "transcribe"
     try {
       const response = await fetch(`/api/videos/${video.id}/transcribe`, {
         method: "POST"
@@ -524,8 +593,12 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       startPolling()
     } catch (error) {
       console.error("Error transcribing video:", error)
-      alert(error instanceof Error ? error.message : "Failed to transcribe video")
+      toast.error(
+        error instanceof Error ? error.message : "Failed to transcribe video",
+        { label: "Try again", onClick: transcribeVideo }
+      )
       setIsTranscribing(false)
+      activeJobRef.current = null
     }
   }
 
@@ -540,8 +613,10 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   }
 
   const renderVideo = async () => {
+    setFailedJob(null)
     setIsRendering(true)
     setShowExportMenu(false)
+    activeJobRef.current = "render"
     try {
       const response = await fetch(`/api/videos/${video.id}/render`, {
         method: "POST"
@@ -556,8 +631,12 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       startPolling()
     } catch (error) {
       console.error("Error rendering video:", error)
-      alert(error instanceof Error ? error.message : "Failed to render video")
+      toast.error(
+        error instanceof Error ? error.message : "Failed to render video",
+        { label: "Try again", onClick: renderVideo }
+      )
       setIsRendering(false)
+      activeJobRef.current = null
     }
   }
 
@@ -608,6 +687,264 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     // Save to backend
     await saveSubtitles(updatedSubtitles)
   }
+
+  // ── Cue CRUD ──────────────────────────────────────────────────────────────
+  // All mutations go through commitSubtitles so local state + backend stay in
+  // sync with a single debounced-free PATCH (these are discrete user actions).
+  const getNextSubtitleId = (subs: Subtitle[]) =>
+    subs.reduce((max, s) => Math.max(max, s.id), 0) + 1
+
+  const commitSubtitles = (updated: Subtitle[]) => {
+    setVideo({ ...video, subtitles: updated })
+    void saveSubtitles(updated)
+  }
+
+  // Insert a new 2s cue at the current playhead, then jump straight into editing.
+  const addSubtitleAtPlayhead = () => {
+    const subs = video.subtitles ? [...video.subtitles] : []
+    const videoDuration = videoRef.current?.duration || duration
+    const start = Math.max(0, Math.min(displayTime, Math.max(0, videoDuration - 0.5)))
+    const end = Math.min(start + 2, videoDuration || start + 2)
+    const newSub: Subtitle = {
+      id: getNextSubtitleId(subs),
+      start,
+      end,
+      text: "New subtitle",
+    }
+    const updated = [...subs, newSub].sort((a, b) => a.start - b.start)
+    commitSubtitles(updated)
+    setSelectedSubtitleId(newSub.id)
+    setEditingSubtitle(newSub.id)
+  }
+
+  // Split a cue in two at the playhead. Word-level timings (if present) are
+  // partitioned so word-group templates stay accurate; otherwise the text is
+  // divided proportionally to the time fraction.
+  const splitSubtitleAtPlayhead = (sub: Subtitle) => {
+    const t = displayTime
+    if (t <= sub.start + 0.05 || t >= sub.end - 0.05) {
+      toast.error("Move the playhead inside this subtitle to split it")
+      return
+    }
+    const subs = video.subtitles ?? []
+    const nextId = getNextSubtitleId(subs)
+
+    let leftText = sub.text
+    let rightText = ""
+    let leftWords: SubtitleWord[] | undefined
+    let rightWords: SubtitleWord[] | undefined
+
+    if (sub.words && sub.words.length > 0) {
+      leftWords = sub.words.filter((w) => w.start < t)
+      rightWords = sub.words.filter((w) => w.start >= t)
+      // Guard against an empty side when all words fall on one side of t.
+      if (leftWords.length === 0) {
+        leftWords = sub.words.slice(0, 1)
+        rightWords = sub.words.slice(1)
+      } else if (rightWords.length === 0) {
+        leftWords = sub.words.slice(0, -1)
+        rightWords = sub.words.slice(-1)
+      }
+      leftText = leftWords.map((w) => w.word).join(" ")
+      rightText = rightWords.map((w) => w.word).join(" ")
+    } else {
+      const tokens = sub.text.split(/\s+/).filter(Boolean)
+      const frac = (t - sub.start) / (sub.end - sub.start)
+      const splitIdx = Math.min(
+        Math.max(1, Math.round(frac * tokens.length)),
+        Math.max(1, tokens.length - 1),
+      )
+      leftText = tokens.slice(0, splitIdx).join(" ")
+      rightText = tokens.slice(splitIdx).join(" ")
+    }
+
+    const left: Subtitle = { ...sub, end: t, text: leftText, words: leftWords }
+    const right: Subtitle = { id: nextId, start: t, end: sub.end, text: rightText, words: rightWords }
+
+    const updated = subs
+      .flatMap((s) => (s.id === sub.id ? [left, right] : [s]))
+      .sort((a, b) => a.start - b.start)
+    commitSubtitles(updated)
+  }
+
+  // Merge a cue with the one that follows it in time.
+  const mergeWithNext = (sub: Subtitle) => {
+    const subs = [...(video.subtitles ?? [])].sort((a, b) => a.start - b.start)
+    const idx = subs.findIndex((s) => s.id === sub.id)
+    if (idx < 0 || idx >= subs.length - 1) return
+    const next = subs[idx + 1]
+    const mergedWords =
+      sub.words || next.words
+        ? [...(sub.words ?? []), ...(next.words ?? [])]
+        : undefined
+    const merged: Subtitle = {
+      ...sub,
+      end: next.end,
+      text: `${sub.text} ${next.text}`.trim(),
+      words: mergedWords,
+    }
+    const updated = subs
+      .filter((s) => s.id !== sub.id && s.id !== next.id)
+      .concat(merged)
+      .sort((a, b) => a.start - b.start)
+    commitSubtitles(updated)
+  }
+
+  const deleteSubtitle = (id: number) => {
+    const updated = (video.subtitles ?? []).filter((s) => s.id !== id)
+    commitSubtitles(updated)
+    if (selectedSubtitleId === id) setSelectedSubtitleId(null)
+    if (editingSubtitle === id) setEditingSubtitle(null)
+  }
+
+  // Edit a cue's start/end (seconds). Clamps to keep a minimum 0.1s duration.
+  const updateSubtitleTiming = (id: number, field: "start" | "end", value: number) => {
+    if (Number.isNaN(value)) return
+    const updated = (video.subtitles ?? []).map((s) => {
+      if (s.id !== id) return s
+      if (field === "start") {
+        return { ...s, start: Math.max(0, Math.min(value, s.end - 0.1)) }
+      }
+      return { ...s, end: Math.max(s.start + 0.1, value) }
+    })
+    commitSubtitles(updated)
+  }
+
+  // ── Undo / Redo ─────────────────────────────────────────────────────────────
+  const getEditorDoc = (): EditorDoc => ({
+    subtitles: video.subtitles ?? null,
+    subtitleStyle: video.subtitleStyle ?? null,
+    hookOverlay: video.hookOverlay ?? null,
+    logoOverlay: video.logoOverlay ?? null,
+    format: video.format ?? null,
+    trim,
+  })
+
+  const docsEqual = (a: EditorDoc, b: EditorDoc) =>
+    JSON.stringify(a) === JSON.stringify(b)
+
+  // Apply a snapshot to local state + backend. Sets a flag so the history
+  // watcher doesn't record this programmatic change as a new step.
+  const applyEditorDoc = (doc: EditorDoc) => {
+    isApplyingHistoryRef.current = true
+    setVideo((v) => ({
+      ...v,
+      subtitles: doc.subtitles,
+      subtitleStyle: doc.subtitleStyle,
+      hookOverlay: doc.hookOverlay,
+      logoOverlay: doc.logoOverlay,
+      format: doc.format,
+    }))
+    setTrim(doc.trim)
+    void fetch(`/api/videos/${video.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subtitles: doc.subtitles,
+        subtitleStyle: doc.subtitleStyle,
+        hookOverlay: doc.hookOverlay,
+        logoOverlay: doc.logoOverlay,
+        format: doc.format,
+        trim: doc.trim,
+      }),
+    }).catch((e) => console.error("Error persisting undo/redo:", e))
+  }
+
+  const undo = () => {
+    if (undoStackRef.current.length === 0 || !presentDocRef.current) return
+    if (historyTimerRef.current) clearTimeout(historyTimerRef.current)
+    const prev = undoStackRef.current.pop()!
+    redoStackRef.current.push(presentDocRef.current)
+    presentDocRef.current = prev
+    applyEditorDoc(prev)
+    setCanUndo(undoStackRef.current.length > 0)
+    setCanRedo(true)
+  }
+
+  const redo = () => {
+    if (redoStackRef.current.length === 0 || !presentDocRef.current) return
+    if (historyTimerRef.current) clearTimeout(historyTimerRef.current)
+    const next = redoStackRef.current.pop()!
+    undoStackRef.current.push(presentDocRef.current)
+    presentDocRef.current = next
+    applyEditorDoc(next)
+    setCanRedo(redoStackRef.current.length > 0)
+    setCanUndo(true)
+  }
+
+  // Keep latest undo/redo accessible to the (stable) keyboard effect.
+  const undoRef = useRef(undo)
+  const redoRef = useRef(redo)
+  undoRef.current = undo
+  redoRef.current = redo
+
+  // Record a history step when the document settles. The debounce coalesces
+  // rapid changes (slider drags, typing) into a single undo step.
+  useEffect(() => {
+    if (presentDocRef.current === null) {
+      presentDocRef.current = getEditorDoc()
+      return
+    }
+    // Programmatic change from undo/redo — re-sync baseline, don't record.
+    if (isApplyingHistoryRef.current) {
+      isApplyingHistoryRef.current = false
+      presentDocRef.current = getEditorDoc()
+      return
+    }
+    // Skip mid-job states (transcription/render replace the whole document).
+    if (isTranscribing || isRendering) {
+      presentDocRef.current = getEditorDoc()
+      return
+    }
+    if (historyTimerRef.current) clearTimeout(historyTimerRef.current)
+    historyTimerRef.current = setTimeout(() => {
+      const current = getEditorDoc()
+      if (!presentDocRef.current || docsEqual(current, presentDocRef.current)) return
+      undoStackRef.current.push(presentDocRef.current)
+      redoStackRef.current = []
+      presentDocRef.current = current
+      setCanUndo(true)
+      setCanRedo(false)
+    }, 500)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    video.subtitles,
+    video.subtitleStyle,
+    video.hookOverlay,
+    video.logoOverlay,
+    video.format,
+    trim,
+    isTranscribing,
+    isRendering,
+  ])
+
+  // Cleanup the history debounce timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (historyTimerRef.current) clearTimeout(historyTimerRef.current)
+    }
+  }, [])
+
+  // Undo/redo keyboard shortcuts (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl/Cmd+Y).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return
+      if (!(e.metaKey || e.ctrlKey)) return
+      const key = e.key.toLowerCase()
+      if (key === "z") {
+        e.preventDefault()
+        if (e.shiftKey) redoRef.current()
+        else undoRef.current()
+      } else if (key === "y") {
+        e.preventDefault()
+        redoRef.current()
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [])
 
   const updateStyle = async (newStyle: Partial<SubtitleStyle>, isTemplate = false) => {
     // When applying a template, start from defaults to clear residual fields
@@ -707,17 +1044,22 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       videoRef.current.currentTime = start
       setSelectedSubtitleId(subtitleId)
     }
+    // Leave edit mode when navigating to a different cue so the inline editor
+    // (text + timing inputs) doesn't stay open on the wrong card.
+    if (editingSubtitle !== null && editingSubtitle !== subtitleId) {
+      setEditingSubtitle(null)
+    }
   }
 
   const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       if (!file.type.startsWith('image/')) {
-        alert('Please select an image file')
+        toast.error('Please select an image file')
         return
       }
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        alert('Image file size must be less than 5MB')
+        toast.error('Image file size must be less than 5MB')
         return
       }
       setLogoFile(file)
@@ -758,9 +1100,10 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       setLogoFile(null)
       setLogoPreview(null)
       router.refresh()
+      toast.success('Logo added')
     } catch (error) {
       console.error('Error uploading logo:', error)
-      alert('Failed to upload logo')
+      toast.error('Failed to upload logo')
     } finally {
       setIsUploadingLogo(false)
     }
@@ -781,7 +1124,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       router.refresh()
     } catch (error) {
       console.error('Error removing logo:', error)
-      alert('Failed to remove logo')
+      toast.error('Failed to remove logo')
     }
   }
 
@@ -1100,7 +1443,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   }
 
   // Whether any word currently carries keyword emphasis — drives the
-  // "Destacar auto" button's on/off appearance so it reflects real state
+  // "Auto-highlight" button's on/off appearance so it reflects real state
   // instead of looking permanently selected.
   const keywordsActive = !!video?.subtitles?.some(
     (sub) => sub.words?.some((w) => w.emphasis),
@@ -1191,10 +1534,20 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
           <div className="w-px h-4 bg-white/[0.08]" />
 
-          <button className="p-1.5 rounded-md text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300 transition-colors" title="Undo (Ctrl+Z)">
+          <button
+            onClick={undo}
+            disabled={!canUndo}
+            className="p-1.5 rounded-md text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-500"
+            title="Undo (Ctrl+Z)"
+          >
             <Undo2 className="w-3.5 h-3.5" />
           </button>
-          <button className="p-1.5 rounded-md text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300 transition-colors" title="Redo (Ctrl+Shift+Z)">
+          <button
+            onClick={redo}
+            disabled={!canRedo}
+            className="p-1.5 rounded-md text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-500"
+            title="Redo (Ctrl+Shift+Z)"
+          >
             <Redo2 className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -1220,16 +1573,17 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
             </span>
           )}
 
+          {/* Export — secondary action, subtitle files only */}
           <button
             onClick={() => setShowExportMenu(!showExportMenu)}
             disabled={!video?.subtitles || (video?.subtitles as any[]).length === 0}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed h-[32px] text-[13px]"
+            className="flex items-center gap-2 bg-white/[0.06] hover:bg-white/[0.1] text-zinc-200 px-3.5 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed h-[32px] text-[13px]"
           >
-            <Download className="w-3.5 h-3.5" />
+            <FileText className="w-3.5 h-3.5" />
             Export
           </button>
 
-            {/* Export Dropdown Menu */}
+            {/* Export Dropdown Menu — SRT / VTT */}
             {showExportMenu && (
               <div className="absolute top-full right-0 mt-2 w-60 bg-[#1e1e24] border border-white/[0.08] rounded-xl shadow-2xl z-50 overflow-hidden py-1">
                   <button
@@ -1253,35 +1607,36 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                       <div className="text-[11px] text-zinc-500">Web video text tracks</div>
                     </div>
                   </button>
-
-                  <div className="border-t border-white/[0.06] my-1"></div>
-
-                  {video?.outputUrl ? (
-                    <button
-                      onClick={downloadRenderedVideo}
-                      className="w-full text-left px-4 py-3 hover:bg-white/[0.06] transition-colors flex items-center gap-3"
-                    >
-                      <Download className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                      <div>
-                        <div className="text-sm font-medium text-emerald-400">Download Video</div>
-                        <div className="text-[11px] text-zinc-500">Rendered with subtitles</div>
-                      </div>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={renderVideo}
-                      disabled={isRendering}
-                      className="w-full text-left px-4 py-3 hover:bg-white/[0.06] transition-colors flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Film className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                      <div>
-                        <div className="text-sm font-medium">Render Video</div>
-                        <div className="text-[11px] text-zinc-500">Burn subtitles into video</div>
-                      </div>
-                    </button>
-                  )}
               </div>
             )}
+
+          {/* Render — primary action. Turns into Preview once a render exists. */}
+          {isRendering ? (
+            <button
+              disabled
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-1.5 rounded-lg font-medium opacity-70 cursor-not-allowed h-[32px] text-[13px]"
+            >
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Rendering…
+            </button>
+          ) : video?.outputUrl ? (
+            <button
+              onClick={() => setShowRenderPreview(true)}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-lg font-medium transition-colors h-[32px] text-[13px]"
+            >
+              <Play className="w-3.5 h-3.5" />
+              Preview
+            </button>
+          ) : (
+            <button
+              onClick={renderVideo}
+              disabled={!video?.subtitles || (video?.subtitles as any[]).length === 0}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed h-[32px] text-[13px]"
+            >
+              <Film className="w-3.5 h-3.5" />
+              Render
+            </button>
+          )}
         </div>
       </header>
 
@@ -1350,9 +1705,11 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     </button>
                   </div>
                 ) : (
-                  video?.subtitles?.map((sub) => (
+                  <>
+                  {video?.subtitles?.map((sub, idx, arr) => (
                     <div
                       key={sub.id}
+                      ref={highlightedSubtitleId === sub.id ? activeCueRef : undefined}
                       className={`group p-3 cursor-pointer transition-all rounded-lg border ${
                         highlightedSubtitleId === sub.id
                           ? "bg-blue-600/10 border-blue-500/20"
@@ -1364,35 +1721,119 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                         <span className="text-[10px] text-zinc-500 font-mono tracking-wide">
                           {formatTime(sub.start)} - {formatTime(sub.end)}
                         </span>
-                        <button
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/[0.06] transition-all"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            seekToSubtitle(sub.start, sub.id)
-                            setEditingSubtitle(sub.id)
-                          }}
-                          title="Edit subtitle"
+                        <div
+                          className={`flex items-center gap-0.5 transition-opacity ${
+                            editingSubtitle === sub.id
+                              ? "opacity-100"
+                              : "opacity-0 group-hover:opacity-100"
+                          }`}
                         >
-                          <Pencil className="w-3 h-3 text-zinc-500" />
-                        </button>
+                          {editingSubtitle === sub.id ? (
+                            <button
+                              className="p-1 rounded hover:bg-white/[0.06] transition-all"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setEditingSubtitle(null)
+                              }}
+                              title="Done"
+                            >
+                              <Check className="w-3 h-3 text-emerald-400" />
+                            </button>
+                          ) : (
+                            <button
+                              className="p-1 rounded hover:bg-white/[0.06] transition-all"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                seekToSubtitle(sub.start, sub.id)
+                                setEditingSubtitle(sub.id)
+                              }}
+                              title="Edit text"
+                            >
+                              <Pencil className="w-3 h-3 text-zinc-500" />
+                            </button>
+                          )}
+                          <button
+                            className="p-1 rounded hover:bg-white/[0.06] transition-all"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              splitSubtitleAtPlayhead(sub)
+                            }}
+                            title="Split at playhead"
+                          >
+                            <Scissors className="w-3 h-3 text-zinc-500" />
+                          </button>
+                          <button
+                            disabled={idx === arr.length - 1}
+                            className="p-1 rounded hover:bg-white/[0.06] transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              mergeWithNext(sub)
+                            }}
+                            title="Merge with next"
+                          >
+                            <Combine className="w-3 h-3 text-zinc-500" />
+                          </button>
+                          <button
+                            className="p-1 rounded hover:bg-red-500/10 transition-all group/del"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              deleteSubtitle(sub.id)
+                            }}
+                            title="Delete subtitle"
+                          >
+                            <Trash2 className="w-3 h-3 text-zinc-500 group-hover/del:text-red-400" />
+                          </button>
+                        </div>
                       </div>
                       {editingSubtitle === sub.id ? (
-                        <textarea
-                          value={sub.text}
-                          onChange={(e) => updateSubtitleText(sub.id, e.target.value)}
-                          className={`w-full bg-transparent text-[13px] leading-relaxed resize-none border-none focus:outline-none p-0 ${
-                            highlightedSubtitleId === sub.id ? "text-white" : "text-zinc-300"
-                          }`}
-                          rows={2}
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                          onBlur={() => setEditingSubtitle(null)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Escape') {
-                              setEditingSubtitle(null)
-                            }
-                          }}
-                        />
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <textarea
+                            value={sub.text}
+                            onChange={(e) => updateSubtitleText(sub.id, e.target.value)}
+                            className={`w-full bg-transparent text-[13px] leading-relaxed resize-none border-none focus:outline-none p-0 mb-2 ${
+                              highlightedSubtitleId === sub.id ? "text-white" : "text-zinc-300"
+                            }`}
+                            rows={2}
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                setEditingSubtitle(null)
+                              }
+                            }}
+                          />
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              defaultValue={sub.start.toFixed(2)}
+                              onBlur={(e) =>
+                                updateSubtitleTiming(sub.id, "start", parseFloat(e.target.value))
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                              }}
+                              className="w-[64px] bg-white/[0.04] border border-white/[0.06] rounded px-2 py-1 text-[11px] font-mono text-zinc-200 focus:outline-none focus:border-blue-500/50"
+                              title="Start (seconds)"
+                            />
+                            <span className="text-zinc-600 text-[11px]">→</span>
+                            <input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              defaultValue={sub.end.toFixed(2)}
+                              onBlur={(e) =>
+                                updateSubtitleTiming(sub.id, "end", parseFloat(e.target.value))
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                              }}
+                              className="w-[64px] bg-white/[0.04] border border-white/[0.06] rounded px-2 py-1 text-[11px] font-mono text-zinc-200 focus:outline-none focus:border-blue-500/50"
+                              title="End (seconds)"
+                            />
+                            <span className="text-[10px] text-zinc-600">sec</span>
+                          </div>
+                        </div>
                       ) : (
                         <p
                           className={`text-[13px] leading-relaxed cursor-text ${
@@ -1408,7 +1849,15 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                         </p>
                       )}
                     </div>
-                  ))
+                  ))}
+                  <button
+                    onClick={addSubtitleAtPlayhead}
+                    className="w-full flex items-center justify-center gap-1.5 mt-1 py-2 rounded-lg border border-dashed border-white/[0.08] text-[12px] text-zinc-500 hover:text-zinc-300 hover:border-white/[0.16] hover:bg-white/[0.02] transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add subtitle at playhead
+                  </button>
+                  </>
                 )}
               </div>
             ) : (
@@ -1456,7 +1905,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                             {isAnimated && (
                               <div
                                 className="absolute top-1 right-1 flex items-center justify-center rounded-full bg-black/60 p-0.5"
-                                title={`Animação: ${animMode}`}
+                                title={`Animation: ${animMode}`}
                               >
                                 <Sparkles className="w-2.5 h-2.5 text-amber-300 animate-pulse" />
                               </div>
@@ -1589,13 +2038,13 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                 {style.displayMode === 'word-group' && (
                   <div>
                     <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">
-                      Animação
+                      Animation
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                       {([
-                        { value: 'none', label: 'Nenhuma' },
+                        { value: 'none', label: 'None' },
                         { value: 'pop', label: 'Pop' },
-                        { value: 'scale', label: 'Escala' },
+                        { value: 'scale', label: 'Scale' },
                         { value: 'slide-up', label: 'Slide-up' },
                         { value: 'fade', label: 'Fade' },
                       ] as const).map((opt) => {
@@ -1616,7 +2065,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                       })}
                     </div>
                     <p className="text-[11px] text-zinc-600 mt-2">
-                      Cada palavra entra animada ao ser falada (estilo Submagic).
+                      Each word animates in as it&apos;s spoken (Submagic style).
                     </p>
                   </div>
                 )}
@@ -1632,7 +2081,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     <div className="space-y-3">
                       <div>
                         <div className="flex items-center justify-between text-[12px] text-zinc-400 mb-1.5">
-                          <span>Máx. palavras / bloco</span>
+                          <span>Max words / block</span>
                           <span className="text-zinc-200 font-medium">{style.wordsPerGroup ?? 4}</span>
                         </div>
                         <input
@@ -1648,7 +2097,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
                       <div>
                         <div className="flex items-center justify-between text-[12px] text-zinc-400 mb-1.5">
-                          <span>Máx. caracteres / bloco</span>
+                          <span>Max chars / block</span>
                           <span className="text-zinc-200 font-medium">{style.maxCharsPerGroup ?? 24}</span>
                         </div>
                         <input
@@ -1664,7 +2113,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
                       <div>
                         <div className="flex items-center justify-between text-[12px] text-zinc-400 mb-1.5">
-                          <span>Quebra por pausa</span>
+                          <span>Pause split</span>
                           <span className="text-zinc-200 font-medium">{(style.splitPauseGap ?? 0.35).toFixed(2)}s</span>
                         </div>
                         <input
@@ -1679,7 +2128,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                       </div>
                     </div>
                     <p className="text-[11px] text-zinc-600 mt-2">
-                      Divide a fala em blocos legíveis por pausa e tamanho.
+                      Splits speech into readable blocks by pause and length.
                     </p>
                   </div>
                 )}
@@ -1688,7 +2137,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                 {style.displayMode === 'word-group' && (
                   <div>
                     <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">
-                      Palavras-chave
+                      Keywords
                     </label>
                     <div className="flex items-center gap-3 mb-3">
                       <input
@@ -1698,7 +2147,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                         className="w-10 h-10 rounded-full cursor-pointer border-2 border-zinc-700"
                         style={{ backgroundColor: style.emphasisColor || '#FFD700' }}
                       />
-                      <span className="text-[12px] text-zinc-400">Cor do destaque</span>
+                      <span className="text-[12px] text-zinc-400">Highlight color</span>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -1710,18 +2159,18 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                         }`}
                       >
                         <Palette className="w-3 h-3" />
-                        Destacar auto
+                        Auto-highlight
                       </button>
                       <button
                         onClick={clearKeywordHighlights}
                         className="flex items-center justify-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg px-3 py-2 text-[12px] transition-colors"
                       >
                         <X className="w-3 h-3" />
-                        Limpar
+                        Clear
                       </button>
                     </div>
                     <p className="text-[11px] text-zinc-600 mt-2">
-                      Destaca palavras-chave numa cor fixa (heurística). Requer dados word-by-word.
+                      Highlights keywords in a fixed color (heuristic). Requires word-by-word data.
                     </p>
                   </div>
                 )}
@@ -1754,7 +2203,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                 {/* Hook / headline overlay (item 5) */}
                 <div>
                   <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">
-                    Hook / Título
+                    Hook / Title
                   </label>
                   {!video.hookOverlay ? (
                     <button
@@ -1762,7 +2211,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                       className="w-full flex items-center justify-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg px-3 py-2 text-[12px] transition-colors"
                     >
                       <Type className="w-3 h-3" />
-                      Adicionar hook
+                      Add hook
                     </button>
                   ) : (() => {
                     const hook = video.hookOverlay
@@ -1772,7 +2221,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                           type="text"
                           value={hook.text}
                           onChange={(e) => updateHook({ text: e.target.value })}
-                          placeholder="Texto do hook"
+                          placeholder="Hook text"
                           className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50"
                         />
 
@@ -1784,12 +2233,12 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                             className="w-10 h-10 rounded-full cursor-pointer border-2 border-zinc-700"
                             style={{ backgroundColor: hook.color }}
                           />
-                          <span className="text-[12px] text-zinc-400">Cor do texto</span>
+                          <span className="text-[12px] text-zinc-400">Text color</span>
                         </div>
 
                         <div>
                           <div className="flex items-center justify-between text-[12px] text-zinc-400 mb-1.5">
-                            <span>Tamanho</span>
+                            <span>Size</span>
                             <span className="text-zinc-200 font-medium">{hook.fontSize}</span>
                           </div>
                           <input
@@ -1805,7 +2254,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
                         <div>
                           <div className="flex items-center justify-between text-[12px] text-zinc-400 mb-1.5">
-                            <span>Posição vertical</span>
+                            <span>Vertical position</span>
                             <span className="text-zinc-200 font-medium">{Math.round(hook.position.y)}%</span>
                           </div>
                           <input
@@ -1828,14 +2277,14 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                                 : 'bg-white/[0.04] border-white/[0.06] text-zinc-300 hover:bg-white/[0.08]'
                             }`}
                           >
-                            MAIÚSCULAS
+                            UPPERCASE
                           </button>
                           <button
                             onClick={removeHook}
                             className="flex items-center justify-center gap-1.5 bg-white/[0.04] hover:bg-red-600/20 border border-white/[0.06] hover:border-red-500/40 text-zinc-300 hover:text-red-300 rounded-lg px-3 py-2 text-[12px] transition-colors"
                           >
                             <Trash2 className="w-3 h-3" />
-                            Remover
+                            Remove
                           </button>
                         </div>
                       </div>
@@ -1991,6 +2440,31 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                   })()
                 )}
                 </div>
+
+                {/* Failed-job banner with retry (item 3) */}
+                {failedJob && (
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 bg-[#1e1e24] border border-red-500/30 rounded-xl shadow-2xl px-4 py-3 max-w-[90%]">
+                    <X className="w-4 h-4 text-red-400 flex-shrink-0" />
+                    <span className="text-[13px] text-zinc-100">
+                      {failedJob === 'transcribe'
+                        ? 'Transcription failed.'
+                        : 'Rendering failed.'}
+                    </span>
+                    <button
+                      onClick={failedJob === 'transcribe' ? transcribeVideo : renderVideo}
+                      className="text-[12px] font-medium text-blue-400 hover:text-blue-300 transition-colors flex-shrink-0"
+                    >
+                      Try again
+                    </button>
+                    <button
+                      onClick={() => setFailedJob(null)}
+                      className="text-zinc-500 hover:text-zinc-300 transition-colors flex-shrink-0"
+                      aria-label="Dismiss"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -2177,6 +2651,64 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Render Preview Modal — shows the finished render with download/re-render */}
+      {showRenderPreview && video.outputUrl && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setShowRenderPreview(false)}
+        >
+          <div
+            className="bg-[#1a1a1f] border border-white/[0.08] rounded-2xl p-5 w-[760px] max-w-[92vw] max-h-[90vh] overflow-y-auto shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-full bg-emerald-500/15 flex items-center justify-center">
+                  <Check className="w-4 h-4 text-emerald-400" />
+                </div>
+                <h2 className="text-lg font-semibold">Rendered video</h2>
+              </div>
+              <button
+                onClick={() => setShowRenderPreview(false)}
+                className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors text-zinc-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="rounded-xl overflow-hidden bg-black mb-4 flex items-center justify-center">
+              <video
+                src={video.outputUrl}
+                controls
+                autoPlay
+                className="w-full max-h-[60vh]"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setShowRenderPreview(false)
+                  renderVideo()
+                }}
+                disabled={isRendering}
+                className="flex items-center justify-center gap-2 bg-white/[0.06] hover:bg-white/[0.1] text-zinc-200 px-4 py-2.5 rounded-lg transition-colors text-[13px] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Film className="w-3.5 h-3.5" />
+                Re-render
+              </button>
+              <button
+                onClick={downloadRenderedVideo}
+                className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-lg transition-colors text-[13px] font-medium"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download video
+              </button>
+            </div>
           </div>
         </div>
       )}
