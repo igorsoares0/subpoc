@@ -353,6 +353,38 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     }
   }, [trim])
 
+  // Smooth playback clock. The native "timeupdate" event above only fires
+  // ~4x/second, which makes the subtitle overlay (and the per-word entrance
+  // animation) visibly stutter during playback. While playing, sample the video
+  // clock once per animation frame instead, so the overlay tracks at the
+  // display's refresh rate. timeupdate still handles scrubbing while paused.
+  // (The final render is unaffected — the worker samples every frame.)
+  useEffect(() => {
+    if (!isPlaying) return
+    const videoElement = videoRef.current
+    if (!videoElement) return
+
+    let raf = 0
+    const tick = () => {
+      const currentVideoTime = videoElement.currentTime
+      if (trim) {
+        if (currentVideoTime >= trim.end) {
+          videoElement.currentTime = trim.start
+          videoElement.pause()
+          setIsPlaying(false)
+          return // pause() tears this effect down; don't queue another frame
+        }
+        setCurrentTime(Math.max(currentVideoTime - trim.start, 0))
+      } else {
+        setCurrentTime(currentVideoTime)
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+
+    return () => cancelAnimationFrame(raf)
+  }, [isPlaying, trim])
+
   // Calculate actual video dimensions (for responsive subtitles)
   useEffect(() => {
     const videoElement = videoRef.current
@@ -526,7 +558,9 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [trim, currentTime, duration])
+    // currentTime intentionally omitted: the handler reads v.currentTime live,
+    // so depending on it would re-bind the listener on every playback frame.
+  }, [trim, duration])
 
   // Cleanup subtitle update timer on unmount
   useEffect(() => {
