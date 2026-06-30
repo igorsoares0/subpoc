@@ -270,34 +270,36 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     // Poll every 2 seconds
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/videos/${video.id}`)
+        // cache:'no-store' + cache-buster: without this the browser keeps
+        // serving the first ("transcribing") response, so the loop never sees
+        // "ready" and the spinner runs forever until a manual refresh.
+        const response = await fetch(`/api/videos/${video.id}?t=${Date.now()}`, {
+          cache: 'no-store',
+        })
         if (response.ok) {
           const data = await response.json()
-          const oldStatus = video.status
           setVideo(data.video)
 
-          // Stop polling when transcription/rendering is done
+          // Stop polling when transcription/rendering reaches a terminal state.
           if (data.video.status === 'ready' || data.video.status === 'completed' || data.video.status === 'failed') {
-            if (data.video.status === 'ready' && oldStatus !== 'ready') {
+            // Always clear the in-flight flags first so the spinner can never
+            // get stuck (independent of what the status was when polling began).
+            setIsTranscribing(false)
+            setIsRendering(false)
+
+            if (data.video.status === 'ready') {
               console.log('[Polling] Transcription complete! Subtitles loaded.')
-              setIsTranscribing(false)
-              activeJobRef.current = null
               toast.success('Transcription complete')
-            }
-            if (data.video.status === 'completed' && oldStatus !== 'completed') {
+            } else if (data.video.status === 'completed') {
               console.log('[Polling] Rendering complete! Video ready for download.')
-              setIsRendering(false)
-              activeJobRef.current = null
               setShowRenderPreview(true)
               toast.success('Video rendered — ready to download')
-            }
-            if (data.video.status === 'failed') {
+            } else if (data.video.status === 'failed') {
               console.error('[Polling] Processing failed.')
-              setIsRendering(false)
-              setIsTranscribing(false)
               setFailedJob(activeJobRef.current)
-              activeJobRef.current = null
             }
+
+            activeJobRef.current = null
             clearInterval(interval)
             setPollingInterval(null)
             console.log('[Polling] Stopped polling.')

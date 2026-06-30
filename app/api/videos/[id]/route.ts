@@ -119,7 +119,12 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ video })
+    // No caching: the editor polls this endpoint to watch transcription/render
+    // status flip to "ready"/"completed". A cached response would stall the loop.
+    return NextResponse.json(
+      { video },
+      { headers: { "Cache-Control": "no-store" } }
+    )
   } catch (error) {
     console.error("Error fetching video:", error)
     return NextResponse.json(
