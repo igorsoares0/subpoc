@@ -102,7 +102,7 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
       onClick={onClose}
     >
       <div
-        className="bg-[#16161a] rounded-2xl p-6 max-w-lg w-full border border-white/[0.06] shadow-2xl"
+        className="bg-surface rounded-2xl p-6 max-w-lg w-full border border-white/[0.06] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">
@@ -184,7 +184,7 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
         {!isUploading && (
           <button
             onClick={onClose}
-            className="w-full mt-4 bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 py-2.5 rounded-xl transition-colors text-[13px] font-medium border border-white/[0.04]"
+            className="w-full mt-4 bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 py-2.5 rounded-xl transition-colors text-[13px] font-medium border border-white/[0.08]"
           >
             Cancel
           </button>

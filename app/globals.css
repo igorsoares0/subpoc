@@ -5,16 +5,26 @@
   --foreground: #171717;
 }
 
+/*
+ * OLED dark theme — pure-black canvas with surfaces defined by borders
+ * rather than lighter greys. Single source of truth for the editor's
+ * dark tones; bg-canvas / bg-surface / bg-elevated / bg-hover read these.
+ */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --color-canvas: #000000;   /* app background */
+  --color-surface: #0a0a0b;  /* header, sidebar, timeline panels */
+  --color-elevated: #141416; /* dropdowns, modals, cards */
+  --color-hover: #1c1c1f;    /* hover / active fills */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0c0c0e;
+    --background: #000000;
     --foreground: #ededed;
   }
 }
@@ -65,8 +75,32 @@ body {
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 4px;
+  height: 6px;
   border-radius: 9999px;
+  /* Visible default rail so the track never disappears on the pure-black
+     canvas. Sliders that pass an inline gradient (filled track) override this. */
+  background: rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+}
+
+/* Track (WebKit) — let the input's own background show as the rail */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+/* Track + filled portion (Firefox) */
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+input[type="range"]::-moz-range-progress {
+  height: 6px;
+  border-radius: 9999px;
+  background: #2563eb;
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -74,6 +108,7 @@ input[type="range"]::-webkit-slider-thumb {
   appearance: none;
   width: 14px;
   height: 14px;
+  margin-top: -4px; /* center the 14px thumb on the 6px track */
   border-radius: 50%;
   background: #2563eb;
   cursor: pointer;
@@ -131,6 +166,6 @@ input[type="color"]::-webkit-color-swatch {
 
 /* Select styling for dark theme */
 select option {
-  background: #1e1e24;
+  background: #141416;
   color: #fff;
 }

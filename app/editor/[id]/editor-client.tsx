@@ -104,6 +104,20 @@ const DEFAULT_HOOK: HookOverlayData = {
   uppercase: true,
 }
 
+// Quick-pick palette for subtitle/background colors — the most common
+// caption colors so users don't have to fish in the native color picker.
+const COLOR_PRESETS = [
+  "#FFFFFF", "#000000", "#FFD700", "#00E676",
+  "#00E5FF", "#FF5252", "#FF4FD8", "#FF9100",
+]
+
+// Filled-track background for range sliders so the progress is visible on the
+// black canvas (blue up to the thumb, faint rail after). Mirrors the opacity slider.
+function rangeFill(value: number, min: number, max: number): string {
+  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100))
+  return `linear-gradient(to right, #2563eb 0%, #2563eb ${pct}%, rgba(255,255,255,0.14) ${pct}%, rgba(255,255,255,0.14) 100%)`
+}
+
 // Mapeamento de formatos para exibição e backend
 const FORMAT_OPTIONS = [
   { label: "Original", value: null, aspectRatio: null },
@@ -185,6 +199,37 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const historyTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
+
+  // Resizable left sidebar (persisted). Clamped so it can't crowd out the preview.
+  const [sidebarWidth, setSidebarWidth] = useState(340)
+  useEffect(() => {
+    const saved = localStorage.getItem('editor:sidebarWidth')
+    if (saved) {
+      const n = parseInt(saved, 10)
+      if (!Number.isNaN(n)) setSidebarWidth(Math.min(520, Math.max(280, n)))
+    }
+  }, [])
+  const handleSidebarResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startWidth = sidebarWidth
+    let latest = startWidth
+    const onMove = (ev: MouseEvent) => {
+      latest = Math.min(520, Math.max(280, startWidth + (ev.clientX - startX)))
+      setSidebarWidth(latest)
+    }
+    const onUp = () => {
+      localStorage.setItem('editor:sidebarWidth', String(latest))
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    document.body.style.cursor = 'ew-resize'
+    document.body.style.userSelect = 'none'
+  }
 
   // Current subtitle based on video time (adjusted for trim)
   const displayTime = trim ? currentTime + trim.start : currentTime
@@ -1516,11 +1561,12 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   )
 
   return (
-    <div className="min-h-screen bg-[#0c0c0e] text-white flex flex-col p-4 gap-3">
-      {/* Header */}
-      <header className="bg-[#16161a] rounded-xl px-4 h-[56px] flex items-center justify-between w-full border border-white/[0.04]">
+    <div className="h-screen bg-canvas text-white flex flex-col p-4 gap-3 overflow-hidden">
+      {/* Header — three equal-width columns so the center toolbar stays
+          truly centered without absolute positioning (survives narrow widths). */}
+      <header className="bg-surface rounded-xl px-4 h-[56px] flex items-center w-full border border-white/[0.08] flex-shrink-0">
         {/* Left - Back + Logo */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <Link href="/dashboard" className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors text-zinc-400 hover:text-white">
             <ArrowLeft className="w-4 h-4" />
           </Link>
@@ -1531,7 +1577,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
         </div>
 
         {/* Center - Tools */}
-        <div className="flex items-center gap-1 absolute left-1/2 transform -translate-x-1/2 bg-white/[0.04] rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-white/[0.04] rounded-lg p-1 flex-shrink-0">
           <div className="relative format-dropdown-container">
             <button
               ref={formatButtonRef}
@@ -1555,7 +1601,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
               return createPortal(
                 <div
-                  className="format-dropdown-menu fixed bg-[#1e1e24] border border-white/[0.08] rounded-xl shadow-2xl z-[9999] min-w-[160px] overflow-hidden py-1"
+                  className="format-dropdown-menu fixed bg-elevated border border-white/[0.08] rounded-xl shadow-2xl z-[9999] min-w-[160px] overflow-hidden py-1"
                   style={{
                     top: `${buttonRect.bottom + 8}px`,
                     left: `${buttonRect.left}px`,
@@ -1619,7 +1665,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
         </div>
 
         {/* Right - Status + Export */}
-        <div className="flex items-center gap-3 relative export-menu-container">
+        <div className="flex items-center gap-3 flex-1 justify-end relative export-menu-container">
           {isSaving && (
             <span className="flex items-center gap-1.5 text-xs text-blue-400">
               <Loader2 className="w-3 h-3 animate-spin" />
@@ -1651,7 +1697,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
             {/* Export Dropdown Menu — SRT / VTT */}
             {showExportMenu && (
-              <div className="absolute top-full right-0 mt-2 w-60 bg-[#1e1e24] border border-white/[0.08] rounded-xl shadow-2xl z-50 overflow-hidden py-1">
+              <div className="absolute top-full right-0 mt-2 w-60 bg-elevated border border-white/[0.08] rounded-xl shadow-2xl z-50 overflow-hidden py-1">
                   <button
                     onClick={exportSRT}
                     className="w-full text-left px-4 py-3 hover:bg-white/[0.06] transition-colors flex items-center gap-3"
@@ -1706,10 +1752,14 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
         </div>
       </header>
 
-      {/* Main Editor */}
-      <div className="flex gap-3" style={{ height: 'calc(100vh - 56px - 48px)' }}>
+      {/* Main Editor — fills the remaining viewport via flex instead of a
+          hand-computed height, so header/padding changes can't desync it. */}
+      <div className="flex gap-3 flex-1 min-h-0">
         {/* Left Sidebar - Subtitle Editor */}
-        <aside className="w-[340px] bg-[#16161a] rounded-xl flex flex-col flex-shrink-0 self-stretch border border-white/[0.04]">
+        <aside
+          style={{ width: sidebarWidth }}
+          className="bg-surface rounded-xl flex flex-col flex-shrink-0 self-stretch border border-white/[0.08]"
+        >
           <div className="px-4 pt-4 pb-3">
             {/* Tabs */}
             <div className="flex gap-1 bg-white/[0.04] rounded-lg p-1">
@@ -1789,25 +1839,25 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                         </span>
                         <div
                           className={`flex items-center gap-0.5 transition-opacity ${
-                            editingSubtitle === sub.id
+                            editingSubtitle === sub.id || highlightedSubtitleId === sub.id
                               ? "opacity-100"
                               : "opacity-0 group-hover:opacity-100"
                           }`}
                         >
                           {editingSubtitle === sub.id ? (
                             <button
-                              className="p-1 rounded hover:bg-white/[0.06] transition-all"
+                              className="p-1.5 rounded hover:bg-white/[0.08] transition-all"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 setEditingSubtitle(null)
                               }}
                               title="Done"
                             >
-                              <Check className="w-3 h-3 text-emerald-400" />
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
                             </button>
                           ) : (
                             <button
-                              className="p-1 rounded hover:bg-white/[0.06] transition-all"
+                              className="p-1.5 rounded hover:bg-white/[0.08] transition-all"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 seekToSubtitle(sub.start, sub.id)
@@ -1815,39 +1865,41 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                               }}
                               title="Edit text"
                             >
-                              <Pencil className="w-3 h-3 text-zinc-500" />
+                              <Pencil className="w-3.5 h-3.5 text-zinc-400" />
                             </button>
                           )}
                           <button
-                            className="p-1 rounded hover:bg-white/[0.06] transition-all"
+                            className="p-1.5 rounded hover:bg-white/[0.08] transition-all"
                             onClick={(e) => {
                               e.stopPropagation()
                               splitSubtitleAtPlayhead(sub)
                             }}
                             title="Split at playhead"
                           >
-                            <Scissors className="w-3 h-3 text-zinc-500" />
+                            <Scissors className="w-3.5 h-3.5 text-zinc-400" />
                           </button>
                           <button
                             disabled={idx === arr.length - 1}
-                            className="p-1 rounded hover:bg-white/[0.06] transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            className="p-1.5 rounded hover:bg-white/[0.08] transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                             onClick={(e) => {
                               e.stopPropagation()
                               mergeWithNext(sub)
                             }}
                             title="Merge with next"
                           >
-                            <Combine className="w-3 h-3 text-zinc-500" />
+                            <Combine className="w-3.5 h-3.5 text-zinc-400" />
                           </button>
+                          {/* Divider isolates the destructive action from merge to avoid mis-clicks */}
+                          <div className="w-px h-4 bg-white/[0.08] mx-0.5" />
                           <button
-                            className="p-1 rounded hover:bg-red-500/10 transition-all group/del"
+                            className="p-1.5 rounded hover:bg-red-500/10 transition-all group/del"
                             onClick={(e) => {
                               e.stopPropagation()
                               deleteSubtitle(sub.id)
                             }}
                             title="Delete subtitle"
                           >
-                            <Trash2 className="w-3 h-3 text-zinc-500 group-hover/del:text-red-400" />
+                            <Trash2 className="w-3.5 h-3.5 text-zinc-400 group-hover/del:text-red-400" />
                           </button>
                         </div>
                       </div>
@@ -1961,7 +2013,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                           className={`flex flex-col items-center gap-1.5 rounded-lg p-2 transition-all border ${
                             isActive
                               ? "border-blue-500/50 bg-blue-600/10"
-                              : "border-white/[0.04] bg-white/[0.02] hover:bg-white/[0.06]"
+                              : "border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06]"
                           }`}
                         >
                           <div
@@ -2021,32 +2073,62 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                 {/* Subtitle Color */}
                 <div>
                   <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Subtitle Color</label>
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <input
-                        type="color"
-                        value={style.color}
-                        onChange={(e) => updateStyle({ color: e.target.value })}
-                        className="w-10 h-10 rounded-full cursor-pointer border-2 border-zinc-700"
-                        style={{ backgroundColor: style.color }}
+                  <div className="flex items-center gap-3 mb-2.5">
+                    <input
+                      type="color"
+                      value={style.color}
+                      onChange={(e) => updateStyle({ color: e.target.value })}
+                      className="w-10 h-10 rounded-full cursor-pointer border-2 border-zinc-700"
+                      style={{ backgroundColor: style.color }}
+                    />
+                    <span className="text-[12px] font-mono uppercase text-zinc-400">{style.color}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {COLOR_PRESETS.map((preset) => (
+                      <button
+                        key={preset}
+                        onClick={() => updateStyle({ color: preset })}
+                        title={preset}
+                        aria-label={`Set subtitle color ${preset}`}
+                        className={`w-6 h-6 rounded-full border transition-transform hover:scale-110 ${
+                          style.color.toLowerCase() === preset.toLowerCase()
+                            ? "border-blue-400 ring-2 ring-blue-400/40"
+                            : "border-white/[0.12]"
+                        }`}
+                        style={{ backgroundColor: preset }}
                       />
-                    </div>
+                    ))}
                   </div>
                 </div>
 
                 {/* Background Color */}
                 <div>
                   <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Subtitle Background</label>
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <input
-                        type="color"
-                        value={style.backgroundColor}
-                        onChange={(e) => updateStyle({ backgroundColor: e.target.value })}
-                        className="w-10 h-10 rounded-full cursor-pointer border-2 border-zinc-700"
-                        style={{ backgroundColor: style.backgroundColor }}
+                  <div className="flex items-center gap-3 mb-2.5">
+                    <input
+                      type="color"
+                      value={style.backgroundColor}
+                      onChange={(e) => updateStyle({ backgroundColor: e.target.value })}
+                      className="w-10 h-10 rounded-full cursor-pointer border-2 border-zinc-700"
+                      style={{ backgroundColor: style.backgroundColor }}
+                    />
+                    <span className="text-[12px] font-mono uppercase text-zinc-400">{style.backgroundColor}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {COLOR_PRESETS.map((preset) => (
+                      <button
+                        key={preset}
+                        onClick={() => updateStyle({ backgroundColor: preset })}
+                        title={preset}
+                        aria-label={`Set background color ${preset}`}
+                        className={`w-6 h-6 rounded-full border transition-transform hover:scale-110 ${
+                          style.backgroundColor.toLowerCase() === preset.toLowerCase()
+                            ? "border-blue-400 ring-2 ring-blue-400/40"
+                            : "border-white/[0.12]"
+                        }`}
+                        style={{ backgroundColor: preset }}
                       />
-                    </div>
+                    ))}
                   </div>
                 </div>
 
@@ -2198,7 +2280,8 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                           step={1}
                           value={style.wordsPerGroup ?? 4}
                           onChange={(e) => updateStyle({ wordsPerGroup: Number(e.target.value) })}
-                          className="w-full accent-blue-500"
+                          className="w-full"
+                          style={{ background: rangeFill(style.wordsPerGroup ?? 4, 1, 6) }}
                         />
                       </div>
 
@@ -2214,7 +2297,8 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                           step={1}
                           value={style.maxCharsPerGroup ?? 24}
                           onChange={(e) => updateStyle({ maxCharsPerGroup: Number(e.target.value) })}
-                          className="w-full accent-blue-500"
+                          className="w-full"
+                          style={{ background: rangeFill(style.maxCharsPerGroup ?? 24, 10, 40) }}
                         />
                       </div>
 
@@ -2230,7 +2314,8 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                           step={0.05}
                           value={style.splitPauseGap ?? 0.35}
                           onChange={(e) => updateStyle({ splitPauseGap: Number(e.target.value) })}
-                          className="w-full accent-blue-500"
+                          className="w-full"
+                          style={{ background: rangeFill(style.splitPauseGap ?? 0.35, 0.1, 1) }}
                         />
                       </div>
                     </div>
@@ -2307,6 +2392,14 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                   </p>
                 </div>
 
+                {/* Group separator: everything below is a video overlay, not
+                    subtitle text styling — keeps the long Styles panel scannable. */}
+                <div className="flex items-center gap-2 pt-1">
+                  <div className="h-px flex-1 bg-white/[0.08]" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">Overlays</span>
+                  <div className="h-px flex-1 bg-white/[0.08]" />
+                </div>
+
                 {/* Hook / headline overlay (item 5) */}
                 <div>
                   <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">
@@ -2355,7 +2448,8 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                             step={1}
                             value={hook.fontSize}
                             onChange={(e) => updateHook({ fontSize: Number(e.target.value) })}
-                            className="w-full accent-blue-500"
+                            className="w-full"
+                            style={{ background: rangeFill(hook.fontSize, 16, 96) }}
                           />
                         </div>
 
@@ -2371,7 +2465,8 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                             step={1}
                             value={hook.position.y}
                             onChange={(e) => updateHook({ position: { x: hook.position.x, y: Number(e.target.value) } })}
-                            className="w-full accent-blue-500"
+                            className="w-full"
+                            style={{ background: rangeFill(hook.position.y, 2, 98) }}
                           />
                         </div>
 
@@ -2403,12 +2498,23 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
           </div>
         </aside>
 
+        {/* Drag handle to resize the sidebar */}
+        <div
+          onMouseDown={handleSidebarResizeStart}
+          className="group flex items-center justify-center w-1.5 flex-shrink-0 cursor-ew-resize self-stretch -mx-1 z-10"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize sidebar"
+        >
+          <div className="w-1 h-12 rounded-full bg-white/[0.08] group-hover:bg-blue-400/50 transition-colors" />
+        </div>
+
         {/* Center - Video Preview */}
         <main className="flex-1 flex flex-col min-w-0 gap-3">
           {/* Video Area */}
           <div className="flex-1 flex items-center justify-center min-h-0">
             <div className="w-full h-full">
-              <div className="w-full h-full bg-[#0a0a0c] rounded-xl overflow-hidden relative flex items-center justify-center border border-white/[0.04]">
+              <div className="w-full h-full bg-canvas rounded-xl overflow-hidden relative flex items-center justify-center border border-white/[0.08]">
                 {/* Aspect Ratio Wrapper */}
                 <div
                   className="relative bg-black"
@@ -2543,7 +2649,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
                 {/* Failed-job banner with retry (item 3) */}
                 {failedJob && (
-                  <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 bg-[#1e1e24] border border-red-500/30 rounded-xl shadow-2xl px-4 py-3 max-w-[90%]">
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 bg-elevated border border-red-500/30 rounded-xl shadow-2xl px-4 py-3 max-w-[90%]">
                     <X className="w-4 h-4 text-red-400 flex-shrink-0" />
                     <span className="text-[13px] text-zinc-100">
                       {failedJob === 'transcribe'
@@ -2563,6 +2669,29 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
+                  </div>
+                )}
+
+                {/* Long-running job overlay — render/transcription take minutes,
+                    so make the in-flight state impossible to miss over the preview. */}
+                {(isTranscribing || isRendering) && (
+                  <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/70 backdrop-blur-sm">
+                    <div className="relative flex items-center justify-center">
+                      <Loader2 className={`w-10 h-10 animate-spin ${isRendering ? 'text-emerald-400' : 'text-amber-400'}`} />
+                    </div>
+                    <div className="text-center px-6">
+                      <p className="text-[15px] font-semibold text-white">
+                        {isRendering ? 'Rendering your video' : 'Transcribing audio'}
+                      </p>
+                      <p className="text-[12px] text-zinc-400 mt-1">
+                        {isRendering
+                          ? 'Burning in subtitles and overlays — this can take a few minutes. You can keep editing other projects.'
+                          : 'Generating subtitles from speech — usually under a couple of minutes.'}
+                      </p>
+                    </div>
+                    <div className="h-1 w-40 overflow-hidden rounded-full bg-white/[0.08]">
+                      <div className={`h-full w-1/3 animate-pulse rounded-full ${isRendering ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                    </div>
                   </div>
                 )}
               </div>

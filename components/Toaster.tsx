@@ -36,7 +36,7 @@ function ToastItem({ toast }: { toast: Toast }) {
   return (
     <div
       role="status"
-      className={`pointer-events-auto flex items-start gap-3 w-[320px] bg-[#1e1e24] border ${variant.border} rounded-xl shadow-2xl px-4 py-3`}
+      className={`pointer-events-auto flex items-start gap-3 w-[320px] bg-elevated border ${variant.border} rounded-xl shadow-2xl px-4 py-3`}
     >
       {variant.icon}
       <p className="flex-1 text-[13px] leading-snug text-zinc-100">{toast.message}</p>

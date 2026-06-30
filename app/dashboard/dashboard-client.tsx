@@ -77,9 +77,9 @@ export default function DashboardClient({ user, initialVideos }: DashboardClient
     : videos
 
   return (
-    <div className="min-h-screen bg-[#0c0c0e] text-white flex p-4 gap-3">
+    <div className="min-h-screen bg-canvas text-white flex p-4 gap-3">
       {/* Sidebar */}
-      <aside className="w-[240px] bg-[#16161a] rounded-xl flex flex-col p-4 border border-white/[0.04]">
+      <aside className="w-[240px] bg-surface rounded-xl flex flex-col p-4 border border-white/[0.04]">
         <div className="mb-8 px-2 pt-1">
           <h1 className="text-[15px] font-bold tracking-wide bg-gradient-to-r from-[#2563eb] to-[#60a5fa] bg-clip-text text-transparent">
             SUPERTITLE
@@ -166,7 +166,7 @@ export default function DashboardClient({ user, initialVideos }: DashboardClient
                 placeholder="Search projects..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full max-w-sm bg-[#16161a] border border-white/[0.04] rounded-lg pl-10 pr-4 py-2.5 text-[13px] text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/30 transition-colors"
+                className="w-full max-w-sm bg-surface border border-white/[0.04] rounded-lg pl-10 pr-4 py-2.5 text-[13px] text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/30 transition-colors"
               />
             </div>
           )}
@@ -199,9 +199,9 @@ export default function DashboardClient({ user, initialVideos }: DashboardClient
                 <Link
                   key={video.id}
                   href={`/editor/${video.id}`}
-                  className="group bg-[#16161a] rounded-xl overflow-hidden border border-white/[0.04] hover:border-blue-500/30 transition-all"
+                  className="group bg-surface rounded-xl overflow-hidden border border-white/[0.04] hover:border-blue-500/30 transition-all"
                 >
-                  <div className="aspect-video bg-[#0a0a0c] relative overflow-hidden">
+                  <div className="aspect-video bg-canvas relative overflow-hidden">
                     {video.thumbnailUrl ? (
                       <img
                         src={video.thumbnailUrl}

@@ -29,7 +29,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0c0c0e] flex items-center justify-center px-4 relative">
+    <div className="min-h-screen bg-canvas flex items-center justify-center px-4 relative">
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-blue-600/[0.04] rounded-full blur-[100px] pointer-events-none" />
 
       <div className="w-full max-w-[400px] relative">
@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
           <p className="text-[14px] text-zinc-500">Reset your password</p>
         </div>
 
-        <div className="bg-[#16161a] rounded-2xl p-8 border border-white/[0.04]">
+        <div className="bg-surface rounded-2xl p-8 border border-white/[0.08]">
           {submitted ? (
             <div className="text-center space-y-4">
               <CheckCircle2 className="w-10 h-10 text-blue-400 mx-auto" />

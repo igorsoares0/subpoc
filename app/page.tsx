@@ -13,9 +13,9 @@ import {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#0c0c0e] text-white">
+    <div className="min-h-screen bg-canvas text-white">
       {/* Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.04] bg-[#0c0c0e]/80 backdrop-blur-xl">
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.04] bg-canvas/80 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <h1 className="text-[15px] font-bold tracking-wide bg-gradient-to-r from-[#2563eb] to-[#60a5fa] bg-clip-text text-transparent">
             SUPERTITLE
@@ -85,8 +85,8 @@ export default function Home() {
       {/* Editor Preview */}
       <section className="px-6 pb-24">
         <div className="max-w-5xl mx-auto">
-          <div className="bg-[#16161a] border border-white/[0.06] rounded-2xl p-2 shadow-2xl shadow-blue-600/[0.03]">
-            <div className="bg-[#0a0a0c] rounded-xl aspect-[16/9] flex items-center justify-center relative overflow-hidden">
+          <div className="bg-surface border border-white/[0.06] rounded-2xl p-2 shadow-2xl shadow-blue-600/[0.03]">
+            <div className="bg-canvas rounded-xl aspect-[16/9] flex items-center justify-center relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-blue-600/[0.03] to-transparent" />
               <div className="text-center relative">
                 <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
@@ -153,7 +153,7 @@ export default function Home() {
             ].map((feature) => (
               <div
                 key={feature.title}
-                className="bg-[#16161a] border border-white/[0.04] rounded-xl p-6 hover:border-white/[0.08] transition-colors group"
+                className="bg-surface border border-white/[0.04] rounded-xl p-6 hover:border-white/[0.08] transition-colors group"
               >
                 <div className="w-10 h-10 rounded-lg bg-blue-600/10 border border-blue-600/20 flex items-center justify-center mb-4 group-hover:bg-blue-600/15 transition-colors">
                   <feature.icon className="w-5 h-5 text-blue-400" />
@@ -206,7 +206,7 @@ export default function Home() {
                 className={`rounded-xl p-6 border transition-colors ${
                   plan.highlight
                     ? "bg-blue-600/[0.06] border-blue-500/20"
-                    : "bg-[#16161a] border-white/[0.04] hover:border-white/[0.08]"
+                    : "bg-surface border-white/[0.04] hover:border-white/[0.08]"
                 }`}
               >
                 <div className="mb-6">

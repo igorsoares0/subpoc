@@ -142,7 +142,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-[#0c0c0e] flex items-center justify-center px-4 relative">
+    <div className="min-h-screen bg-canvas flex items-center justify-center px-4 relative">
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-blue-600/[0.04] rounded-full blur-[100px] pointer-events-none" />
 
       <div className="w-full max-w-[400px] relative">
@@ -155,7 +155,7 @@ export default function LoginPage() {
           <p className="text-[14px] text-zinc-500">Sign in to your account</p>
         </div>
 
-        <div className="bg-[#16161a] rounded-2xl p-8 border border-white/[0.04]">
+        <div className="bg-surface rounded-2xl p-8 border border-white/[0.08]">
           <Suspense fallback={<Loader2 className="w-5 h-5 animate-spin text-zinc-500 mx-auto" />}>
             <LoginForm />
           </Suspense>
