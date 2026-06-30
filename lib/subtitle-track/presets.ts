@@ -29,6 +29,7 @@ export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
   splitPauseGap: undefined,
   uppercase: false,
   animationMode: "none",
+  animationIntensity: "medium",
 };
 
 export interface SubtitlePreset {
@@ -118,6 +119,7 @@ export const SUBTITLE_PRESETS: SubtitlePreset[] = [
     wordsPerGroup: 2,
     uppercase: true,
     animationMode: "scale",
+    animationIntensity: "strong",
   }),
   preset("karaoke", "Karaoke", {
     fontFamily: "Montserrat",
@@ -211,6 +213,7 @@ export const SUBTITLE_PRESETS: SubtitlePreset[] = [
     wordsPerGroup: 3,
     uppercase: true,
     animationMode: "pop",
+    animationIntensity: "strong",
   }),
   preset("sunset", "Sunset", {
     fontFamily: "Poppins",
@@ -248,6 +251,9 @@ const MATCH_FIELDS: (keyof SubtitleStyle)[] = [
   "displayMode",
   "uppercase",
   "animationMode",
+  // animationIntensity intentionally excluded: presets are already unique on the
+  // fields above, and including it would drop active-preset detection for
+  // projects saved before the field existed.
 ];
 
 /** True when `style` still matches the preset's visual identity. Used to mark

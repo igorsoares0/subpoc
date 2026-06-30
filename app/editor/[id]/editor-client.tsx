@@ -5,6 +5,7 @@ import { createPortal } from "react-dom"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { VideoTimeline } from "@/components/timeline/VideoTimeline"
+import { AnimationPreview } from "@/components/editor/AnimationPreview"
 import { toast } from "@/lib/toast"
 import {
   SubtitleTrack,
@@ -2098,6 +2099,47 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
                     <p className="text-[11px] text-zinc-600 mt-2">
                       Each word animates in as it&apos;s spoken (Submagic style).
                     </p>
+
+                    {/* Intensity — scales duration/magnitude/overshoot together */}
+                    {(style.animationMode ?? 'none') !== 'none' && (
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">
+                          <span>Intensity</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {([
+                            { value: 'subtle', label: 'Subtle' },
+                            { value: 'medium', label: 'Medium' },
+                            { value: 'strong', label: 'Strong' },
+                          ] as const).map((opt) => {
+                            const active = (style.animationIntensity ?? 'medium') === opt.value
+                            return (
+                              <button
+                                key={opt.value}
+                                onClick={() => updateStyle({ animationIntensity: opt.value })}
+                                className={`px-2 py-2 rounded-lg border text-[12px] font-medium transition-colors ${
+                                  active
+                                    ? 'bg-blue-600/20 border-blue-500/40 text-blue-300 hover:bg-blue-600/30'
+                                    : 'bg-white/[0.04] border-white/[0.06] text-zinc-300 hover:bg-white/[0.08]'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+
+                        {/* Live preview — loops the selected mode/intensity on a
+                            sample word using the same math as the renderer. */}
+                        <AnimationPreview
+                          mode={style.animationMode ?? 'none'}
+                          intensity={style.animationIntensity ?? 'medium'}
+                          color={style.highlightColor || '#FFD700'}
+                          fontFamily={style.fontFamily}
+                          uppercase={style.uppercase}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 

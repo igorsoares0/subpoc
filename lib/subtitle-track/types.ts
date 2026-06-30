@@ -46,6 +46,9 @@ export interface SubtitleStyle {
   /** Per-word entrance animation played as each word becomes active
    * (word-group mode only). Default: "none". */
   animationMode?: "none" | "pop" | "scale" | "slide-up" | "fade";
+  /** How pronounced the entrance animation is — scales its duration, travel/
+   * scale magnitude and overshoot together. Default: "medium". */
+  animationIntensity?: "subtle" | "medium" | "strong";
 }
 
 /**

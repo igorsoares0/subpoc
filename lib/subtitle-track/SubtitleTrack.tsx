@@ -6,6 +6,8 @@ import type { Subtitle, SubtitleStyle } from "./types";
 import { resolveFontFamily } from "./fonts";
 import { getWordGroupDisplay, normalizePosition } from "./word-group";
 import { DEFAULT_SEGMENT_OPTIONS } from "./segments";
+import type { AnimMode, AnimIntensity, WordAnimation } from "./animation";
+import { computeWordAnimation } from "./animation";
 
 export interface SubtitleTrackProps {
   currentTime: number;
@@ -109,65 +111,9 @@ function hexToRgba(hex: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
-const POP_DURATION = 0.12;
-const BG_FADE_DURATION = 0.1;
-
-function easeOutBack(t: number): number {
-  const c1 = 1.70158;
-  const c3 = c1 + 1;
-  const x = Math.min(Math.max(t, 0), 1);
-  return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
-}
-
-function easeOutCubic(t: number): number {
-  const x = Math.min(Math.max(t, 0), 1);
-  return 1 - Math.pow(1 - x, 3);
-}
-
-type AnimMode = NonNullable<SubtitleStyle["animationMode"]>;
-
-interface WordAnimation {
-  transform?: string;
-  opacity?: number;
-  /** 0→1 ramp for fading in a highlight background pill alongside the word. */
-  bgProgress: number;
-}
-
-/** Per-mode entrance duration (seconds) for the active word. */
-const ANIM_DURATION: Record<AnimMode, number> = {
-  none: 0,
-  pop: POP_DURATION,
-  scale: 0.15,
-  "slide-up": 0.18,
-  fade: 0.18,
-};
-
-/**
- * Computes the entrance transform/opacity for the active word, `elapsed`
- * seconds after it became active. Each mode eases 0→1 over its duration and
- * then holds at rest. `pop` is kept byte-for-byte identical to the original
- * (scale 0.72→1 with overshoot) so existing projects don't shift.
- */
-function computeWordAnimation(mode: AnimMode, elapsed: number): WordAnimation {
-  const dur = ANIM_DURATION[mode] || POP_DURATION;
-  const t = Math.min(Math.max(elapsed / dur, 0), 1);
-  const bgProgress = Math.min(Math.max(elapsed / BG_FADE_DURATION, 0), 1);
-
-  switch (mode) {
-    case "pop":
-      return { transform: `scale(${0.72 + (easeOutBack(t) - 0.72)})`, bgProgress };
-    case "scale":
-      return { transform: `scale(${0.6 + 0.4 * easeOutCubic(t)})`, opacity: t, bgProgress };
-    case "slide-up": {
-      const dy = (1 - easeOutCubic(t)) * 0.4; // em, relative to font size
-      return { transform: `translateY(${dy}em)`, opacity: t, bgProgress };
-    }
-    case "fade":
-      return { opacity: easeOutCubic(t), bgProgress };
-    default:
-      return { bgProgress: 1 };
-  }
-}
+// Per-word entrance animation math lives in ./animation (shared with the editor
+// preview so they can't drift). AnimMode/AnimIntensity/WordAnimation +
+// computeWordAnimation are imported at the top of the file.
 
 /**
  * Vector outline using -webkit-text-stroke + paint-order.
@@ -267,6 +213,7 @@ export function SubtitleTrack({
     );
 
     const animMode: AnimMode = style.animationMode ?? "none";
+    const animIntensity: AnimIntensity = style.animationIntensity ?? "medium";
     const animEnabled = animMode !== "none";
     const activeWord = wordGroup.words[wordGroup.activeIndex];
 
@@ -289,7 +236,7 @@ export function SubtitleTrack({
 
             let anim: WordAnimation = { bgProgress: 1 };
             if (animEnabled && isActive && activeWord) {
-              anim = computeWordAnimation(animMode, currentTime - activeWord.start);
+              anim = computeWordAnimation(animMode, currentTime - activeWord.start, animIntensity);
             }
 
             const baseHighlightOpacity = style.highlightBgOpacity ?? 0.95;
