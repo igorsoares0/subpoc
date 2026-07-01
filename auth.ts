@@ -8,6 +8,15 @@ import { rateLimit, getClientIp } from "./lib/rate-limit"
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   ...authConfig,
+  logger: {
+    // CredentialsSignin is the normal "invalid login" path (authorize returned
+    // null) — Auth.js throws it internally and logs a scary stack trace. Swallow
+    // just that one; keep every other error visible.
+    error(error) {
+      if (error.name === "CredentialsSignin") return
+      console.error(error)
+    },
+  },
   providers: [
     Credentials({
       credentials: {

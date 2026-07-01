@@ -2,8 +2,15 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { createEmailVerificationToken } from "@/lib/tokens"
-import { sendVerificationEmail } from "@/lib/email"
+import { sendVerificationEmail, sendAccountExistsEmail } from "@/lib/email"
 import { rateLimit, getClientIp } from "@/lib/rate-limit"
+
+// Identical success payload whether or not the email already exists, so the
+// endpoint can't be used to enumerate registered accounts. The frontend shows a
+// hardcoded "check your email" screen on any 2xx, so the copy here is unused.
+const GENERIC_SUCCESS = {
+  message: "Please check your email to finish setting up your account.",
+}
 
 export async function POST(req: Request) {
   try {
@@ -56,17 +63,21 @@ export async function POST(req: Request) {
     })
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: "User already exists" },
-        { status: 400 }
-      )
+      // Don't reveal that the account exists. Notify the real owner by email and
+      // return the same success response as a fresh signup.
+      try {
+        await sendAccountExistsEmail(normalizedEmail)
+      } catch (emailError) {
+        console.error("Failed to send account-exists email:", emailError)
+      }
+      return NextResponse.json(GENERIC_SUCCESS, { status: 201 })
     }
 
     // Hash da senha
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Criar usuário
-    const user = await prisma.user.create({
+    await prisma.user.create({
       data: {
         email: normalizedEmail,
         password: hashedPassword,
@@ -81,9 +92,7 @@ export async function POST(req: Request) {
         }
       },
       select: {
-        id: true,
-        email: true,
-        name: true
+        id: true
       }
     })
 
@@ -97,10 +106,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(
-      {
-        message: "User created successfully. Please check your email to verify your account.",
-        user
-      },
+      GENERIC_SUCCESS,
       { status: 201 }
     )
   } catch (error) {

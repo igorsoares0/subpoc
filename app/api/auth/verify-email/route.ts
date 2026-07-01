@@ -2,21 +2,24 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { consumeEmailVerificationToken } from "@/lib/tokens"
 
-const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "http://localhost:3000"
+// POST (not GET) so that email security scanners / link prefetchers can't consume
+// the single-use token by merely fetching the URL. The /verify-email page calls
+// this after an explicit user click.
+export async function POST(req: Request) {
+  const body = await req.json().catch(() => null)
+  const token = body?.token
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url)
-  const token = searchParams.get("token")
-
-  if (!token) {
-    return NextResponse.redirect(`${APP_URL}/login?error=invalid_token`)
+  if (!token || typeof token !== "string") {
+    return NextResponse.json({ error: "Invalid token" }, { status: 400 })
   }
 
   const email = await consumeEmailVerificationToken(token)
 
   if (!email) {
-    return NextResponse.redirect(`${APP_URL}/login?error=invalid_token`)
+    return NextResponse.json(
+      { error: "This verification link is invalid or has expired." },
+      { status: 400 }
+    )
   }
 
   // Mark the account verified (idempotent — updateMany won't fail if already set).
@@ -25,5 +28,5 @@ export async function GET(req: Request) {
     data: { emailVerified: new Date() },
   })
 
-  return NextResponse.redirect(`${APP_URL}/login?verified=1`)
+  return NextResponse.json({ message: "Email verified. You can now sign in." })
 }

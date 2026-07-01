@@ -36,7 +36,9 @@ function button(href: string, label: string): string {
 }
 
 export async function sendVerificationEmail(email: string, rawToken: string) {
-  const url = `${APP_URL}/api/auth/verify-email?token=${rawToken}`
+  // Points at a page (not the API GET) so email scanners that prefetch links
+  // can't consume the single-use token — verification requires a real click.
+  const url = `${APP_URL}/verify-email?token=${rawToken}`
 
   if (isDev) {
     console.log(`\n[email] Verification link for ${email}:\n${url}\n`)
@@ -92,5 +94,40 @@ export async function sendPasswordResetEmail(email: string, rawToken: string) {
   if (error) {
     console.error("[email] Failed to send password reset email:", error.message)
     throw new Error("Failed to send password reset email")
+  }
+}
+
+// Sent when someone tries to register with an email that already has an account.
+// Lets the registration endpoint return an identical response for existing vs new
+// emails (no user enumeration) while still helping the real owner recover.
+export async function sendAccountExistsEmail(email: string) {
+  const loginUrl = `${APP_URL}/login`
+  const resetUrl = `${APP_URL}/forgot-password`
+
+  if (isDev) {
+    console.log(`\n[email] Account-exists notice for ${email} (login: ${loginUrl})\n`)
+  }
+
+  const html = layout(
+    "You already have an account",
+    `<p>Someone just tried to sign up using this email, but an account already exists.</p>
+     <p>If it was you, just sign in. Forgot your password? You can reset it.</p>
+     ${button(loginUrl, "Sign in")}
+     <p style="font-size:12px;color:#71717a;">Didn't do this? You can safely ignore this email — no account was created or changed. Reset your password here: ${resetUrl}</p>`
+  )
+
+  const { error } = await resend.emails.send(
+    {
+      from: FROM,
+      to: [email],
+      subject: "You already have an account",
+      html,
+    },
+    { idempotencyKey: `account-exists/${email}` }
+  )
+
+  if (error) {
+    console.error("[email] Failed to send account-exists email:", error.message)
+    throw new Error("Failed to send account-exists email")
   }
 }
