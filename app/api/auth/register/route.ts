@@ -3,9 +3,20 @@ import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { createEmailVerificationToken } from "@/lib/tokens"
 import { sendVerificationEmail } from "@/lib/email"
+import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
 export async function POST(req: Request) {
   try {
+    // Throttle signups per IP to prevent mass account creation / email bombing.
+    const ip = getClientIp(req)
+    const rl = await rateLimit(`register:${ip}`, 5, 3600)
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Muitas tentativas. Tente novamente mais tarde." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+      )
+    }
+
     const { email, password, name } = await req.json()
 
     // Validação básica
