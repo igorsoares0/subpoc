@@ -1,11 +1,16 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
+import Google from "next-auth/providers/google"
+import { PrismaAdapter } from "@auth/prisma-adapter"
 import bcrypt from "bcryptjs"
 import { prisma } from "./lib/prisma"
 import authConfig from "./auth.config"
 import { rateLimit, getClientIp } from "./lib/rate-limit"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Adapter persists OAuth users/accounts to Postgres. Session stays JWT so the
+  // Credentials provider keeps working — adapter + JWT is the supported combo.
+  adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
   ...authConfig,
   logger: {
@@ -18,6 +23,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   providers: [
+    Google({
+      // Links a Google sign-in to an existing password account when the email
+      // matches. Safe here because both credentials signup (email verification
+      // required) and Google prove ownership of the address.
+      allowDangerousEmailAccountLinking: true,
+    }),
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
@@ -72,4 +83,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+  events: {
+    // Fires only when the adapter creates a user — i.e. a first-time Google
+    // sign-in. Credentials users are created by /api/auth/register (which already
+    // seeds their free subscription), so this never runs for them.
+    async createUser({ user }) {
+      try {
+        await prisma.subscription.create({
+          data: {
+            userId: user.id,
+            status: "free",
+            plan: "free",
+            minutesUsed: 0,
+            minutesLimit: 10,
+          },
+        })
+      } catch (err) {
+        console.error("[auth] Failed to seed subscription for new user:", err)
+      }
+
+      // Google already verified the email; mirror that so the account is fully
+      // set up (and consistent if a password is later added via reset).
+      if (!user.emailVerified) {
+        await prisma.user.updateMany({
+          where: { id: user.id, emailVerified: null },
+          data: { emailVerified: new Date() },
+        })
+      }
+    },
+  },
 })

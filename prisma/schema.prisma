@@ -19,7 +19,7 @@ model User {
   id            String    @id @default(cuid())
   email         String    @unique
   name          String?
-  password      String
+  password      String?   // null for OAuth-only users (e.g. Google sign-in)
   emailVerified DateTime?
   image         String?
 

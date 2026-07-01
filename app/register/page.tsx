@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { Mail, Lock, User, Loader2, ArrowRight, MailCheck } from "lucide-react"
+import { GoogleButton } from "@/components/auth/GoogleButton"
 
 export default function RegisterPage() {
   const [name, setName] = useState("")
@@ -159,6 +160,14 @@ export default function RegisterPage() {
               )}
             </button>
           </form>
+
+          <div className="flex items-center gap-3 my-5">
+            <div className="h-px bg-white/[0.06] flex-1" />
+            <span className="text-[11px] text-zinc-600">or</span>
+            <div className="h-px bg-white/[0.06] flex-1" />
+          </div>
+
+          <GoogleButton label="Sign up with Google" />
 
           <div className="mt-6 text-center">
             <p className="text-[13px] text-zinc-600">

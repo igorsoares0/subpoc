@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Mail, Lock, Loader2, ArrowRight, CheckCircle2 } from "lucide-react"
+import { GoogleButton } from "@/components/auth/GoogleButton"
 
 function LoginForm() {
   const router = useRouter()
@@ -59,12 +60,15 @@ function LoginForm() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {(error || queryError === "invalid_token") && (
+        {(error || queryError) && (
           <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl text-[13px]">
             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            {error || "That link is invalid or has expired."}
+            {error ||
+              (queryError === "invalid_token"
+                ? "That link is invalid or has expired."
+                : "Couldn't sign in with Google. Please try again.")}
           </div>
         )}
 
@@ -127,6 +131,14 @@ function LoginForm() {
           )}
         </button>
       </form>
+
+      <div className="flex items-center gap-3 my-5">
+        <div className="h-px bg-white/[0.06] flex-1" />
+        <span className="text-[11px] text-zinc-600">or</span>
+        <div className="h-px bg-white/[0.06] flex-1" />
+      </div>
+
+      <GoogleButton />
 
       <div className="mt-6 text-center">
         <p className="text-[13px] text-zinc-600">
