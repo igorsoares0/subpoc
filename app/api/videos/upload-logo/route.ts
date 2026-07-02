@@ -1,23 +1,23 @@
 import { NextRequest, NextResponse } from "next/server"
-import { writeFile, mkdir } from "fs/promises"
-import path from "path"
-import { existsSync } from "fs"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
+import { putObject, projectKey, resolveMediaUrl } from "@/lib/r2"
+
+// Logo é pequena (≤5MB), então proxiar pelo Next.js é ok — o servidor valida
+// e grava direto no R2 com credencial própria (sem presigned PUT aqui).
+// SVG fica de fora de propósito: pode carregar script embutido.
+
+const ALLOWED_IMAGE_TYPES: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+}
 
 export async function POST(request: NextRequest) {
   try {
     const session = await auth()
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id }
-    })
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
     const formData = await request.formData()
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const video = await prisma.videoProject.findFirst({
       where: {
         id: videoId,
-        userId: user.id
+        userId: session.user.id
       }
     })
 
@@ -45,42 +45,31 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate file
-    if (!file.type.startsWith("image/")) {
-      return NextResponse.json({ error: "File must be an image" }, { status: 400 })
+    const ext = ALLOWED_IMAGE_TYPES[file.type]
+    if (!ext) {
+      return NextResponse.json(
+        { error: "Logo must be a PNG, JPEG or WebP image" },
+        { status: 400 }
+      )
     }
 
     if (file.size > 5 * 1024 * 1024) { // 5MB limit
       return NextResponse.json({ error: "File size must be less than 5MB" }, { status: 400 })
     }
 
-    // Create uploads/logos directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), "public", "uploads", "logos")
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true })
-    }
+    // Upload para o R2 sob o prefixo do projeto (cleanup junto com o delete)
+    const key = projectKey(videoId, `logo.${ext}`)
+    const buffer = Buffer.from(await file.arrayBuffer())
+    await putObject(key, buffer, file.type)
 
-    // Generate unique filename
-    const fileExtension = file.name.split(".").pop()
-    const uniqueName = `logo_${videoId}_${Date.now()}.${fileExtension}`
-    const filePath = path.join(uploadsDir, uniqueName)
-
-    // Save file
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    await writeFile(filePath, buffer)
-
-    // URL path (relative to public)
-    const logoUrl = `/uploads/logos/${uniqueName}`
-
-    // Create default logo overlay config
+    // No banco fica a KEY; a URL assinada é gerada na leitura
     const logoOverlay = {
-      logoUrl,
+      logoUrl: key,
       position: "top-right" as const,
       size: 10,
       opacity: 0.8
     }
 
-    // Update video with logo overlay
     const updatedVideo = await prisma.videoProject.update({
       where: { id: videoId },
       data: {
@@ -88,9 +77,14 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    const storedOverlay = updatedVideo.logoOverlay as { logoUrl?: string }
+
     return NextResponse.json({
       message: "Logo uploaded successfully",
-      logoOverlay: updatedVideo.logoOverlay
+      logoOverlay: {
+        ...storedOverlay,
+        logoUrl: await resolveMediaUrl(storedOverlay?.logoUrl),
+      }
     })
 
   } catch (error) {

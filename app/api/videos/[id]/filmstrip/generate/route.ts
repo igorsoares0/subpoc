@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { resolveMediaUrl, signProjectMedia, projectKey } from "@/lib/r2"
 
 export async function POST(
   req: Request,
@@ -25,9 +26,10 @@ export async function POST(
 
     // Check if filmstrip already exists
     if (video.filmstripUrl) {
+      const signed = await signProjectMedia(video)
       return NextResponse.json({
         status: "already_exists",
-        filmstripUrl: video.filmstripUrl,
+        filmstripUrl: signed.filmstripUrl,
         metadata: video.filmstripMetadata
       })
     }
@@ -49,8 +51,10 @@ export async function POST(
       },
       body: JSON.stringify({
         videoId: video.id,
-        videoUrl: video.videoUrl,
+        // Key R2 → presigned GET pro worker baixar do bucket privado
+        videoUrl: await resolveMediaUrl(video.videoUrl),
         duration: video.duration, // duration já está em segundos no banco
+        filmstripKey: projectKey(video.id, "filmstrip.jpg"),
         webhookUrl: webhookUrl
       })
     })

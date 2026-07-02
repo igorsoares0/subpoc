@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
+import { deleteObject, isR2Key, resolveMediaUrl } from "@/lib/r2"
 import { unlink } from "fs/promises"
 import path from "path"
 import { existsSync } from "fs"
@@ -43,9 +44,16 @@ export async function DELETE(
     if (video.logoOverlay && typeof video.logoOverlay === 'object' && 'logoUrl' in video.logoOverlay) {
       const logoUrl = (video.logoOverlay as any).logoUrl
       if (logoUrl && typeof logoUrl === 'string') {
-        const logoPath = path.join(process.cwd(), "public", logoUrl)
-        if (existsSync(logoPath)) {
-          await unlink(logoPath)
+        if (isR2Key(logoUrl)) {
+          await deleteObject(logoUrl).catch((e) =>
+            console.error("[Logo] Failed to delete R2 object:", e)
+          )
+        } else if (logoUrl.startsWith('/')) {
+          // Legado: arquivo local em public/
+          const logoPath = path.join(process.cwd(), "public", logoUrl)
+          if (existsSync(logoPath)) {
+            await unlink(logoPath)
+          }
         }
       }
     }
@@ -111,17 +119,32 @@ export async function PATCH(
       return NextResponse.json({ error: "Video not found" }, { status: 404 })
     }
 
-    // Update logo overlay settings
+    // O cliente recebe a logoUrl ASSINADA (presigned), então não podemos
+    // aceitar o logoUrl do body — sobrescreveria a key R2 no banco com uma
+    // URL temporária. Preserva a key armazenada e aceita só as settings.
+    const currentOverlay = (video.logoOverlay ?? {}) as Record<string, unknown>
+    const nextOverlay = {
+      ...currentOverlay,
+      position: logoOverlay.position ?? currentOverlay.position,
+      size: logoOverlay.size ?? currentOverlay.size,
+      opacity: logoOverlay.opacity ?? currentOverlay.opacity,
+    }
+
     const updatedVideo = await prisma.videoProject.update({
       where: { id: videoId },
       data: {
-        logoOverlay: logoOverlay as any
+        logoOverlay: nextOverlay as any
       }
     })
 
+    const stored = updatedVideo.logoOverlay as { logoUrl?: string }
+
     return NextResponse.json({
       message: "Logo settings updated successfully",
-      logoOverlay: updatedVideo.logoOverlay
+      logoOverlay: {
+        ...stored,
+        logoUrl: await resolveMediaUrl(stored?.logoUrl)
+      }
     })
 
   } catch (error) {

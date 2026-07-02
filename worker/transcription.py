@@ -1,7 +1,7 @@
 import openai
 import httpx
 from config import get_settings
-from utils import download_video, extract_audio, cleanup_files
+from utils import download_video, extract_audio, cleanup_files, webhook_auth_headers
 
 settings = get_settings()
 
@@ -107,6 +107,7 @@ async def process_transcription(
                     "subtitles": subtitles,
                     "status": "completed"
                 },
+                headers=webhook_auth_headers(),
                 timeout=30.0
             )
             response.raise_for_status()
@@ -126,6 +127,7 @@ async def process_transcription(
                         "error": str(e),
                         "status": "failed"
                     },
+                    headers=webhook_auth_headers(),
                     timeout=30.0
                 )
         except Exception as webhook_error:

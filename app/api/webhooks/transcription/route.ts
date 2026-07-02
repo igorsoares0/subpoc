@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { verifyWorkerRequest, unauthorizedWebhookResponse } from "@/lib/worker-auth"
 
 export async function POST(req: Request) {
   try {
+    if (!verifyWorkerRequest(req)) {
+      return unauthorizedWebhookResponse()
+    }
+
     const { videoId, subtitles, status, error } = await req.json()
 
     console.log(`[Webhook] Transcription callback for video ${videoId}`)

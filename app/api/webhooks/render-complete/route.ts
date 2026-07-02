@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { verifyWorkerRequest, unauthorizedWebhookResponse } from "@/lib/worker-auth"
 
 export async function POST(req: Request) {
   try {
-    const { videoId, outputUrl, status, error } = await req.json()
+    if (!verifyWorkerRequest(req)) {
+      return unauthorizedWebhookResponse()
+    }
+
+    const { videoId, outputKey, outputUrl, status, error } = await req.json()
 
     console.log(`[Webhook] Render callback for video ${videoId}`)
 
@@ -18,16 +23,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error })
     }
 
-    // Salvar URL do vídeo renderizado
+    // Preferir a KEY do R2 (worker novo); outputUrl é compat com worker antigo
+    const output = outputKey || outputUrl
+    if (!output) {
+      return NextResponse.json(
+        { success: false, error: "Missing outputKey" },
+        { status: 400 }
+      )
+    }
+
     await prisma.videoProject.update({
       where: { id: videoId },
       data: {
-        outputUrl,
+        outputUrl: output,
         status: "completed"
       }
     })
 
-    console.log(`[Webhook] Rendering completed for ${videoId}: ${outputUrl}`)
+    console.log(`[Webhook] Rendering completed for ${videoId}: ${output}`)
 
     return NextResponse.json({ success: true })
   } catch (error) {

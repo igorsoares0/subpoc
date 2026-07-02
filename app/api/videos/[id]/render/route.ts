@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { resolveMediaUrl, presignGetUrl, projectKey, isR2Key } from "@/lib/r2"
 import path from "path"
 import fs from "fs"
 
@@ -65,10 +66,20 @@ export async function POST(
       throw new Error("Worker not configured")
     }
 
-    // Construct full video URL
-    const videoUrl = video.videoUrl.startsWith('http')
-      ? video.videoUrl
-      : `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${video.videoUrl}`
+    // Key R2 → presigned GET pro worker baixar direto do bucket privado
+    const videoUrl = await resolveMediaUrl(video.videoUrl)
+    if (!videoUrl) {
+      return NextResponse.json({ error: "Video file missing" }, { status: 400 })
+    }
+
+    // Logo também vive no R2 — assinar antes de mandar pro worker
+    let logoOverlay = video.logoOverlay as { logoUrl?: string } | null
+    if (logoOverlay?.logoUrl) {
+      logoOverlay = {
+        ...logoOverlay,
+        logoUrl: (await resolveMediaUrl(logoOverlay.logoUrl)) ?? undefined,
+      }
+    }
 
     const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/render-complete`
 
@@ -92,7 +103,8 @@ export async function POST(
         format: video.format || null,
         trim: video.trim || null,
         overlays: video.overlays || [],
-        logoOverlay: video.logoOverlay || null,
+        logoOverlay: logoOverlay || null,
+        outputKey: projectKey(id, "rendered.mp4"),
         webhookUrl: webhookUrl
       })
     })
@@ -171,7 +183,17 @@ export async function GET(
       )
     }
 
-    // Se a outputUrl é do worker, fazer proxy
+    // Caso atual: outputUrl é uma key R2 → redireciona pra presigned GET com
+    // Content-Disposition attachment (download com nome amigável, direto do
+    // R2, sem passar banda pelo Next.js)
+    if (isR2Key(video.outputUrl)) {
+      const downloadUrl = await presignGetUrl(video.outputUrl, {
+        downloadFilename: `${video.title}_subtitled.mp4`,
+      })
+      return NextResponse.redirect(downloadUrl)
+    }
+
+    // Legado: outputUrl apontando pro worker, fazer proxy
     if (video.outputUrl.startsWith('http://localhost:8000') || video.outputUrl.startsWith(process.env.WORKER_URL || '')) {
       // Redirecionar para o worker
       return NextResponse.redirect(video.outputUrl)

@@ -42,6 +42,9 @@ class RenderRequest(BaseModel):
     trim: dict | None = None
     overlays: list[dict] = []
     logoOverlay: dict | None = None
+    # Key R2 onde o vídeo renderizado deve ser gravado
+    # (ex: "projects/{videoId}/rendered.mp4")
+    outputKey: str | None = None
     webhookUrl: str
 
 class GenerateThumbnailsRequest(BaseModel):
@@ -54,6 +57,9 @@ class GenerateFilmstripRequest(BaseModel):
     videoId: str
     videoUrl: str
     duration: float
+    # Key R2 onde o filmstrip deve ser gravado
+    # (ex: "projects/{videoId}/filmstrip.jpg")
+    filmstripKey: str | None = None
     webhookUrl: str
 
 # Middleware de autenticação
@@ -193,7 +199,8 @@ async def render(
         request.trim,
         request.overlays,
         request.logoOverlay,
-        request.webhookUrl
+        request.webhookUrl,
+        request.outputKey
     )
 
     return {
@@ -304,7 +311,8 @@ async def generate_filmstrip(
         request.videoId,
         request.videoUrl,
         request.duration,
-        request.webhookUrl
+        request.webhookUrl,
+        request.filmstripKey
     )
 
     return {

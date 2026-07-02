@@ -9,7 +9,8 @@ from config import get_settings
 from utils import (
     download_video,
     generate_srt_file,
-    upload_to_storage,
+    upload_to_r2,
+    webhook_auth_headers,
     cleanup_files,
 )
 
@@ -212,17 +213,18 @@ async def process_rendering(
     trim: dict | None,
     overlays: list[dict],
     logo_overlay: dict | None,
-    webhook_url: str
+    webhook_url: str,
+    output_key: str | None = None
 ):
     """
     Renderizar vídeo final com legendas pixel-perfect via Playwright overlay.
 
     Pipeline:
-    1. Download do vídeo
+    1. Download do vídeo (presigned GET do R2)
     2. Playwright renderiza cada legenda como PNG transparente (mesmo CSS do editor)
     3. FFmpeg cria vídeo-legenda via concat demuxer
     4. FFmpeg faz overlay do vídeo-legenda no vídeo principal
-    5. Upload + webhook
+    5. Upload para o R2 (output_key) + webhook com a key
     """
     video_path = None
     output_path = None
@@ -436,29 +438,30 @@ async def process_rendering(
         print(f"[Rendering] Video rendered: {output_path}")
         print(f"[Rendering] Output size: {os.path.getsize(output_path)} bytes")
 
-        # 10. URL para download direto do worker
-        worker_base_url = "http://localhost:8000"
-        output_url = f"{worker_base_url}/download/{video_id}"
-        print(f"[Rendering] Download URL: {output_url}")
+        # 10. Upload do resultado para o R2 (bucket privado). O download do
+        # usuário sai por presigned GET gerado pelo Next.js — o arquivo não
+        # fica pendurado no /tmp do worker nem passa banda pelo app.
+        target_key = output_key or f"projects/{video_id}/rendered.mp4"
+        await upload_to_r2(output_path, target_key, "video/mp4")
 
-        # 11. Notificar Next.js via webhook
+        # 11. Notificar Next.js via webhook (manda a KEY, não URL)
         async with httpx.AsyncClient() as http_client:
             response = await http_client.post(
                 webhook_url,
                 json={
                     "videoId": video_id,
-                    "outputUrl": output_url,
-                    "outputPath": output_path,
+                    "outputKey": target_key,
                     "status": "completed",
                 },
+                headers=webhook_auth_headers(),
                 timeout=30.0,
             )
             response.raise_for_status()
 
         print(f"[Rendering] ✓ Success! Video {video_id} completed")
 
-        # Cleanup (keep output_path for download)
-        cleanup_files(video_path or "", concat_path or "")
+        # Cleanup (output já está no R2, pode remover o local também)
+        cleanup_files(video_path or "", concat_path or "", output_path or "")
 
     except subprocess.CalledProcessError as e:
         print(f"[Rendering] ✗ FFmpeg error for video {video_id}:")
@@ -473,6 +476,7 @@ async def process_rendering(
                         "error": f"FFmpeg error: {e.stderr[:500]}",
                         "status": "failed",
                     },
+                    headers=webhook_auth_headers(),
                     timeout=30.0,
                 )
         except Exception as we:
@@ -485,6 +489,7 @@ async def process_rendering(
                 await http_client.post(
                     webhook_url,
                     json={"videoId": video_id, "error": str(e), "status": "failed"},
+                    headers=webhook_auth_headers(),
                     timeout=30.0,
                 )
         except Exception as we:

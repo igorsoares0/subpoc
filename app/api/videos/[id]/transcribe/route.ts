@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { resolveMediaUrl } from "@/lib/r2"
 
 // POST - Send video to worker for transcription
 export async function POST(
@@ -49,10 +50,11 @@ export async function POST(
       throw new Error("Worker not configured")
     }
 
-    // Construct full video URL
-    const videoUrl = video.videoUrl.startsWith('http')
-      ? video.videoUrl
-      : `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${video.videoUrl}`
+    // Key R2 → presigned GET pro worker baixar direto do bucket privado
+    const videoUrl = await resolveMediaUrl(video.videoUrl)
+    if (!videoUrl) {
+      return NextResponse.json({ error: "Video file missing" }, { status: 400 })
+    }
 
     const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/transcription`
 

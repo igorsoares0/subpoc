@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { signProjectMedia } from "@/lib/r2"
 import EditorClient, { type VideoProject } from "./editor-client"
 
 interface EditorPageProps {
@@ -31,7 +32,10 @@ export default async function EditorPage({ params }: EditorPageProps) {
     redirect("/dashboard")
   }
 
+  // Keys R2 → presigned GET URLs antes de entregar ao client
+  const signedVideo = await signProjectMedia(video)
+
   // Prisma returns Json fields as JsonValue; the editor consumes the concrete
   // stored shapes, so cast through unknown at this boundary.
-  return <EditorClient video={video as unknown as VideoProject} />
+  return <EditorClient video={signedVideo as unknown as VideoProject} />
 }

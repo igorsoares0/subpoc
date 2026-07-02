@@ -49,44 +49,90 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
     }
   }
 
+  // Lê a duração real do arquivo antes do upload (metadata local, sem rede)
+  const readVideoDuration = (file: File): Promise<number> =>
+    new Promise((resolve) => {
+      const url = URL.createObjectURL(file)
+      const video = document.createElement("video")
+      video.preload = "metadata"
+      video.onloadedmetadata = () => {
+        URL.revokeObjectURL(url)
+        resolve(Number.isFinite(video.duration) ? video.duration : 0)
+      }
+      video.onerror = () => {
+        URL.revokeObjectURL(url)
+        resolve(0)
+      }
+      video.src = url
+    })
+
+  // PUT direto ao R2 via XHR (fetch não expõe progresso de upload)
+  const putToStorage = (url: string, file: File): Promise<void> =>
+    new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open("PUT", url)
+      // Precisa bater com o Content-Type assinado na presigned URL
+      xhr.setRequestHeader("Content-Type", file.type)
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          setUploadProgress(Math.round((e.loaded / e.total) * 100))
+        }
+      }
+      xhr.onload = () =>
+        xhr.status >= 200 && xhr.status < 300
+          ? resolve()
+          : reject(new Error(`Storage upload failed (${xhr.status})`))
+      xhr.onerror = () => reject(new Error("Storage upload failed"))
+      xhr.send(file)
+    })
+
   const uploadVideo = async (file: File) => {
     setError("")
     setIsUploading(true)
     setUploadProgress(0)
 
     try {
-      const formData = new FormData()
-      formData.append("file", file)
+      const duration = await readVideoDuration(file)
 
-      // Simulate progress (real progress would need XMLHttpRequest)
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval)
-            return 90
-          }
-          return prev + 10
-        })
-      }, 200)
-
-      const response = await fetch("/api/videos/upload", {
+      // 1. Pedir presigned URL (valida tipo/tamanho e cria o projeto)
+      const startRes = await fetch("/api/videos/upload", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+        }),
       })
 
-      clearInterval(progressInterval)
-      setUploadProgress(100)
-
-      if (!response.ok) {
-        const data = await response.json()
+      if (!startRes.ok) {
+        const data = await startRes.json()
         throw new Error(data.error || "Upload failed")
       }
 
-      const data = await response.json()
+      const { projectId, uploadUrl } = await startRes.json()
+
+      // 2. Upload direto browser → R2 (não passa pelo servidor)
+      await putToStorage(uploadUrl, file)
+
+      // 3. Confirmar upload (verifica objeto no R2 e dispara filmstrip)
+      const completeRes = await fetch(
+        `/api/videos/${projectId}/upload-complete`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ duration }),
+        }
+      )
+
+      if (!completeRes.ok) {
+        const data = await completeRes.json()
+        throw new Error(data.error || "Upload failed")
+      }
 
       // Redirect to editor
       setTimeout(() => {
-        router.push(`/editor/${data.project.id}`)
+        router.push(`/editor/${projectId}`)
         router.refresh()
       }, 500)
     } catch (err: any) {

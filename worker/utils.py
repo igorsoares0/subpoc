@@ -388,46 +388,13 @@ def format_ass_timestamp(seconds: float) -> str:
 
     return f"{hours}:{minutes:02d}:{secs:02d}.{centiseconds:02d}"
 
-async def upload_to_storage(file_path: str, video_id: str) -> str:
+def webhook_auth_headers() -> dict:
     """
-    Upload arquivo para storage (S3/R2/etc)
-
-    Para MVP, retorna URL placeholder.
-    Descomente o código abaixo para implementar upload real.
+    Headers de autenticação para os webhooks worker → Next.js.
+    O Next.js valida este Bearer contra o mesmo WORKER_SECRET.
     """
-    filename = f"{video_id}_rendered.mp4"
-
-    # TODO: Implementar upload para seu storage (S3, R2, etc)
-    # Exemplo com S3/R2 (descomentar quando configurar):
-    """
-    import boto3
-    from config import get_settings
-
     settings = get_settings()
-
-    s3_client = boto3.client(
-        's3',
-        endpoint_url=f'https://{settings.r2_account_id}.r2.cloudflarestorage.com',
-        aws_access_key_id=settings.r2_access_key_id,
-        aws_secret_access_key=settings.r2_secret_access_key,
-        region_name='auto'
-    )
-
-    with open(file_path, 'rb') as f:
-        s3_client.upload_fileobj(
-            f,
-            settings.r2_bucket_name,
-            filename,
-            ExtraArgs={'ContentType': 'video/mp4'}
-        )
-
-    return f"https://your-cdn-url.com/{filename}"
-    """
-
-    # Por enquanto, retorna URL placeholder
-    print(f"[Upload] File ready for upload: {file_path}")
-    print(f"[Upload] WARNING: Upload não implementado, retornando URL placeholder")
-    return f"https://cdn.example.com/videos/{filename}"
+    return {"Authorization": f"Bearer {settings.worker_secret}"}
 
 def cleanup_files(*file_paths: str):
     """Deletar arquivos temporários"""
@@ -440,58 +407,63 @@ def cleanup_files(*file_paths: str):
             print(f"[Cleanup] Error removing {file_path}: {e}")
 
 
-async def upload_to_r2(file_path: str, r2_key: str) -> str:
-    """
-    Upload de arquivo para Cloudflare R2.
-
-    Args:
-        file_path: Caminho local do arquivo
-        r2_key: Chave no R2 (ex: "thumbnails/video123/frame_5.0.jpg")
-
-    Returns:
-        URL pública do arquivo
-    """
+def _r2_client():
+    """Cliente boto3 configurado para o R2 (region 'auto' é obrigatório)."""
     settings = get_settings()
 
-    # Verificar se R2 está configurado
     if not all([
         settings.r2_account_id,
         settings.r2_access_key_id,
         settings.r2_secret_access_key,
         settings.r2_bucket_name
     ]):
-        # Se R2 não está configurado, retorna URL placeholder
-        print(f"[R2] WARNING: R2 not configured, returning placeholder URL")
-        return f"https://placeholder.r2.dev/{r2_key}"
-
-    try:
-        # Configurar cliente S3 para R2
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=f"https://{settings.r2_account_id}.r2.cloudflarestorage.com",
-            aws_access_key_id=settings.r2_access_key_id,
-            aws_secret_access_key=settings.r2_secret_access_key,
-            region_name='auto'
+        raise RuntimeError(
+            "R2 not configured: set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, "
+            "R2_SECRET_ACCESS_KEY and R2_BUCKET_NAME in worker/.env"
         )
 
-        # Upload para R2
+    return boto3.client(
+        's3',
+        endpoint_url=f"https://{settings.r2_account_id}.r2.cloudflarestorage.com",
+        aws_access_key_id=settings.r2_access_key_id,
+        aws_secret_access_key=settings.r2_secret_access_key,
+        region_name='auto'
+    )
+
+
+async def upload_to_r2(file_path: str, r2_key: str, content_type: str) -> str:
+    """
+    Upload de arquivo para o bucket privado no R2.
+
+    O bucket não tem acesso público: quem serve pro browser é o Next.js via
+    presigned GET. Por isso retornamos a KEY (que vai no webhook e é gravada
+    no banco), não uma URL.
+
+    Args:
+        file_path: Caminho local do arquivo
+        r2_key: Chave no R2 (ex: "projects/video123/filmstrip.jpg")
+        content_type: MIME type do arquivo (ex: "video/mp4")
+
+    Returns:
+        A própria r2_key após o upload
+    """
+    settings = get_settings()
+    s3_client = _r2_client()
+
+    try:
         with open(file_path, 'rb') as f:
             s3_client.upload_fileobj(
                 f,
                 settings.r2_bucket_name,
                 r2_key,
                 ExtraArgs={
-                    'ContentType': 'image/jpeg',
-                    'CacheControl': 'public, max-age=31536000',  # Cache 1 ano
+                    'ContentType': content_type,
+                    'CacheControl': 'private, max-age=31536000, immutable',
                 }
             )
 
-        # Retornar URL pública
-        r2_public_url = settings.r2_public_url or f"https://{settings.r2_bucket_name}.r2.dev"
-        public_url = f"{r2_public_url}/{r2_key}"
-
-        print(f"[R2] Uploaded: {file_path} -> {public_url}")
-        return public_url
+        print(f"[R2] Uploaded: {file_path} -> {r2_key}")
+        return r2_key
 
     except ClientError as e:
         print(f"[R2] Upload error: {e}")

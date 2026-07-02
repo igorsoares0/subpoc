@@ -8,12 +8,12 @@ class Settings(BaseSettings):
     # Segurança
     worker_secret: str
 
-    # Storage (se usar S3/R2)
+    # Storage Cloudflare R2 (bucket privado — obrigatório para
+    # filmstrip/render; token com escopo Object Read & Write no bucket)
     r2_account_id: str | None = None
     r2_access_key_id: str | None = None
     r2_secret_access_key: str | None = None
     r2_bucket_name: str | None = None
-    r2_public_url: str | None = None
 
     # Ambiente
     environment: str = "development"

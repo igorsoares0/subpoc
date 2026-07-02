@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { Prisma } from "@prisma/client"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { signProjectMedia, deletePrefix, isR2Key } from "@/lib/r2"
 
 const ALLOWED_FORMATS = new Set([
   "youtube",
@@ -121,8 +122,10 @@ export async function GET(
 
     // No caching: the editor polls this endpoint to watch transcription/render
     // status flip to "ready"/"completed". A cached response would stall the loop.
+    // signProjectMedia devolve a MESMA URL assinada entre polls (cache interno),
+    // senão o <video src> recarregaria a cada poll.
     return NextResponse.json(
-      { video },
+      { video: await signProjectMedia(video) },
       { headers: { "Cache-Control": "no-store" } }
     )
   } catch (error) {
@@ -186,7 +189,9 @@ export async function PATCH(
     }
 
     const video = await prisma.videoProject.findUnique({ where: { id } })
-    return NextResponse.json({ video })
+    return NextResponse.json({
+      video: video ? await signProjectMedia(video) : video,
+    })
   } catch (error) {
     console.error("Error updating video:", error)
     return NextResponse.json(
@@ -236,7 +241,17 @@ export async function DELETE(
       }
     })
 
-    // TODO: Also delete the video file from disk
+    // Apagar TODOS os objetos do projeto no R2 (original, filmstrip, render,
+    // logo) — é isso que impede a fatura de storage de crescer com lixo.
+    // Best-effort: o registro já saiu do banco; falha aqui não deve virar 500.
+    if (isR2Key(existingVideo.videoUrl)) {
+      try {
+        const deleted = await deletePrefix(`projects/${id}/`)
+        console.log(`[Delete] Removed ${deleted} R2 objects for project ${id}`)
+      } catch (r2Error) {
+        console.error(`[Delete] Failed to clean R2 objects for ${id}:`, r2Error)
+      }
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

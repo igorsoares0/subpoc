@@ -1,20 +1,25 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { verifyWorkerRequest, unauthorizedWebhookResponse } from "@/lib/worker-auth"
 
 export async function POST(req: Request) {
   try {
+    if (!verifyWorkerRequest(req)) {
+      return unauthorizedWebhookResponse()
+    }
+
     const body = await req.json()
-    const { videoId, filmstripUrl, metadata, status, error } = body
+    const { videoId, filmstripKey, filmstripUrl, metadata, status, error } = body
 
     console.log(`[Filmstrip Webhook] Received callback for video ${videoId}`)
     console.log(`[Filmstrip Webhook] Status: ${status}`)
 
     if (status === "completed") {
-      // Update database with filmstrip URL and metadata
+      // Preferir a KEY do R2 (worker novo); filmstripUrl é compat com o antigo
       await prisma.videoProject.update({
         where: { id: videoId },
         data: {
-          filmstripUrl,
+          filmstripUrl: filmstripKey || filmstripUrl,
           filmstripMetadata: metadata
         }
       })

@@ -4,7 +4,7 @@ import httpx
 import shutil
 import time
 from typing import Dict
-from utils import download_video, cleanup_files
+from utils import download_video, cleanup_files, upload_to_r2, webhook_auth_headers
 
 
 def calculate_frame_count(duration_seconds: float) -> int:
@@ -173,60 +173,22 @@ def generate_filmstrip_sprite(
         raise
 
 
-def salvar_filmstrip_local(filmstrip_path: str, video_id: str) -> str:
-    """
-    Salva filmstrip na pasta pública do Next.js.
-
-    Args:
-        filmstrip_path: Caminho do filmstrip gerado (ex: /tmp/filmstrip.jpg)
-        video_id: ID do vídeo
-
-    Returns:
-        URL para acessar (ex: /uploads/thumbnails/video123/filmstrip.jpg)
-    """
-    # Converter caminho WSL para Windows se necessário
-    # Worker roda no Windows, então usar caminho Windows
-    pasta_windows = f"C:\\allsaas\\subs\\public\\uploads\\thumbnails\\{video_id}"
-
-    try:
-        # Criar pasta se não existir
-        os.makedirs(pasta_windows, exist_ok=True)
-        print(f"[Filmstrip] Pasta criada/verificada: {pasta_windows}")
-
-        # Copiar arquivo
-        destino = os.path.join(pasta_windows, "filmstrip.jpg")
-        shutil.copy(filmstrip_path, destino)
-
-        # Verificar se arquivo existe
-        if os.path.exists(destino):
-            file_size = os.path.getsize(destino)
-            print(f"[Filmstrip] ✓ Salvo localmente: {destino} ({file_size} bytes)")
-        else:
-            raise Exception(f"Arquivo não foi criado: {destino}")
-
-    except Exception as e:
-        print(f"[Filmstrip] ✗ Erro ao salvar filmstrip: {e}")
-        raise
-
-    # Retornar URL (Next.js serve /public como /)
-    return f"/uploads/thumbnails/{video_id}/filmstrip.jpg"
-
-
 async def process_filmstrip_generation(
     video_id: str,
     video_url: str,
     duration: float,
-    webhook_url: str
+    webhook_url: str,
+    filmstrip_key: str | None = None
 ):
     """
     Processa a geração completa do filmstrip.
 
     Fluxo:
-    1. Download do vídeo
+    1. Download do vídeo (presigned GET do R2)
     2. Calcula número de frames baseado na duração
     3. Gera sprite sheet com FFmpeg
-    4. Salva na pasta pública
-    5. Webhook para Next.js com URL e metadata
+    4. Upload para o R2 (bucket privado)
+    5. Webhook para Next.js com a KEY e metadata
     6. Cleanup de arquivos temporários
 
     Args:
@@ -234,6 +196,7 @@ async def process_filmstrip_generation(
         video_url: URL do vídeo para download
         duration: Duração em segundos
         webhook_url: URL do webhook Next.js
+        filmstrip_key: Key R2 de destino (ex: "projects/{id}/filmstrip.jpg")
     """
     temp_dir = f"/tmp/filmstrip_{video_id}"
     os.makedirs(temp_dir, exist_ok=True)
@@ -280,13 +243,14 @@ async def process_filmstrip_generation(
         generation_time = time.time() - generation_start
         print(f"[Filmstrip] ✓ Generation completed in {generation_time:.1f}s")
 
-        # 4. Salvar localmente
-        filmstrip_url = salvar_filmstrip_local(filmstrip_path, video_id)
+        # 4. Upload para o R2 (bucket privado; o Next.js assina o GET na leitura)
+        target_key = filmstrip_key or f"projects/{video_id}/filmstrip.jpg"
+        await upload_to_r2(filmstrip_path, target_key, "image/jpeg")
 
-        # 5. Preparar payload do webhook
+        # 5. Preparar payload do webhook (manda a KEY, não URL)
         payload = {
             "videoId": video_id,
-            "filmstripUrl": filmstrip_url,
+            "filmstripKey": target_key,
             "metadata": {
                 "frameCount": metadata["frameCount"],
                 "frameWidth": metadata["frameWidth"],
@@ -305,6 +269,7 @@ async def process_filmstrip_generation(
             response = await client.post(
                 webhook_url,
                 json=payload,
+                headers=webhook_auth_headers(),
                 timeout=webhook_timeout
             )
             response.raise_for_status()
@@ -340,6 +305,7 @@ async def process_filmstrip_generation(
                         "error": str(e),
                         "status": "failed"
                     },
+                    headers=webhook_auth_headers(),
                     timeout=webhook_timeout
                 )
         except Exception as webhook_error:
