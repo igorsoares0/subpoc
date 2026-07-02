@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { resolveMediaUrl } from "@/lib/r2"
 
 export async function GET(
   req: Request,
@@ -34,7 +35,8 @@ export async function GET(
     }
 
     return NextResponse.json({
-      filmstripUrl: video.filmstripUrl,
+      // Key R2 → presigned GET (o banco guarda a key, nunca URL)
+      filmstripUrl: await resolveMediaUrl(video.filmstripUrl),
       metadata: video.filmstripMetadata
     })
 

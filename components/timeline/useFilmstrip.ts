@@ -66,10 +66,13 @@ async function extractFramesWithCanvas(
       return
     }
 
-    video.src = videoUrl
+    // crossOrigin precisa vir ANTES do src: o atributo só vale para requests
+    // iniciados depois dele. O vídeo agora vem do R2 (outra origem), então
+    // sem CORS-mode o load falha e o canvas ficaria tainted.
     video.crossOrigin = 'anonymous'
     video.muted = true
     video.preload = 'metadata'
+    video.src = videoUrl
 
     const frames: string[] = []
     let currentFrame = 0
