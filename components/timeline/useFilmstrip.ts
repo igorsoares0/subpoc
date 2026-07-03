@@ -66,6 +66,29 @@ async function extractFramesWithCanvas(
       return
     }
 
+    const frames: string[] = []
+    let settled = false
+    let timedOut = false
+
+    const finish = (error?: Error) => {
+      if (settled) return
+      settled = true
+      clearTimeout(safetyTimeout)
+
+      // Liberar o elemento de vídeo (aborta downloads/seeks pendentes)
+      video.removeAttribute('src')
+      video.load()
+
+      // Preview é best-effort: se o tempo acabou mas já temos frames,
+      // entregar os parciais em vez de estourar erro
+      if (error && frames.length === 0) {
+        reject(error)
+      } else {
+        console.log(`[Canvas] ✓ Extracted ${frames.length}/${frameCount} frames${timedOut ? ' (partial, timed out)' : ''}`)
+        resolve(frames)
+      }
+    }
+
     // crossOrigin precisa vir ANTES do src: o atributo só vale para requests
     // iniciados depois dele. O vídeo agora vem do R2 (outra origem), então
     // sem CORS-mode o load falha e o canvas ficaria tainted.
@@ -73,9 +96,6 @@ async function extractFramesWithCanvas(
     video.muted = true
     video.preload = 'metadata'
     video.src = videoUrl
-
-    const frames: string[] = []
-    let currentFrame = 0
 
     video.onloadeddata = async () => {
       try {
@@ -85,51 +105,64 @@ async function extractFramesWithCanvas(
 
         console.log(`[Canvas] Extracting ${frameCount} frames from ${duration}s video`)
 
-        for (let i = 0; i < frameCount; i++) {
+        for (let i = 0; i < frameCount && !timedOut; i++) {
           // Calcular timestamp para este frame
           const timestamp = (i / (frameCount - 1)) * duration
 
           // Seek para o timestamp
           video.currentTime = timestamp
 
-          // Aguardar o seek completar
-          await new Promise<void>((seekResolve) => {
-            const handleSeeked = () => {
+          // Aguardar o seek completar, com timeout individual: em vídeo
+          // remoto um único seek travado não pode consumir o budget inteiro
+          const seeked = await new Promise<boolean>((seekResolve) => {
+            const seekTimer = setTimeout(() => {
               video.removeEventListener('seeked', handleSeeked)
-              seekResolve()
+              seekResolve(false)
+            }, 5000)
+
+            const handleSeeked = () => {
+              clearTimeout(seekTimer)
+              video.removeEventListener('seeked', handleSeeked)
+              seekResolve(true)
             }
             video.addEventListener('seeked', handleSeeked)
           })
+
+          if (!seeked || settled) break
 
           // Desenhar frame no canvas
           ctx.drawImage(video, 0, 0, frameWidth, frameHeight)
 
           // Converter para data URL (JPEG com qualidade 0.7 para reduzir tamanho)
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.7)
-          frames.push(dataUrl)
-
-          currentFrame++
+          frames.push(canvas.toDataURL('image/jpeg', 0.7))
         }
 
-        console.log(`[Canvas] ✓ Extracted ${frames.length} frames`)
-        resolve(frames)
+        finish()
 
       } catch (error) {
         console.error('[Canvas] Error during extraction:', error)
-        reject(error)
+        finish(error instanceof Error ? error : new Error('Frame extraction failed'))
       }
     }
 
     video.onerror = () => {
-      reject(new Error('Failed to load video for frame extraction'))
+      finish(new Error('Failed to load video for frame extraction'))
     }
 
-    // Timeout de segurança (30s)
-    setTimeout(() => {
-      reject(new Error('Frame extraction timed out'))
+    // Timeout de segurança global (30s): entrega frames parciais se houver
+    const safetyTimeout = setTimeout(() => {
+      timedOut = true
+      finish(new Error('Frame extraction timed out'))
     }, 30000)
   })
 }
+
+/**
+ * Acima desta duração o preview via Canvas nem é tentado: cada seek em vídeo
+ * remoto (R2) vira range requests, e 20-30 seeks num vídeo longo estouram
+ * qualquer timeout. O skeleton fica até o filmstrip do backend chegar.
+ */
+const CANVAS_PREVIEW_MAX_DURATION_S = 180
 
 /**
  * Calcula o número de frames baseado na duração do vídeo
@@ -387,31 +420,49 @@ export function useFilmstrip(
           }
 
           console.log('[Filmstrip] ✓ Loaded from cache')
+
+          // Fire-and-forget: garante a thumbnail do dashboard em projetos
+          // antigos (o route responde already_exists barato quando o projeto
+          // já tem filmstrip + thumbnail; senão regenera e faz o backfill)
+          fetch(`/api/videos/${videoId}/filmstrip/generate`, { method: 'POST' })
+            .catch(() => {})
+
           return
         }
 
         // Filmstrip não existe, iniciar geração dual-track
         console.log('[Filmstrip] No cache, starting dual-track generation')
 
-        // 1. Calcular número de frames
-        const frameCount = calculateFrameCount(duration)
-
-        // 2. Iniciar extração Canvas (feedback imediato)
-        console.log('[Filmstrip] Extracting frames with Canvas API...')
-        const canvasFrames = await extractFramesWithCanvas(videoUrl, frameCount)
-
-        if (!cancelled && isMountedRef.current) {
-          setFilmstripState({
-            status: 'canvas-ready',
-            canvasFrames,
-            filmstripUrl: null,
-            metadata: null,
-            error: null
-          })
-        }
-
-        // 3. Triggerar geração backend (alta qualidade, assíncrona)
+        // 1. Backend PRIMEIRO: é a fonte definitiva do filmstrip. O preview
+        //    via Canvas é best-effort e não pode atrasar nem derrubar isso
+        //    (antes ele rodava primeiro e, ao estourar timeout em vídeo longo,
+        //    o backend nem chegava a ser acionado).
         await triggerBackendGeneration()
+
+        // 2. Preview via Canvas (feedback imediato), só em vídeos curtos
+        if (duration <= CANVAS_PREVIEW_MAX_DURATION_S) {
+          try {
+            const frameCount = calculateFrameCount(duration)
+            console.log('[Filmstrip] Extracting frames with Canvas API...')
+            const canvasFrames = await extractFramesWithCanvas(videoUrl, frameCount)
+
+            if (!cancelled && isMountedRef.current && canvasFrames.length > 0) {
+              setFilmstripState(prev =>
+                // O filmstrip do backend pode ter ficado pronto enquanto
+                // extraíamos — não regredir o estado
+                prev.status === 'filmstrip-ready'
+                  ? prev
+                  : { ...prev, status: 'canvas-ready', canvasFrames, error: null }
+              )
+            }
+          } catch (canvasError) {
+            // Preview é opcional: o polling do backend segue rodando e o
+            // skeleton fica na tela até o filmstrip real chegar
+            console.warn('[Filmstrip] Canvas preview failed (non-fatal):', canvasError)
+          }
+        } else {
+          console.log(`[Filmstrip] Video too long (${duration}s), skipping canvas preview`)
+        }
 
       } catch (error) {
         console.error('[Filmstrip] Initialization error:', error)
