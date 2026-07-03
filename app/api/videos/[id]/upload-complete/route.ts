@@ -100,6 +100,7 @@ export async function POST(
         videoUrl: videoDownloadUrl,
         duration,
         filmstripKey: projectKey(id, "filmstrip.jpg"),
+        thumbnailKey: projectKey(id, "thumb.jpg"),
         webhookUrl: `${appUrl}/api/webhooks/filmstrip-complete`,
       }),
     }).catch((error) => {

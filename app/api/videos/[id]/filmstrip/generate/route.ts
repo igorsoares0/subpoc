@@ -25,7 +25,8 @@ export async function POST(
     }
 
     // Check if filmstrip already exists
-    if (video.filmstripUrl) {
+    // (thumbnail também: projetos antigos sem thumb regeneram e fazem backfill)
+    if (video.filmstripUrl && video.thumbnailUrl) {
       const signed = await signProjectMedia(video)
       return NextResponse.json({
         status: "already_exists",
@@ -55,6 +56,7 @@ export async function POST(
         videoUrl: await resolveMediaUrl(video.videoUrl),
         duration: video.duration, // duration já está em segundos no banco
         filmstripKey: projectKey(video.id, "filmstrip.jpg"),
+        thumbnailKey: projectKey(video.id, "thumb.jpg"),
         webhookUrl: webhookUrl
       })
     })

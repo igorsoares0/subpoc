@@ -60,6 +60,9 @@ class GenerateFilmstripRequest(BaseModel):
     # Key R2 onde o filmstrip deve ser gravado
     # (ex: "projects/{videoId}/filmstrip.jpg")
     filmstripKey: str | None = None
+    # Key R2 da thumbnail do card do dashboard
+    # (ex: "projects/{videoId}/thumb.jpg")
+    thumbnailKey: str | None = None
     webhookUrl: str
 
 # Middleware de autenticação
@@ -312,7 +315,8 @@ async def generate_filmstrip(
         request.videoUrl,
         request.duration,
         request.webhookUrl,
-        request.filmstripKey
+        request.filmstripKey,
+        request.thumbnailKey
     )
 
     return {

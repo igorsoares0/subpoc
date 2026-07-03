@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { resolveMediaUrl } from "@/lib/r2"
 import DashboardClient from "./dashboard-client"
 
 export default async function DashboardPage() {
@@ -20,5 +21,13 @@ export default async function DashboardPage() {
     }
   })
 
-  return <DashboardClient user={session.user} initialVideos={videos} />
+  // O banco guarda a KEY do R2 — assinar antes de mandar pro cliente
+  const videosWithSignedThumbs = await Promise.all(
+    videos.map(async (video) => ({
+      ...video,
+      thumbnailUrl: await resolveMediaUrl(video.thumbnailUrl),
+    }))
+  )
+
+  return <DashboardClient user={session.user} initialVideos={videosWithSignedThumbs} />
 }

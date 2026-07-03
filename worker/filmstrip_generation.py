@@ -173,12 +173,57 @@ def generate_filmstrip_sprite(
         raise
 
 
+def generate_thumbnail(
+    video_path: str,
+    output_path: str,
+    duration: float,
+    width: int = 640
+) -> str:
+    """
+    Extrai um único frame do vídeo para servir de thumbnail do card no dashboard.
+
+    Usa -ss ANTES de -i (fast seek por keyframe): thumbnail não precisa de
+    precisão frame-accurate, e isso evita decodificar o vídeo até o timestamp.
+
+    Args:
+        video_path: Caminho do vídeo local
+        output_path: Caminho para salvar o JPEG
+        duration: Duração do vídeo em segundos (frame extraído a ~10%, máx 5s)
+        width: Largura do thumbnail (altura calculada mantendo aspect ratio)
+
+    Returns:
+        Caminho do thumbnail gerado
+    """
+    seek = min(duration * 0.1, 5.0) if duration > 0 else 0.0
+
+    command = [
+        'ffmpeg',
+        '-ss', str(seek),
+        '-i', video_path,
+        '-frames:v', '1',
+        # -2 = altura proporcional arredondada pra par (exigência de codecs)
+        '-vf', f"scale={width}:-2:flags=bicubic",
+        '-q:v', '2',
+        '-y',
+        output_path
+    ]
+
+    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
+
+    if result.returncode != 0 or not os.path.exists(output_path):
+        raise Exception(f"FFmpeg thumbnail failed: {result.stderr[:200]}")
+
+    print(f"[Filmstrip] ✓ Thumbnail generated at {seek:.1f}s ({os.path.getsize(output_path)} bytes)")
+    return output_path
+
+
 async def process_filmstrip_generation(
     video_id: str,
     video_url: str,
     duration: float,
     webhook_url: str,
-    filmstrip_key: str | None = None
+    filmstrip_key: str | None = None,
+    thumbnail_key: str | None = None
 ):
     """
     Processa a geração completa do filmstrip.
@@ -247,10 +292,22 @@ async def process_filmstrip_generation(
         target_key = filmstrip_key or f"projects/{video_id}/filmstrip.jpg"
         await upload_to_r2(filmstrip_path, target_key, "image/jpeg")
 
+        # 4b. Thumbnail do card do dashboard (falha aqui não derruba o filmstrip)
+        thumbnail_uploaded_key = None
+        if thumbnail_key:
+            try:
+                thumbnail_path = os.path.join(temp_dir, "thumb.jpg")
+                generate_thumbnail(video_path, thumbnail_path, duration)
+                await upload_to_r2(thumbnail_path, thumbnail_key, "image/jpeg")
+                thumbnail_uploaded_key = thumbnail_key
+            except Exception as thumb_error:
+                print(f"[Filmstrip] Warning: thumbnail failed (non-fatal): {thumb_error}")
+
         # 5. Preparar payload do webhook (manda a KEY, não URL)
         payload = {
             "videoId": video_id,
             "filmstripKey": target_key,
+            "thumbnailKey": thumbnail_uploaded_key,
             "metadata": {
                 "frameCount": metadata["frameCount"],
                 "frameWidth": metadata["frameWidth"],

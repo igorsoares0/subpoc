@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
-    const { videoId, filmstripKey, filmstripUrl, metadata, status, error } = body
+    const { videoId, filmstripKey, filmstripUrl, thumbnailKey, metadata, status, error } = body
 
     console.log(`[Filmstrip Webhook] Received callback for video ${videoId}`)
     console.log(`[Filmstrip Webhook] Status: ${status}`)
@@ -20,7 +20,9 @@ export async function POST(req: Request) {
         where: { id: videoId },
         data: {
           filmstripUrl: filmstripKey || filmstripUrl,
-          filmstripMetadata: metadata
+          filmstripMetadata: metadata,
+          // Key R2 da thumbnail do card (assinada na leitura, como o filmstrip)
+          ...(thumbnailKey ? { thumbnailUrl: thumbnailKey } : {})
         }
       })
 
