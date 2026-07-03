@@ -13,6 +13,9 @@ import {
 declare global {
   interface Window {
     __setTime?: (t: number) => Promise<void>;
+    /** Sync variant without the paint-wait rAFs — for layout-only reads
+     * (getBoundingClientRect) in the worker's clip-measure pass. */
+    __setTimeSync?: (t: number) => void;
     __ready?: boolean;
   }
 }
@@ -39,6 +42,9 @@ export function RenderClient({ subtitles, style, hook, videoWidth, videoHeight, 
             requestAnimationFrame(() => resolve());
           });
         });
+      window.__setTimeSync = (t: number) => {
+        flushSync(() => setCurrentTime(t));
+      };
       window.__ready = true;
       setReady(true);
     });

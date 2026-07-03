@@ -3,6 +3,7 @@ import httpx
 import os
 import sys
 import tempfile
+import time
 import json
 import asyncio
 from config import get_settings
@@ -100,7 +101,7 @@ def _render_subtitle_pngs(
     effective_duration: float | None = None,
     video_fps: float | None = None,
     native_width: int | None = None,
-) -> tuple[list[tuple[float, float, str]], str]:
+) -> tuple[list[tuple[float, float, str]], str, dict | None]:
     """
     Render subtitle PNGs via a separate subprocess (avoids Playwright
     event-loop conflicts with uvicorn on Windows).
@@ -109,7 +110,9 @@ def _render_subtitle_pngs(
     editor's <SubtitleTrack /> component is the single source of truth for
     subtitle visuals.
 
-    Returns (schedule, blank_png_path).
+    Returns (schedule, blank_png_path, clip) — clip is the {"x","y","w","h"}
+    region (in output-video px) the PNGs were cropped to, or None for
+    full-frame PNGs.
     """
     input_path = os.path.join(tempfile.gettempdir(), f"subjob_{video_id}.json")
     output_path = os.path.join(tempfile.gettempdir(), f"subresult_{video_id}.json")
@@ -144,12 +147,18 @@ def _render_subtitle_pngs(
                 f"{result.stderr}"
             )
 
+        # Surface the subprocess's progress/timing lines (capture_output
+        # swallows them on success otherwise).
+        for line in result.stdout.splitlines():
+            if line.startswith("[SubRender"):
+                print(f"  {line}")
+
         with open(output_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         schedule = [(s, e, p) for s, e, p in data["schedule"]]
         blank_png = data["blank_png"]
-        return schedule, blank_png
+        return schedule, blank_png, data.get("clip")
 
     finally:
         for p in (input_path, output_path):
@@ -172,21 +181,31 @@ def _build_concat_file(
     entries: list[tuple[str, float]] = []
     current_time = 0.0
 
+    def _push(path: str, dur: float) -> None:
+        # Coalesce runs of the same PNG (the framewise renderer emits one
+        # entry per frame; blank gaps and settled words repeat one file).
+        # One longer entry makes FFmpeg decode the PNG once per run instead
+        # of once per frame.
+        if entries and entries[-1][0] == path:
+            entries[-1] = (path, entries[-1][1] + dur)
+        else:
+            entries.append((path, dur))
+
     for start, end, png_path in schedule:
         # Clamp start to current_time to avoid overlapping entries
         effective_start = max(start, current_time)
         gap = effective_start - current_time
         if gap > 0.001:
-            entries.append((blank_png, gap))
+            _push(blank_png, gap)
             current_time += gap
         duration = end - effective_start
         if duration > 0.001:
-            entries.append((png_path, duration))
+            _push(png_path, duration)
             current_time = end
 
     # Trailing blank to fill remaining video
     if video_duration > 0 and current_time < video_duration:
-        entries.append((blank_png, video_duration - current_time))
+        _push(blank_png, video_duration - current_time)
 
     if not entries:
         entries.append((blank_png, max(video_duration, 1.0)))
@@ -232,9 +251,13 @@ async def process_rendering(
 
     try:
         print(f"[Rendering] Starting for video {video_id}")
+        timings: dict[str, float] = {}
+        t_total = time.perf_counter()
 
         # 1. Download do vídeo
+        t0 = time.perf_counter()
         video_path = await download_video(video_url, video_id)
+        timings["download"] = time.perf_counter() - t0
 
         # 2. Obter dimensões e duração do vídeo
         video_info = get_video_info(video_path)
@@ -260,12 +283,17 @@ async def process_rendering(
 
         # 5. Renderizar legendas como PNGs via subprocess (separate process)
         print(f"[Rendering] Rendering subtitle PNGs at {out_w}x{out_h}...")
-        schedule, blank_png = await asyncio.to_thread(
+        t0 = time.perf_counter()
+        schedule, blank_png, sub_clip = await asyncio.to_thread(
             _render_subtitle_pngs,
             subtitles, style, out_w, out_h, video_id, trim_start,
             effective_duration, video_fps, src_w,
         )
-        print(f"[Rendering] Generated {len(schedule)} subtitle frames")
+        timings["subtitle_pngs"] = time.perf_counter() - t0
+        print(
+            f"[Rendering] Generated {len(schedule)} subtitle frames "
+            f"(clip={sub_clip})"
+        )
 
         # 6. Criar concat file para o vídeo de legendas
         concat_path = _build_concat_file(
@@ -328,9 +356,17 @@ async def process_rendering(
         # preto nas bordas antialiased dos glifos (franja escura ao redor do
         # texto). Premultiplicado, o scale interpola cor e alpha juntos.
         fps_val = round(video_fps, 3)
+        # PNGs clipados à região da legenda chegam em 2×(clip w×h) e são
+        # sobrepostos em (x, y); sem clip, cobrem o frame inteiro em (0, 0).
+        if sub_clip:
+            sub_w, sub_h = sub_clip["w"], sub_clip["h"]
+            overlay_xy = f"{sub_clip['x']}:{sub_clip['y']}"
+        else:
+            sub_w, sub_h = out_w, out_h
+            overlay_xy = "0:0"
         filter_parts.append(
             f"[1:v]fps={fps_val},setpts=PTS-STARTPTS,format=rgba,"
-            f"premultiply=inplace=1,scale={out_w}:{out_h}:flags=lanczos,"
+            f"premultiply=inplace=1,scale={sub_w}:{sub_h}:flags=lanczos,"
             f"unpremultiply=inplace=1[subs]"
         )
         # format=rgb forces the alpha blend to happen in RGB space instead of
@@ -339,7 +375,7 @@ async def process_rendering(
         # color at edges, then we do a single BT.709 RGB→YUV conversion at the
         # end of the chain.
         filter_parts.append(
-            f"{video_label}[subs]overlay=0:0:format=rgb:shortest=1[withsubs]"
+            f"{video_label}[subs]overlay={overlay_xy}:format=rgb:shortest=1[withsubs]"
         )
 
         # Logo overlay (optional)
@@ -402,10 +438,12 @@ async def process_rendering(
         # conversão errada e desatura a imagem.
         command.extend([
             "-c:v", "libx264",
-            # CRF 18 + slow: texto de alto contraste sobre vídeo em movimento é
-            # o pior caso do x264 — CRF 23 borra as bordas dos glifos. 18/slow
-            # equivale ao bitrate de export dos apps de legenda (~8-16 Mbps).
-            "-preset", "slow",
+            # CRF 18: texto de alto contraste sobre vídeo em movimento é o
+            # pior caso do x264 — CRF 23 borra as bordas dos glifos. Em modo
+            # CRF a qualidade visual é fixada pelo CRF, não pelo preset; o
+            # preset só troca tempo de encode por tamanho de arquivo. medium
+            # é ~3x mais rápido que slow com ~10-15% mais bitrate.
+            "-preset", "medium",
             "-crf", "18",
             "-colorspace", "bt709",
             "-color_primaries", "bt709",
@@ -421,9 +459,11 @@ async def process_rendering(
         print(f"[Rendering] FFmpeg command: {' '.join(command)}")
 
         # 9. Executar FFmpeg
+        t0 = time.perf_counter()
         result = subprocess.run(
             command, check=True, capture_output=True, text=True
         )
+        timings["ffmpeg"] = time.perf_counter() - t0
 
         if result.stderr:
             # Show any warnings/errors from FFmpeg
@@ -442,7 +482,15 @@ async def process_rendering(
         # usuário sai por presigned GET gerado pelo Next.js — o arquivo não
         # fica pendurado no /tmp do worker nem passa banda pelo app.
         target_key = output_key or f"projects/{video_id}/rendered.mp4"
+        t0 = time.perf_counter()
         await upload_to_r2(output_path, target_key, "video/mp4")
+        timings["upload"] = time.perf_counter() - t0
+
+        timings["total"] = time.perf_counter() - t_total
+        print(
+            "[Rendering] Timing: "
+            + " | ".join(f"{k}={v:.1f}s" for k, v in timings.items())
+        )
 
         # 11. Notificar Next.js via webhook (manda a KEY, não URL)
         async with httpx.AsyncClient() as http_client:

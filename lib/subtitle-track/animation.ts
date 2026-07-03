@@ -31,7 +31,9 @@ export interface WordAnimation {
   bgProgress: number;
 }
 
-/** Per-mode entrance duration (seconds) at the `subtle` intensity baseline. */
+/** Per-mode entrance duration (seconds) at the `subtle` intensity baseline.
+ * Mirrored in worker/subtitle_renderer.py (_ANIM_DURATION/_ANIM_DUR_MULT) to
+ * size the settled-frame dedup window — keep both in sync when changing. */
 export const ANIM_DURATION: Record<AnimMode, number> = {
   none: 0,
   pop: POP_DURATION,

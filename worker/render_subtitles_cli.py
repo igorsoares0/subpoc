@@ -26,7 +26,7 @@ def main():
     with open(input_path, "r", encoding="utf-8") as f:
         job = json.load(f)
 
-    schedule, blank_png = render_subtitles_via_browser_sync(
+    schedule, blank_png, clip = render_subtitles_via_browser_sync(
         video_id=job["video_id"],
         subtitles=job["subtitles"],
         style=job["style"],
@@ -43,6 +43,7 @@ def main():
     result = {
         "schedule": [[s, e, p] for s, e, p in schedule],
         "blank_png": blank_png,
+        "clip": clip,
     }
 
     with open(output_path, "w", encoding="utf-8") as f:
