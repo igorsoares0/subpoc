@@ -20,6 +20,7 @@ export {
   DEFAULT_SEGMENT_OPTIONS,
 } from "./segments";
 export type { SubtitleSegment, SegmentOptions } from "./segments";
+export { normalizeWords, MIN_WORD_DURATION } from "./normalize";
 export {
   annotateKeywords,
   annotateSubtitleKeywords,

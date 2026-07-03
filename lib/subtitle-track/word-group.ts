@@ -2,8 +2,10 @@ import type { Subtitle, SubtitleWord } from "./types";
 import {
   buildSegments,
   findSegmentForWord,
+  DEFAULT_SEGMENT_OPTIONS,
   type SegmentOptions,
 } from "./segments";
+import { normalizeWords } from "./normalize";
 
 export interface WordGroupDisplay {
   words: SubtitleWord[];
@@ -15,19 +17,27 @@ export interface WordGroupDisplay {
  * is currently active. Chunk boundaries come from the deterministic auto-split
  * (item 4) instead of mechanical fixed-size slicing, so pauses and long lines
  * break the caption where a viewer would expect.
+ *
+ * Word timings are normalized first (see ./normalize): small inter-word gaps
+ * are absorbed so the chunk stays on screen for its whole duration — the
+ * highlight rests on the last spoken word instead of the caption blinking off
+ * between words.
  */
 export function getWordGroupDisplay(
   subtitles: Subtitle[],
   currentTime: number,
   options?: Partial<SegmentOptions>,
 ): WordGroupDisplay | null {
-  const allWords: SubtitleWord[] = [];
+  const rawWords: SubtitleWord[] = [];
   for (const sub of subtitles) {
     if (sub.words) {
-      allWords.push(...sub.words);
+      rawWords.push(...sub.words);
     }
   }
-  if (allWords.length === 0) return null;
+  if (rawWords.length === 0) return null;
+
+  const pauseGap = options?.pauseGap ?? DEFAULT_SEGMENT_OPTIONS.pauseGap;
+  const allWords = normalizeWords(rawWords, pauseGap);
 
   let activeWordIdx = -1;
   for (let i = 0; i < allWords.length; i++) {

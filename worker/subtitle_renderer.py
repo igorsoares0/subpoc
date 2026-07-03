@@ -47,6 +47,53 @@ def _anim_settle_time(style: dict) -> float:
 # -webkit-text-stroke that paints outside the glyph box and antialiasing.
 _CLIP_PAD = 16
 
+# Mirrors lib/subtitle-track/normalize.ts (MIN_WORD_DURATION / normalizeWords)
+# and DEFAULT_SEGMENT_OPTIONS.pauseGap in segments.ts. The /render page
+# normalizes word timings the same way before deciding what to paint, so the
+# schedule built here must cover the same extended intervals — otherwise the
+# composite would insert blank frames where the page still shows the group.
+# Keep in sync when changing the TS side.
+_MIN_WORD_DURATION = 0.06
+_DEFAULT_PAUSE_GAP = 0.35
+
+
+def _style_pause_gap(style: dict) -> float:
+    raw = (style or {}).get("splitPauseGap")
+    return float(raw) if raw is not None else _DEFAULT_PAUSE_GAP
+
+
+def _flat_words(subtitles: list[dict]) -> list[dict]:
+    return [w for sub in subtitles for w in (sub.get("words") or [])]
+
+
+def _normalize_word_intervals(
+    words: list[dict], pause_gap: float
+) -> list[tuple[float, float]]:
+    """
+    Python mirror of normalizeWords in lib/subtitle-track/normalize.ts —
+    same rules, applied per word against the next one (start never moves):
+    clamp overlaps, absorb gaps smaller than pause_gap by extending end to the
+    next start, and enforce a minimum hold otherwise. Returns (start, end)
+    spans sorted by start.
+    """
+    spans = sorted(
+        (float(w.get("start", 0)), float(w.get("end", 0))) for w in words
+    )
+    out: list[tuple[float, float]] = []
+    for i, (start, end) in enumerate(spans):
+        nxt = spans[i + 1][0] if i + 1 < len(spans) else None
+        end = max(end, start)
+        if nxt is not None and end > nxt:
+            end = nxt
+        if nxt is not None and nxt - end < pause_gap:
+            end = nxt
+        else:
+            end = max(end, start + _MIN_WORD_DURATION)
+            if nxt is not None:
+                end = min(end, nxt)
+        out.append((start, end))
+    return out
+
 # Sets the page time WITHOUT waiting for paint (getBoundingClientRect forces
 # layout synchronously, which is all we need) and returns the union rect of
 # everything visible — subtitles and hook overlay alike.
@@ -134,17 +181,19 @@ def _build_keyframes(
     keyframes: list[tuple[float, float, float]] = []
 
     if display_mode == "word-group":
-        for sub in subtitles:
-            for w in sub.get("words", []) or []:
-                orig_start = float(w.get("start", 0))
-                orig_end = float(w.get("end", 0))
-                out_end = orig_end - trim_start
-                if out_end <= 0 or orig_end <= orig_start:
-                    continue
-                out_start = max(0.0, orig_start - trim_start)
-                # sample at a stable point inside the word (avoid boundary races)
-                sample_t = orig_start + (orig_end - orig_start) * 0.5
-                keyframes.append((out_start, out_end, sample_t))
+        # Normalized (extended) spans, not raw word timings — one keyframe per
+        # word, held until the next word starts, matching what the page paints.
+        spans = _normalize_word_intervals(
+            _flat_words(subtitles), _style_pause_gap(style)
+        )
+        for orig_start, orig_end in spans:
+            out_end = orig_end - trim_start
+            if out_end <= 0 or orig_end <= orig_start:
+                continue
+            out_start = max(0.0, orig_start - trim_start)
+            # sample at a stable point inside the span (avoid boundary races)
+            sample_t = orig_start + (orig_end - orig_start) * 0.5
+            keyframes.append((out_start, out_end, sample_t))
     else:
         for sub in subtitles:
             text = (sub.get("text") or "").strip()
@@ -262,12 +311,14 @@ def _build_active_intervals(
     intervals: list[tuple[float, float]] = []
 
     if display_mode == "word-group":
-        for sub in subtitles:
-            for w in sub.get("words", []) or []:
-                s = float(w.get("start", 0)) - trim_start
-                e = float(w.get("end", 0)) - trim_start
-                if e > 0 and e > s:
-                    intervals.append((max(0.0, s), e))
+        spans = _normalize_word_intervals(
+            _flat_words(subtitles), _style_pause_gap(style)
+        )
+        for start, end in spans:
+            s = start - trim_start
+            e = end - trim_start
+            if e > 0 and e > s:
+                intervals.append((max(0.0, s), e))
     else:
         for sub in subtitles:
             if not (sub.get("text") or "").strip():

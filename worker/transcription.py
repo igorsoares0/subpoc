@@ -71,29 +71,41 @@ async def process_transcription(
                 seg_end = seg.end
                 seg_text = seg.text.strip()
 
-            # Associar words deste segmento (pelo intervalo de tempo)
-            segment_words = []
-            for w in all_words:
-                w_start = w["start"] if isinstance(w, dict) else w.start
-                w_end = w["end"] if isinstance(w, dict) else w.end
-                w_word = w["word"] if isinstance(w, dict) else w.word
-                if w_start >= seg_start - 0.05 and w_end <= seg_end + 0.05:
-                    segment_words.append({
-                        "word": w_word.strip(),
-                        "start": w_start,
-                        "end": w_end
-                    })
-
-            entry = {
+            subtitles.append({
                 "id": i,
                 "start": seg_start,
                 "end": seg_end,
                 "text": seg_text
-            }
-            if segment_words:
-                entry["words"] = segment_words
+            })
 
-            subtitles.append(entry)
+        # Particionar TODAS as words entre os segmentos: cada word vai para o
+        # último segmento que começou antes do seu ponto médio. A regra antiga
+        # (word contida no intervalo ±0.05s) descartava palavras que cruzavam
+        # a fronteira entre dois segmentos — elas sumiam do modo word-group e
+        # o highlight pulava direto para a seguinte.
+        if subtitles and all_words:
+            all_words = sorted(
+                all_words,
+                key=lambda w: w["start"] if isinstance(w, dict) else w.start,
+            )
+            words_by_subtitle = [[] for _ in subtitles]
+            si = 0
+            for w in all_words:
+                w_start = w["start"] if isinstance(w, dict) else w.start
+                w_end = w["end"] if isinstance(w, dict) else w.end
+                w_word = w["word"] if isinstance(w, dict) else w.word
+                mid = (w_start + w_end) / 2.0
+                while si < len(subtitles) - 1 and mid >= subtitles[si + 1]["start"]:
+                    si += 1
+                words_by_subtitle[si].append({
+                    "word": w_word.strip(),
+                    "start": w_start,
+                    "end": w_end
+                })
+
+            for entry, segment_words in zip(subtitles, words_by_subtitle):
+                if segment_words:
+                    entry["words"] = segment_words
 
         print(f"[Transcription] Formatted {len(subtitles)} subtitles")
 
