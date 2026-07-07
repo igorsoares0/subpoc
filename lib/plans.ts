@@ -11,6 +11,8 @@ export interface Plan {
   priceId: string | null
   minutesLimit: number
   maxVideoMinutes: number
+  /** Máximo de vídeos guardados na conta (status != failed). Delete libera vaga. */
+  maxProjects: number
   features: string[]
 }
 
@@ -22,9 +24,11 @@ export const PLANS: Record<PlanId, Plan> = {
     priceId: null,
     minutesLimit: 10,
     maxVideoMinutes: 2,
+    maxProjects: 10,
     features: [
       "10 minutes of video / month",
       "Videos up to 2 minutes",
+      "Up to 10 videos in your library",
       "Auto subtitles + editor",
     ],
   },
@@ -35,9 +39,11 @@ export const PLANS: Record<PlanId, Plan> = {
     priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_STARTER ?? null,
     minutesLimit: 30,
     maxVideoMinutes: 5,
+    maxProjects: 50,
     features: [
       "30 minutes of video / month",
       "Videos up to 5 minutes",
+      "Up to 50 videos in your library",
       "Auto subtitles + editor",
       "SRT / VTT export",
     ],
@@ -49,9 +55,11 @@ export const PLANS: Record<PlanId, Plan> = {
     priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_PRO ?? null,
     minutesLimit: 120,
     maxVideoMinutes: 15,
+    maxProjects: 200,
     features: [
       "120 minutes of video / month",
       "Videos up to 15 minutes",
+      "Up to 200 videos in your library",
       "Auto subtitles + editor",
       "SRT / VTT export",
       "Custom logo / watermark",

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { signProjectMedia } from "@/lib/r2"
+import { cleanupAbandonedUploads } from "@/lib/cleanup"
 
 // GET - List all video projects for current user
 export async function GET(req: Request) {
@@ -14,6 +15,9 @@ export async function GET(req: Request) {
         { status: 401 }
       )
     }
+
+    // Uploads abandonados (>24h em "uploading") somem da listagem e do R2.
+    await cleanupAbandonedUploads(session.user.id).catch(() => 0)
 
     const videos = await prisma.videoProject.findMany({
       where: {

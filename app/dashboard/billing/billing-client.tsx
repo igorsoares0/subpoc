@@ -16,6 +16,8 @@ interface BillingClientProps {
     currentPeriodEnd: string | null
     cancelAtPeriodEnd: boolean
     hasPaddleSubscription: boolean
+    videosStored: number
+    videosLimit: number
   }
   currentPlanName: string
 }
@@ -168,6 +170,8 @@ export default function BillingClient({
             <span>
               {subscription.minutesUsed} / {subscription.minutesLimit} minutes
               used
+              <span className="mx-2 text-zinc-700">·</span>
+              {subscription.videosStored} / {subscription.videosLimit} videos
             </span>
             {periodEnd && <span>Resets {periodEnd}</span>}
           </div>
