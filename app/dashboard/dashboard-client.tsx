@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   User,
   Settings,
+  CreditCard,
   Sparkles,
   LogOut,
   Plus,
@@ -108,13 +109,23 @@ export default function DashboardClient({ user, initialVideos }: DashboardClient
             <Settings className="w-4 h-4" />
             Settings
           </Link>
+          <Link
+            href="/dashboard/billing"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300 transition-colors text-[13px]"
+          >
+            <CreditCard className="w-4 h-4" />
+            Billing
+          </Link>
         </nav>
 
         <div className="space-y-2 pt-4 border-t border-white/[0.04]">
-          <button className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-lg font-medium text-[13px] transition-colors">
+          <Link
+            href="/dashboard/billing"
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-lg font-medium text-[13px] transition-colors"
+          >
             <Sparkles className="w-3.5 h-3.5" />
             Upgrade Plan
-          </button>
+          </Link>
 
           <div className="flex items-center gap-3 px-3 py-2">
             <div className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-[11px] font-semibold text-zinc-400 uppercase">

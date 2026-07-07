@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(npx eslint *)",
-      "mcp__plugin_cloudflare_cloudflare-docs__search_cloudflare_documentation"
+      "mcp__plugin_cloudflare_cloudflare-docs__search_cloudflare_documentation",
+      "WebSearch",
+      "mcp__paddle-sandbox__search",
+      "mcp__paddle-sandbox__execute",
+      "Bash(timeout 300 node node_modules/typescript/bin/tsc --noEmit)"
     ]
   }
 }

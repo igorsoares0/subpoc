@@ -86,14 +86,21 @@ model Subscription {
   userId                 String   @unique
   user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  stripeCustomerId       String?  @unique
-  stripeSubscriptionId   String?  @unique
+  paddleCustomerId       String?  @unique
+  paddleSubscriptionId   String?  @unique
+  paddlePriceId          String?
 
-  status                 String   @default("free") // free, active, canceled, past_due
-  plan                   String   @default("free") // free, basic, pro
+  status                 String   @default("free") // free, active, past_due, paused
+  plan                   String   @default("free") // free, starter, pro
 
   minutesUsed            Int      @default(0)
-  minutesLimit           Int      @default(10) // free: 10, basic: 100, pro: 500
+  minutesLimit           Int      @default(10) // free: 10, starter: 30, pro: 120
+
+  // Fim do período de uso corrente. Para pagos, sincronizado pelo webhook do
+  // Paddle (current_billing_period.ends_at); para o free, avançado lazy em
+  // lib/billing.ts. minutesUsed zera quando o período vira.
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean  @default(false)
 
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { headObject, deleteObject, presignGetUrl, projectKey } from "@/lib/r2"
+import { getSubscriptionWithUsage, minutesForDuration } from "@/lib/billing"
 
 // Chamada pelo cliente após o PUT direto ao R2 concluir.
 // Verifica com HEAD que o objeto existe e respeita o limite de tamanho
@@ -67,6 +68,48 @@ export async function POST(
       body.duration > 0
         ? body.duration
         : 0
+
+    // Quota: este é o único ponto onde a duração real chega, então o débito de
+    // minutos acontece aqui (e não no render — re-render não cobra de novo).
+    // A rota só roda uma vez por projeto (status precisa ser "uploading"),
+    // o que impede débito duplicado.
+    const { sub, plan } = await getSubscriptionWithUsage(session.user.id)
+
+    if (duration > plan.maxVideoMinutes * 60) {
+      await deleteObject(video.videoUrl).catch(() => {})
+      await prisma.videoProject.update({
+        where: { id },
+        data: { status: "failed" },
+      })
+      return NextResponse.json(
+        {
+          error: `Your ${plan.name} plan allows videos up to ${plan.maxVideoMinutes} minutes.`,
+          code: "video_too_long",
+        },
+        { status: 400 }
+      )
+    }
+
+    const minutes = minutesForDuration(duration)
+    if (sub.minutesUsed + minutes > sub.minutesLimit) {
+      await deleteObject(video.videoUrl).catch(() => {})
+      await prisma.videoProject.update({
+        where: { id },
+        data: { status: "failed" },
+      })
+      return NextResponse.json(
+        {
+          error: `Monthly limit reached (${sub.minutesUsed}/${sub.minutesLimit} minutes used). Upgrade your plan to keep going.`,
+          code: "quota_exceeded",
+        },
+        { status: 402 }
+      )
+    }
+
+    await prisma.subscription.update({
+      where: { userId: session.user.id },
+      data: { minutesUsed: { increment: minutes } },
+    })
 
     const updated = await prisma.videoProject.update({
       where: { id },
