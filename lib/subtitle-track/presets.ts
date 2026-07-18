@@ -27,6 +27,7 @@ export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
   wordsPerGroup: 3,
   maxCharsPerGroup: undefined,
   splitPauseGap: undefined,
+  minGroupHold: undefined,
   uppercase: false,
   animationMode: "none",
   animationIntensity: "medium",

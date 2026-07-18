@@ -55,6 +55,9 @@ _CLIP_PAD = 16
 # Keep in sync when changing the TS side.
 _MIN_WORD_DURATION = 0.06
 _DEFAULT_PAUSE_GAP = 0.35
+# Mirror of DEFAULT_SEGMENT_OPTIONS.minGroupHold in segments.ts. Readability
+# tail (seconds) held on a chunk's final word before a pause — keep in sync.
+_DEFAULT_MIN_GROUP_HOLD = 0.7
 
 
 def _style_pause_gap(style: dict) -> float:
@@ -62,20 +65,33 @@ def _style_pause_gap(style: dict) -> float:
     return float(raw) if raw is not None else _DEFAULT_PAUSE_GAP
 
 
+def _style_min_group_hold(style: dict) -> float:
+    raw = (style or {}).get("minGroupHold")
+    return float(raw) if raw is not None else _DEFAULT_MIN_GROUP_HOLD
+
+
 def _flat_words(subtitles: list[dict]) -> list[dict]:
     return [w for sub in subtitles for w in (sub.get("words") or [])]
 
 
 def _normalize_word_intervals(
-    words: list[dict], pause_gap: float
+    words: list[dict], pause_gap: float, min_group_hold: float = 0.0
 ) -> list[tuple[float, float]]:
     """
     Python mirror of normalizeWords in lib/subtitle-track/normalize.ts —
     same rules, applied per word against the next one (start never moves):
     clamp overlaps, absorb gaps smaller than pause_gap by extending end to the
-    next start, and enforce a minimum hold otherwise. Returns (start, end)
-    spans sorted by start.
+    next start, and enforce a minimum hold otherwise. The else-branch only ever
+    fires on a chunk's final word (before a pause, or the last word), so
+    min_group_hold lengthens each chunk's readability tail into the trailing
+    silence, clamped to the next start so it never overlaps the next chunk.
+    Returns (start, end) spans sorted by start.
+
+    This must reproduce the DISPLAY pass of getWordGroupDisplay (dispWords),
+    since the schedule built from these spans has to cover exactly the intervals
+    the /render page paints — otherwise a held chunk would get a blank frame.
     """
+    hold = max(_MIN_WORD_DURATION, min_group_hold)
     spans = sorted(
         (float(w.get("start", 0)), float(w.get("end", 0))) for w in words
     )
@@ -88,7 +104,7 @@ def _normalize_word_intervals(
         if nxt is not None and nxt - end < pause_gap:
             end = nxt
         else:
-            end = max(end, start + _MIN_WORD_DURATION)
+            end = max(end, start + hold)
             if nxt is not None:
                 end = min(end, nxt)
         out.append((start, end))
@@ -184,7 +200,9 @@ def _build_keyframes(
         # Normalized (extended) spans, not raw word timings — one keyframe per
         # word, held until the next word starts, matching what the page paints.
         spans = _normalize_word_intervals(
-            _flat_words(subtitles), _style_pause_gap(style)
+            _flat_words(subtitles),
+            _style_pause_gap(style),
+            _style_min_group_hold(style),
         )
         for orig_start, orig_end in spans:
             out_end = orig_end - trim_start
@@ -312,7 +330,9 @@ def _build_active_intervals(
 
     if display_mode == "word-group":
         spans = _normalize_word_intervals(
-            _flat_words(subtitles), _style_pause_gap(style)
+            _flat_words(subtitles),
+            _style_pause_gap(style),
+            _style_min_group_hold(style),
         )
         for start, end in spans:
             s = start - trim_start

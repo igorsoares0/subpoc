@@ -24,12 +24,24 @@ export interface SegmentOptions {
   maxChars: number;
   /** A silent gap >= this many seconds between two words forces a new chunk. */
   pauseGap: number;
+  /**
+   * Minimum time (seconds) a chunk's final word is held on screen before a
+   * trailing pause, so short/fast phrases don't blink past faster than they can
+   * be read. Applied in normalizeWords (display pass only) and clamped to the
+   * next word's start, so it adds a readability tail into silence without
+   * overlapping the next chunk or changing where chunks split. Conservative by
+   * default — bump it for slower captions, set 0 to disable.
+   *
+   * Mirror: _DEFAULT_MIN_GROUP_HOLD in worker/subtitle_renderer.py.
+   */
+  minGroupHold: number;
 }
 
 export const DEFAULT_SEGMENT_OPTIONS: SegmentOptions = {
   maxWords: 4,
   maxChars: 24,
   pauseGap: 0.35,
+  minGroupHold: 0.7,
 };
 
 /**

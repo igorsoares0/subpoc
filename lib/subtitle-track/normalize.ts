@@ -19,11 +19,18 @@ export const MIN_WORD_DURATION = 0.06;
  *     to the next `start`: the group holds on screen and the highlight rests
  *     on the last spoken word, exactly through the moments a chunk is visible;
  *  3. min hold — otherwise (real pause, or last word) `end` is raised to at
- *     least `start + MIN_WORD_DURATION`.
+ *     least `start + max(MIN_WORD_DURATION, minGroupHold)`, then clamped to the
+ *     next `start` so it never overflows into the following word.
  *
- * Gaps >= `pauseGap` are deliberately left open — that's the same threshold
- * `buildSegments` uses to split chunks, so the caption still hides during
- * real pauses and the chunking is unchanged by normalization.
+ * The else-branch of rule 3 only ever fires on a chunk's *final* word — the one
+ * before a pause >= `pauseGap`, or the very last word — because every other
+ * word takes the snap branch. So `minGroupHold` gives each caption chunk a
+ * readability tail into the trailing silence (fixing fast/blinking captions)
+ * WITHOUT touching within-chunk timing or the split boundaries: it can only
+ * lengthen a word that already ends a chunk, and never past the next word's
+ * start, so `buildSegments` (which keys off the same `pauseGap`) is unchanged.
+ * Pass `minGroupHold = 0` to get the raw MIN_WORD_DURATION floor — that variant
+ * feeds segmentation, so the tail extension can't feed back and merge chunks.
  *
  * Mirrored in worker/subtitle_renderer.py (_normalize_word_intervals) so the
  * capture schedule covers the same extended intervals this component paints —
@@ -32,7 +39,9 @@ export const MIN_WORD_DURATION = 0.06;
 export function normalizeWords(
   words: SubtitleWord[],
   pauseGap: number,
+  minGroupHold = 0,
 ): SubtitleWord[] {
+  const hold = Math.max(MIN_WORD_DURATION, minGroupHold);
   const sorted = [...words].sort((a, b) => a.start - b.start);
   return sorted.map((w, i) => {
     const next = sorted[i + 1];
@@ -41,7 +50,7 @@ export function normalizeWords(
     if (next && next.start - end < pauseGap) {
       end = next.start;
     } else {
-      end = Math.max(end, w.start + MIN_WORD_DURATION);
+      end = Math.max(end, w.start + hold);
       if (next) end = Math.min(end, next.start);
     }
     return end === w.end ? w : { ...w, end };

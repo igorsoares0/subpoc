@@ -37,18 +37,28 @@ export function getWordGroupDisplay(
   if (rawWords.length === 0) return null;
 
   const pauseGap = options?.pauseGap ?? DEFAULT_SEGMENT_OPTIONS.pauseGap;
-  const allWords = normalizeWords(rawWords, pauseGap);
+  const minGroupHold =
+    options?.minGroupHold ?? DEFAULT_SEGMENT_OPTIONS.minGroupHold;
+
+  // Two normalize passes over the same word list (same order/count/starts, so
+  // indices align): `segWords` keeps the raw MIN_WORD_DURATION floor and feeds
+  // segmentation, so the readability tail can't shrink a gap and merge chunks;
+  // `dispWords` carries the min-group-hold tail and drives the active-word
+  // lookup, so a chunk's last word stays "active" through its hold and the
+  // caption lingers into the trailing silence instead of blinking off.
+  const segWords = normalizeWords(rawWords, pauseGap);
+  const dispWords = normalizeWords(rawWords, pauseGap, minGroupHold);
 
   let activeWordIdx = -1;
-  for (let i = 0; i < allWords.length; i++) {
-    if (currentTime >= allWords[i].start && currentTime < allWords[i].end) {
+  for (let i = 0; i < dispWords.length; i++) {
+    if (currentTime >= dispWords[i].start && currentTime < dispWords[i].end) {
       activeWordIdx = i;
       break;
     }
   }
   if (activeWordIdx === -1) return null;
 
-  const segments = buildSegments(allWords, options);
+  const segments = buildSegments(segWords, options);
   const segment = findSegmentForWord(segments, activeWordIdx);
   if (!segment) return null;
 

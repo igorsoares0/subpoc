@@ -42,6 +42,10 @@ export interface SubtitleStyle {
   maxCharsPerGroup?: number;
   /** Auto-split: silent gap (seconds) between words that forces a new chunk. */
   splitPauseGap?: number;
+  /** Reading speed (item 4): minimum time (seconds) a chunk's final word is
+   * held on screen before a trailing pause, so fast phrases don't blink past.
+   * Falls back to a conservative default. */
+  minGroupHold?: number;
   uppercase?: boolean;
   /** Per-word entrance animation played as each word becomes active
    * (word-group mode only). Default: "none". */

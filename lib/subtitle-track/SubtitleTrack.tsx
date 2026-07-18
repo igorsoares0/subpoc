@@ -192,6 +192,7 @@ export function SubtitleTrack({
       maxWords: style.wordsPerGroup ?? DEFAULT_SEGMENT_OPTIONS.maxWords,
       maxChars: style.maxCharsPerGroup ?? DEFAULT_SEGMENT_OPTIONS.maxChars,
       pauseGap: style.splitPauseGap ?? DEFAULT_SEGMENT_OPTIONS.pauseGap,
+      minGroupHold: style.minGroupHold ?? DEFAULT_SEGMENT_OPTIONS.minGroupHold,
     });
     if (!wordGroup) return null;
 
