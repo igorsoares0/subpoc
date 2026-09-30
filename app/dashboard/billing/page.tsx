@@ -20,7 +20,11 @@ export default async function BillingPage() {
 
   return (
     <BillingClient
-      user={{ id: session.user.id, email: session.user.email ?? "" }}
+      user={{
+        id: session.user.id,
+        email: session.user.email ?? "",
+        name: session.user.name ?? null,
+      }}
       subscription={{
         plan: sub.plan,
         status: sub.status,

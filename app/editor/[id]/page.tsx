@@ -37,5 +37,10 @@ export default async function EditorPage({ params }: EditorPageProps) {
 
   // Prisma returns Json fields as JsonValue; the editor consumes the concrete
   // stored shapes, so cast through unknown at this boundary.
-  return <EditorClient video={signedVideo as unknown as VideoProject} />
+  return (
+    <EditorClient
+      video={signedVideo as unknown as VideoProject}
+      user={{ name: session.user.name ?? null, email: session.user.email ?? null }}
+    />
+  )
 }

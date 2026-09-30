@@ -1,25 +1,15 @@
 "use client"
 
 import { useEffect } from "react"
-import { CheckCircle2, AlertCircle, Info, X } from "lucide-react"
+import { Check, Info, X } from "lucide-react"
 import { useToastStore, type Toast } from "@/lib/toast"
+import { cn } from "@/lib/utils"
 
-const VARIANT_STYLES: Record<
-  Toast["variant"],
-  { border: string; icon: React.ReactNode }
-> = {
-  error: {
-    border: "border-red-500/30",
-    icon: <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />,
-  },
-  success: {
-    border: "border-emerald-500/30",
-    icon: <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />,
-  },
-  info: {
-    border: "border-blue-500/30",
-    icon: <Info className="w-4 h-4 text-blue-400 flex-shrink-0" />,
-  },
+// 20px circular badge; glyph is always #0E0E0C on the colored fill.
+const BADGE: Record<Toast["variant"], { className: string; icon: React.ReactNode }> = {
+  success: { className: "bg-accent", icon: <Check className="size-3 text-on-accent" strokeWidth={3} /> },
+  error: { className: "bg-danger", icon: <X className="size-3 text-on-accent" strokeWidth={3} /> },
+  info: { className: "bg-paper", icon: <Info className="size-3 text-canvas" strokeWidth={2.5} /> },
 }
 
 function ToastItem({ toast }: { toast: Toast }) {
@@ -31,32 +21,34 @@ function ToastItem({ toast }: { toast: Toast }) {
     return () => clearTimeout(timer)
   }, [toast.id, toast.duration, dismiss])
 
-  const variant = VARIANT_STYLES[toast.variant]
+  const badge = BADGE[toast.variant]
 
   return (
     <div
       role="status"
-      className={`pointer-events-auto flex items-start gap-3 w-[320px] bg-elevated border ${variant.border} rounded-xl shadow-2xl px-4 py-3`}
+      className="pointer-events-auto flex items-center gap-3 max-w-[420px] bg-elevated border border-line/12 rounded-lg shadow-[var(--shadow-menu)] pl-3 pr-2 py-2.5 animate-[toast-in_200ms_ease-out]"
     >
-      {variant.icon}
-      <p className="flex-1 text-[13px] leading-snug text-zinc-100">{toast.message}</p>
+      <span className={cn("size-5 rounded-full flex items-center justify-center flex-none", badge.className)}>
+        {badge.icon}
+      </span>
+      <p className="flex-1 text-[13px] leading-snug text-paper">{toast.message}</p>
       {toast.action && (
         <button
           onClick={() => {
             toast.action!.onClick()
             dismiss(toast.id)
           }}
-          className="text-[12px] font-medium text-blue-400 hover:text-blue-300 transition-colors flex-shrink-0"
+          className="text-[12.5px] font-medium text-accent-ink hover:underline underline-offset-2 flex-none"
         >
           {toast.action.label}
         </button>
       )}
       <button
         onClick={() => dismiss(toast.id)}
-        className="text-zinc-500 hover:text-zinc-300 transition-colors flex-shrink-0"
+        className="size-6 rounded-[6px] flex items-center justify-center text-ink-3 hover:text-paper hover:bg-hover transition-colors duration-150 flex-none"
         aria-label="Dismiss"
       >
-        <X className="w-3.5 h-3.5" />
+        <X className="size-3.5" />
       </button>
     </div>
   )
@@ -66,7 +58,7 @@ export function Toaster() {
   const toasts = useToastStore((s) => s.toasts)
 
   return (
-    <div className="fixed bottom-4 right-4 z-[10000] flex flex-col gap-2 pointer-events-none">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[10000] flex flex-col items-center gap-2 pointer-events-none">
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} />
       ))}

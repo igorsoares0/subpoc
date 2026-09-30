@@ -4,8 +4,12 @@ import { Suspense, useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Mail, Lock, Loader2, ArrowRight, CheckCircle2 } from "lucide-react"
+import { Mail, Lock, Loader2, ArrowRight } from "lucide-react"
 import { GoogleButton } from "@/components/auth/GoogleButton"
+import { AuthShell, AuthHeading, AuthLink, OrDivider } from "@/components/auth/AuthShell"
+import { Button } from "@/components/ui/Button"
+import { Field, Input } from "@/components/ui/Field"
+import { Banner } from "@/components/ui/Banner"
 
 function LoginForm() {
   const router = useRouter()
@@ -52,127 +56,86 @@ function LoginForm() {
 
   return (
     <>
-      {notice && (
-        <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 px-4 py-3 rounded-xl text-[13px] mb-5">
-          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-          {notice}
-        </div>
+      {notice && <Banner>{notice}</Banner>}
+
+      {(error || queryError) && (
+        <Banner variant="danger">
+          {error ||
+            (queryError === "invalid_token"
+              ? "That link is invalid or has expired."
+              : "Couldn't sign in with Google. Please try again.")}
+        </Banner>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {(error || queryError) && (
-          <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl text-[13px]">
-            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            {error ||
-              (queryError === "invalid_token"
-                ? "That link is invalid or has expired."
-                : "Couldn't sign in with Google. Please try again.")}
-          </div>
-        )}
+      <form onSubmit={handleSubmit} className="flex flex-col gap-[22px]">
+        <Field label="Email">
+          <Input
+            icon={Mail}
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+            placeholder="you@example.com"
+          />
+        </Field>
 
-        <div>
-          <label htmlFor="email" className="block text-[12px] font-medium text-zinc-400 mb-2">
-            Email
-          </label>
-          <div className="relative">
-            <Mail className="w-4 h-4 text-zinc-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full pl-10 pr-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-[13px] text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/30 transition-colors"
-              placeholder="you@example.com"
-            />
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label htmlFor="password" className="block text-[12px] font-medium text-zinc-400">
-              Password
-            </label>
-            <Link href="/forgot-password" className="text-[12px] text-blue-400 hover:text-blue-300 transition-colors">
+        <div className="flex flex-col gap-2">
+          <div className="flex justify-between text-[12.5px] font-medium text-ink-2">
+            <label htmlFor="password">Password</label>
+            <Link
+              href="/forgot-password"
+              className="font-normal text-paper underline underline-offset-[3px] hover:text-accent-ink"
+            >
               Forgot password?
             </Link>
           </div>
-          <div className="relative">
-            <Lock className="w-4 h-4 text-zinc-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full pl-10 pr-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-[13px] text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/30 transition-colors"
-              placeholder="Enter your password"
-            />
-          </div>
+          <Input
+            icon={Lock}
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+            placeholder="Enter your password"
+          />
         </div>
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-medium text-[13px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <Button type="submit" size="lg" disabled={isLoading} className="w-full">
           {isLoading ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Signing in...
+              <Loader2 className="size-4 animate-spin" />
+              Signing in…
             </>
           ) : (
             <>
               Sign in
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="size-[15px]" />
             </>
           )}
-        </button>
+        </Button>
       </form>
 
-      <div className="flex items-center gap-3 my-5">
-        <div className="h-px bg-white/[0.06] flex-1" />
-        <span className="text-[11px] text-zinc-600">or</span>
-        <div className="h-px bg-white/[0.06] flex-1" />
-      </div>
+      <OrDivider />
 
       <GoogleButton />
 
-      <div className="mt-6 text-center">
-        <p className="text-[13px] text-zinc-600">
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="text-blue-400 hover:text-blue-300 transition-colors">
-            Sign up
-          </Link>
-        </p>
-      </div>
+      <p className="text-[13px] text-ink-3 text-center">
+        Don&apos;t have an account? <AuthLink href="/register">Sign up</AuthLink>
+      </p>
     </>
   )
 }
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center px-4 relative">
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-blue-600/[0.04] rounded-full blur-[100px] pointer-events-none" />
-
-      <div className="w-full max-w-[400px] relative">
-        <div className="mb-8 text-center">
-          <Link href="/">
-            <h1 className="text-[16px] font-bold tracking-wide bg-gradient-to-r from-[#2563eb] to-[#60a5fa] bg-clip-text text-transparent inline-block mb-3">
-              SUPERTITLE
-            </h1>
-          </Link>
-          <p className="text-[14px] text-zinc-500">Sign in to your account</p>
-        </div>
-
-        <div className="bg-surface rounded-2xl p-8 border border-white/[0.08]">
-          <Suspense fallback={<Loader2 className="w-5 h-5 animate-spin text-zinc-500 mx-auto" />}>
-            <LoginForm />
-          </Suspense>
-        </div>
-      </div>
-    </div>
+    <AuthShell>
+      <AuthHeading title="Sign in" subtitle="Welcome back to your projects." />
+      <Suspense fallback={<Loader2 className="size-5 animate-spin text-ink-4 mx-auto" />}>
+        <LoginForm />
+      </Suspense>
+    </AuthShell>
   )
 }

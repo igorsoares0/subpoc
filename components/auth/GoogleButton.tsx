@@ -1,6 +1,7 @@
 "use client"
 
 import { signIn } from "next-auth/react"
+import { buttonClass } from "@/components/ui/Button"
 
 export function GoogleButton({
   label = "Continue with Google",
@@ -13,7 +14,7 @@ export function GoogleButton({
     <button
       type="button"
       onClick={() => signIn("google", { callbackUrl })}
-      className="w-full flex items-center justify-center gap-2.5 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] text-white py-3 rounded-xl font-medium text-[13px] transition-colors"
+      className={buttonClass("ghost", "lg", "w-full gap-2.5 text-[13.5px]")}
     >
       <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
         <path

@@ -34,13 +34,14 @@ export interface SubtitleTrackProps {
   onResizeStart?: (handle: "font" | "width", e: MouseEvent) => void;
 }
 
-const HANDLE_COLOR = "#7c5cff";
+// Editor-only selection chrome (never rendered by the worker). Lime accent.
+const HANDLE_COLOR = "#D6FF3D";
 
 const handleBase: CSSProperties = {
   position: "absolute",
   width: 10,
   height: 10,
-  background: "#fff",
+  background: "#0E0E0C",
   border: `1.5px solid ${HANDLE_COLOR}`,
   borderRadius: 2,
   pointerEvents: "auto",

@@ -3,7 +3,18 @@
 import { Suspense, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Loader2, ArrowRight, CheckCircle2, MailCheck } from "lucide-react"
+import { Loader2, ArrowRight, ArrowLeft, CheckCircle2, MailCheck, AlertCircle } from "lucide-react"
+import { AuthShell, AuthState } from "@/components/auth/AuthShell"
+import { Button, buttonClass } from "@/components/ui/Button"
+
+function BackToSignIn({ href = "/login" }: { href?: string }) {
+  return (
+    <Link href={href} className={buttonClass("ghost", "md")}>
+      <ArrowLeft className="size-[15px]" />
+      Back to sign in
+    </Link>
+  )
+}
 
 function VerifyEmailForm() {
   const token = useSearchParams().get("token") || ""
@@ -35,100 +46,70 @@ function VerifyEmailForm() {
 
   if (!token) {
     return (
-      <div className="text-center space-y-4">
-        <p className="text-[14px] text-zinc-300">This verification link is invalid.</p>
-        <Link
-          href="/login"
-          className="inline-block text-blue-400 hover:text-blue-300 text-[13px]"
-        >
-          Go to sign in
-        </Link>
-      </div>
+      <AuthState icon={AlertCircle} tone="danger" title="Invalid" em="link" action={<BackToSignIn />}>
+        This verification link is invalid.
+      </AuthState>
     )
   }
 
   if (status === "success") {
     return (
-      <div className="text-center space-y-4">
-        <CheckCircle2 className="w-10 h-10 text-blue-400 mx-auto" />
-        <p className="text-[15px] text-white font-medium">Email verified</p>
-        <p className="text-[13px] text-zinc-400">Your account is active. You can sign in now.</p>
-        <Link
-          href="/login?verified=1"
-          className="inline-block text-blue-400 hover:text-blue-300 text-[13px] transition-colors"
-        >
-          Go to sign in
-        </Link>
-      </div>
+      <AuthState
+        icon={CheckCircle2}
+        title="Email"
+        em="verified"
+        action={
+          <Link href="/login?verified=1" className={buttonClass("primary", "md")}>
+            Go to sign in
+            <ArrowRight className="size-[15px]" />
+          </Link>
+        }
+      >
+        Your account is active. You can sign in now.
+      </AuthState>
     )
   }
 
   if (status === "error") {
     return (
-      <div className="text-center space-y-4">
-        <p className="text-[14px] text-zinc-300">{error}</p>
-        <Link
-          href="/login"
-          className="inline-block text-blue-400 hover:text-blue-300 text-[13px]"
-        >
-          Go to sign in
-        </Link>
-      </div>
+      <AuthState icon={AlertCircle} tone="danger" title="Couldn't" em="verify" action={<BackToSignIn />}>
+        {error}
+      </AuthState>
     )
   }
 
   return (
-    <div className="text-center space-y-5">
-      <MailCheck className="w-10 h-10 text-blue-400 mx-auto" />
-      <p className="text-[13px] text-zinc-400">
-        Click below to confirm your email address and activate your account.
-      </p>
-      <button
-        onClick={verify}
-        disabled={status === "loading"}
-        className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-medium text-[13px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {status === "loading" ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Verifying...
-          </>
-        ) : (
-          <>
-            Verify email
-            <ArrowRight className="w-4 h-4" />
-          </>
-        )}
-      </button>
-    </div>
+    <AuthState
+      icon={MailCheck}
+      title="Confirm your"
+      em="email"
+      action={
+        <Button size="lg" onClick={verify} disabled={status === "loading"} className="w-full">
+          {status === "loading" ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Verifying…
+            </>
+          ) : (
+            <>
+              Verify email
+              <ArrowRight className="size-[15px]" />
+            </>
+          )}
+        </Button>
+      }
+    >
+      Click below to confirm your email address and activate your account.
+    </AuthState>
   )
 }
 
 export default function VerifyEmailPage() {
   return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center px-4 relative">
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-blue-600/[0.04] rounded-full blur-[100px] pointer-events-none" />
-
-      <div className="w-full max-w-[400px] relative">
-        <div className="mb-8 text-center">
-          <Link href="/">
-            <h1 className="text-[16px] font-bold tracking-wide bg-gradient-to-r from-[#2563eb] to-[#60a5fa] bg-clip-text text-transparent inline-block mb-3">
-              SUPERTITLE
-            </h1>
-          </Link>
-          <p className="text-[14px] text-zinc-500">Confirm your email</p>
-        </div>
-
-        <div className="bg-surface rounded-2xl p-8 border border-white/[0.08]">
-          <Suspense
-            fallback={
-              <Loader2 className="w-5 h-5 animate-spin text-zinc-500 mx-auto" />
-            }
-          >
-            <VerifyEmailForm />
-          </Suspense>
-        </div>
-      </div>
-    </div>
+    <AuthShell>
+      <Suspense fallback={<Loader2 className="size-5 animate-spin text-ink-4 mx-auto" />}>
+        <VerifyEmailForm />
+      </Suspense>
+    </AuthShell>
   )
 }

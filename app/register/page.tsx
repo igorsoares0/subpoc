@@ -2,8 +2,12 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Mail, Lock, User, Loader2, ArrowRight, MailCheck } from "lucide-react"
+import { Mail, Lock, User, Loader2, ArrowLeft, MailCheck } from "lucide-react"
 import { GoogleButton } from "@/components/auth/GoogleButton"
+import { AuthShell, AuthHeading, AuthLink, AuthState, OrDivider } from "@/components/auth/AuthShell"
+import { Button, buttonClass } from "@/components/ui/Button"
+import { Field, Input } from "@/components/ui/Field"
+import { Banner } from "@/components/ui/Banner"
 
 export default function RegisterPage() {
   const [name, setName] = useState("")
@@ -45,142 +49,92 @@ export default function RegisterPage() {
     }
   }
 
+  if (submitted) {
+    return (
+      <AuthShell>
+        <AuthState
+          icon={MailCheck}
+          title="Check your"
+          em="email"
+          action={
+            <Link href="/login" className={buttonClass("ghost", "md")}>
+              <ArrowLeft className="size-[15px]" />
+              Back to sign in
+            </Link>
+          }
+        >
+          We sent a verification link to <span className="text-paper">{email}</span>. Click it, then
+          sign in.
+        </AuthState>
+      </AuthShell>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center px-4 relative">
-      {/* Subtle background glow */}
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-blue-600/[0.04] rounded-full blur-[100px] pointer-events-none" />
+    <AuthShell>
+      <AuthHeading title="Create your" em="account" />
 
-      <div className="w-full max-w-[400px] relative">
-        <div className="mb-8 text-center">
-          <Link href="/">
-            <h1 className="text-[16px] font-bold tracking-wide bg-gradient-to-r from-[#2563eb] to-[#60a5fa] bg-clip-text text-transparent inline-block mb-3">
-              SUPERTITLE
-            </h1>
-          </Link>
-          <p className="text-[14px] text-zinc-500">Create your account</p>
-        </div>
+      {error && <Banner variant="danger">{error}</Banner>}
 
-        <div className="bg-surface rounded-2xl p-8 border border-white/[0.08]">
-          {submitted ? (
-            <div className="text-center space-y-4">
-              <MailCheck className="w-10 h-10 text-blue-400 mx-auto" />
-              <p className="text-[15px] text-white font-medium">Check your email</p>
-              <p className="text-[13px] text-zinc-400">
-                We sent a verification link to <span className="text-zinc-200">{email}</span>.
-                Click it to activate your account, then sign in.
-              </p>
-              <Link
-                href="/login"
-                className="inline-block text-blue-400 hover:text-blue-300 text-[13px] transition-colors"
-              >
-                Go to sign in
-              </Link>
-            </div>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-[22px]">
+        <Field label="Name">
+          <Input
+            icon={User}
+            id="name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoComplete="name"
+            placeholder="Your name"
+          />
+        </Field>
+
+        <Field label="Email">
+          <Input
+            icon={Mail}
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+            placeholder="you@example.com"
+          />
+        </Field>
+
+        <Field label="Password">
+          <Input
+            icon={Lock}
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={8}
+            autoComplete="new-password"
+            placeholder="At least 8 characters"
+          />
+        </Field>
+
+        <Button type="submit" size="lg" disabled={isLoading} className="w-full">
+          {isLoading ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Creating account…
+            </>
           ) : (
-          <>
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
-              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl text-[13px]">
-                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="name" className="block text-[12px] font-medium text-zinc-400 mb-2">
-                Name
-              </label>
-              <div className="relative">
-                <User className="w-4 h-4 text-zinc-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-[13px] text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/30 transition-colors"
-                  placeholder="Your name"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="email" className="block text-[12px] font-medium text-zinc-400 mb-2">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-zinc-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full pl-10 pr-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-[13px] text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/30 transition-colors"
-                  placeholder="you@example.com"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-[12px] font-medium text-zinc-400 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-zinc-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={8}
-                  className="w-full pl-10 pr-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-[13px] text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/30 transition-colors"
-                  placeholder="At least 8 characters"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-medium text-[13px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Creating account...
-                </>
-              ) : (
-                <>
-                  Create account
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </form>
-
-          <div className="flex items-center gap-3 my-5">
-            <div className="h-px bg-white/[0.06] flex-1" />
-            <span className="text-[11px] text-zinc-600">or</span>
-            <div className="h-px bg-white/[0.06] flex-1" />
-          </div>
-
-          <GoogleButton label="Sign up with Google" />
-
-          <div className="mt-6 text-center">
-            <p className="text-[13px] text-zinc-600">
-              Already have an account?{" "}
-              <Link href="/login" className="text-blue-400 hover:text-blue-300 transition-colors">
-                Sign in
-              </Link>
-            </p>
-          </div>
-          </>
+            "Create account"
           )}
-        </div>
-      </div>
-    </div>
+        </Button>
+      </form>
+
+      <OrDivider />
+
+      <GoogleButton label="Sign up with Google" />
+
+      <p className="text-[13px] text-ink-3 text-center">
+        Already have an account? <AuthLink href="/login">Sign in</AuthLink>
+      </p>
+    </AuthShell>
   )
 }

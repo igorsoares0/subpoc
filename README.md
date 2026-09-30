@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SUPERTITLE — AI Video Subtitles
 
-## Getting Started
+SaaS de legendagem de vídeo com IA. O usuário faz upload de um vídeo, o app transcreve o áudio automaticamente e ele edita as legendas e o visual num editor, exportando o vídeo final com as legendas gravadas ou o arquivo de legenda.
 
-First, run the development server:
+## Fluxo do usuário
 
-```bash
+1. **Cadastro/login** — email + senha (com verificação de email e reset de senha) ou Google.
+2. **Upload do vídeo** — vai direto para o Cloudflare R2 via URL pré-assinada.
+3. **Transcrição automática** — OpenAI Whisper gera as legendas com timestamps.
+4. **Editor** (`app/editor/[id]`):
+   - editar texto e timing das legendas
+   - estilo via templates (fonte, cor, posição, fundo, animações)
+   - formato: YouTube 16:9, Stories/TikTok 9:16, Feed 1:1, 4:3 ou original
+   - trim do vídeo com timeline em filmstrip
+   - logo e "hook" (texto de chamada) sobrepostos
+   - preview em tempo real no navegador
+5. **Exportação** — vídeo final renderizado com FFmpeg (legendas hardcoded) ou arquivo `.srt` / `.vtt`.
+
+## Arquitetura
+
+- **Next.js 16** (App Router) — frontend, API routes, auth (NextAuth v5), Postgres via Prisma, billing via Paddle, emails via Resend.
+- **Worker Python** (`worker/`, FastAPI) — trabalho pesado: transcrição, renderização final e geração de filmstrip/thumbnails. Avisa o Next.js ao terminar via webhooks em `app/api/webhooks/*`.
+- **Storage** — Cloudflare R2 (API S3).
+- **Deploy** — VPS Hetzner + Coolify.
+
+## Planos
+
+Cobrança por minutos de vídeo processados por mês, debitados no upload-complete:
+
+| Plano   | Preço    | Minutos/mês |
+|---------|----------|-------------|
+| Free    | —        | 10          |
+| Starter | $12/mês  | 30          |
+| Pro     | $29/mês  | 120         |
+
+## Rodando localmente
+
+Pré-requisitos: Node.js, Python 3.11+, Postgres, Redis e FFmpeg.
+
+### App Next.js
+
+```powershell
+copy .env.example .env   # preencher as variáveis
+npm install
+npx prisma generate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre em [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Worker Python
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```powershell
+cd worker
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env   # preencher as variáveis
+uvicorn main:app --reload
+```
 
-## Learn More
+Detalhes do worker em [`worker/README.md`](worker/README.md).
 
-To learn more about Next.js, take a look at the following resources:
+## Documentação adicional
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [`ARQUITETURA_SAAS_LEGENDAS.md`](ARQUITETURA_SAAS_LEGENDAS.md) — visão original da arquitetura (parcialmente desatualizada: cita Stripe/Vercel/Railway)
+- [`FASTAPI_WORKER_GUIDE.md`](FASTAPI_WORKER_GUIDE.md) — guia do worker
+- [`R2_SETUP.md`](R2_SETUP.md) — configuração do Cloudflare R2
+- [`FILMSTRIP_IMPLEMENTATION.md`](FILMSTRIP_IMPLEMENTATION.md) — timeline com filmstrip

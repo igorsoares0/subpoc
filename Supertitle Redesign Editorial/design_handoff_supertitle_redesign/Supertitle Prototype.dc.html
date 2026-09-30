@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Montserrat:wght@700;800;900&family=Poppins:wght@800;900&family=Inter:wght@600;700;900&family=Roboto:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/lucide-static@0.460.0/font/lucide.css">
+<style>
+html,body{margin:0;height:100%;background:#F4F2EC;font-family:Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:#16150F}
+a{color:#16150F}a:hover{color:#4F6300}
+[class^="icon-"],[class*=" icon-"]{line-height:1;display:inline-block}
+input,textarea,button{font-family:inherit}
+input::placeholder,textarea::placeholder{color:#8F8C82}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+</style>
+</helmet>
+<div style="position:relative;height:100vh;min-width:1180px;overflow:hidden;background:#F4F2EC;color:#16150F">
+
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Login" style="height:100%;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)">
+<div style="background-color:#E9E6DD;background-image:radial-gradient(rgba(22,21,15,0.07) 1px,transparent 1px);background-size:20px 20px;border-right:1px solid rgba(22,21,15,0.08);display:flex;flex-direction:column;justify-content:space-between;padding:40px 56px">
+<span style="font:400 30px/1 'Instrument Serif',serif">Supertitle<span style="color:#4F6300">.</span></span>
+<div style="display:flex;align-items:flex-end;gap:32px">
+<div style="position:relative;width:236px;height:420px;flex:none;border-radius:6px;background-image:url('uploads/pasted-1790206875121-0.png');background-size:579.68% auto;background-position:62.94% 33.09%;box-shadow:0 20px 60px rgba(22,21,15,0.14)"><div style="position:absolute;left:14px;right:14px;top:290px;text-align:center;font:900 24px/1.1 Montserrat,sans-serif;color:#fff;text-shadow:2px 0 #000,-2px 0 #000,0 2px #000,0 -2px #000,0 4px 10px rgba(0,0,0,0.5)">O <span style="color:#FFD700">ASSUNTO</span></div></div>
+<div style="flex:none;display:flex;flex-direction:column;gap:14px;padding-bottom:8px"><span style="font:400 52px/1.14 'Instrument Serif',serif;white-space:nowrap">Subtitles that<br><span style="font-style:italic">keep them</span><br>watching<span style="color:#4F6300">.</span></span><span style="font-size:14px;color:#6B685E">Auto-transcribe, style and render — in minutes.</span></div>
+</div>
+</div>
+<div style="display:flex;align-items:center;justify-content:center;padding:0 48px">
+<div style="width:100%;max-width:400px;display:flex;flex-direction:column;gap:22px">
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font:400 44px/1 'Instrument Serif',serif">Sign in</span><span style="font-size:14px;color:#6B685E">Welcome back to your projects.</span></div>
+<sc-if value="{{ loginErr }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;background:#FDECEA;border:1px solid rgba(255,90,78,0.4);font-size:13px"><i class="icon-circle-alert" style="font-size:16px;color:#C8372B"></i>{{ loginErr }}</div></sc-if>
+<label style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12.5px;font-weight:500;color:#45433C">Email</span><div style="height:44px;border-radius:10px;background:#FFFFFF;border:1px solid rgba(22,21,15,0.1);display:flex;align-items:center;gap:10px;padding:0 14px"><i class="icon-mail" style="font-size:15px;color:#8F8C82"></i><input type="email" value="{{ email }}" onChange="{{ onEmail }}" placeholder="you@example.com" style="flex:1;background:transparent;border:none;outline:none;color:#16150F;font-size:14px"></div></label>
+<label style="display:flex;flex-direction:column;gap:8px"><span style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:500;color:#45433C">Password<span style="font-weight:400;color:#16150F;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Forgot password?</span></span><div style="height:44px;border-radius:10px;background:#FFFFFF;border:1px solid rgba(22,21,15,0.1);display:flex;align-items:center;gap:10px;padding:0 14px"><i class="icon-lock" style="font-size:15px;color:#8F8C82"></i><input type="password" value="{{ password }}" onChange="{{ onPassword }}" onKeyDown="{{ onLoginKey }}" placeholder="Enter your password" style="flex:1;background:transparent;border:none;outline:none;color:#16150F;font-size:14px"></div></label>
+<button onClick="{{ signIn }}" style="height:44px;border-radius:10px;border:none;background:#D6FF3D;color:#0E0E0C;display:flex;align-items:center;justify-content:center;gap:8px;font:600 14px Geist,sans-serif;cursor:pointer" style-hover="background:#E3FF70">{{ signInLabel }}<i class="icon-arrow-right" style="font-size:15px"></i></button>
+<div style="display:flex;align-items:center;gap:12px;font-size:11.5px;color:#8F8C82"><span style="flex:1;height:1px;background:rgba(22,21,15,0.08)"></span>or<span style="flex:1;height:1px;background:rgba(22,21,15,0.08)"></span></div>
+<button onClick="{{ signInGoogle }}" style="height:44px;border-radius:10px;border:1px solid rgba(22,21,15,0.14);background:transparent;color:#16150F;display:flex;align-items:center;justify-content:center;gap:10px;font:500 13.5px Geist,sans-serif;cursor:pointer" style-hover="background:#ECE9E1"><span style="width:18px;height:18px;border-radius:50%;background:#16150F;color:#F4F2EC;display:flex;align-items:center;justify-content:center;font:700 11px Geist,sans-serif">G</span>Continue with Google</button>
+<span style="font-size:13px;color:#6B685E;text-align:center">Don't have an account? <span style="color:#16150F;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Sign up</span></span>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDash }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Dashboard" style="height:100%;display:grid;grid-template-columns:248px minmax(0,1fr)">
+<aside style="border-right:1px solid rgba(22,21,15,0.08);display:flex;flex-direction:column;padding:22px 16px 16px;gap:28px">
+<div style="padding:0 8px"><span style="font:400 28px/1 'Instrument Serif',serif">Supertitle<span style="color:#4F6300">.</span></span></div>
+<nav style="display:flex;flex-direction:column;gap:2px;flex:1">
+<div style="height:38px;padding:0 12px;border-radius:9px;display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:500;background:#ECE9E1;color:#16150F"><i class="icon-layout-grid" style="font-size:16px;color:#4F6300"></i>Dashboard</div>
+<div onClick="{{ goBilling }}" style="height:38px;padding:0 12px;border-radius:9px;display:flex;align-items:center;gap:10px;font-size:13.5px;color:#6B685E;cursor:pointer" style-hover="color:#16150F"><i class="icon-credit-card" style="font-size:16px"></i>Billing</div>
+</nav>
+<div style="display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:12px;background:#FFFFFF;border:1px solid rgba(22,21,15,0.08)">
+<span style="font-size:12.5px;font-weight:500">Free plan</span>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="height:4px;border-radius:2px;background:rgba(22,21,15,0.12)"><div style="width:60%;height:100%;border-radius:2px;background:#16150F"></div></div><span style="font:400 11.5px 'Geist Mono',monospace;color:#6B685E">6 / 10 min this month</span></div>
+<button onClick="{{ goBilling }}" style="height:34px;border-radius:10px;border:none;background:#D6FF3D;color:#0E0E0C;display:flex;align-items:center;justify-content:center;gap:8px;font:600 12.5px Geist,sans-serif;cursor:pointer" style-hover="background:#E3FF70"><i class="icon-sparkles" style="font-size:14px"></i>Upgrade plan</button>
+</div>
+<div style="display:flex;align-items:center;gap:10px;padding:0 4px"><div style="width:32px;height:32px;border-radius:50%;background:#DAD6CC;display:flex;align-items:center;justify-content:center;font:500 12px Geist,sans-serif">I</div><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:12.5px">igor</span><span style="font-size:11.5px;color:#8F8C82;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ email }}</span></div><button onClick="{{ signOut }}" title="Sign out" style="width:30px;height:30px;border-radius:7px;border:none;background:transparent;color:#6B685E;font-size:15px;cursor:pointer" style-hover="background:#ECE9E1;color:#16150F"><i class="icon-log-out"></i></button></div>
+</aside>
+<main style="padding:40px 48px;display:flex;flex-direction:column;gap:28px;min-width:0;overflow:auto">
+<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:10px"><span style="font:400 52px/1.02 'Instrument Serif',serif">Welcome back, <span style="font-style:italic">Igor</span></span><span style="font-size:13.5px;color:#6B685E">{{ projCount }}</span></div>
+<div style="display:flex;align-items:center;gap:10px">
+<div style="width:280px;height:40px;border-radius:10px;background:#FFFFFF;border:1px solid rgba(22,21,15,0.1);display:flex;align-items:center;gap:10px;padding:0 12px"><i class="icon-search" style="font-size:15px;color:#8F8C82"></i><input value="{{ search }}" onChange="{{ onSearch }}" placeholder="Search projects…" style="flex:1;background:transparent;border:none;outline:none;color:#16150F;font-size:13.5px"></div>
+<button onClick="{{ openUpload }}" style="height:40px;padding:0 18px;border-radius:10px;border:none;background:#D6FF3D;color:#0E0E0C;display:flex;align-items:center;gap:8px;font:600 13.5px Geist,sans-serif;cursor:pointer" style-hover="background:#E3FF70"><i class="icon-plus" style="font-size:16px"></i>New project</button>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px">
+<sc-for list="{{ projItems }}" as="p" hint-placeholder-count="6">
+<div onClick="{{ p.onOpen }}" style="display:flex;flex-direction:column;border-radius:12px;background:#FFFFFF;border:1px solid rgba(22,21,15,0.08);overflow:hidden;cursor:pointer" style-hover="border-color:rgba(214,255,61,0.45)">
+<div style="position:relative;height:196px;background-image:url('uploads/pasted-1790206875121-0.png');background-size:2300px auto;background-position:{{ p.bgPos }}">
+<div style="position:absolute;inset:0;background:{{ p.dim }}"></div>
+<span style="position:absolute;top:10px;left:10px;height:24px;padding:0 9px;border-radius:12px;background:{{ p.sBg }};color:{{ p.sFg }};display:flex;align-items:center;gap:6px;font:500 11.5px Geist,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.35);white-space:nowrap"><span style="width:6px;height:6px;border-radius:50%;background:{{ p.sDot }}"></span>{{ p.sLabel }}</span>
+<span style="position:absolute;right:10px;bottom:10px;font:500 11px 'Geist Mono',monospace;background:rgba(244,242,236,0.75);padding:3px 6px;border-radius:4px">{{ p.durLabel }}</span>
+</div>
+<div style="padding:14px 16px 16px;display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.title }}</span><span style="font-size:12px;color:#6B685E">{{ p.date }}</span></div>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{ noResults }}" hint-placeholder-val="{{ false }}"><div style="padding:60px 0;text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center"><span style="font:400 32px/1 'Instrument Serif',serif">Nothing <span style="font-style:italic">found</span></span><span style="font-size:13.5px;color:#6B685E">No project matches "{{ search }}".</span></div></sc-if>
+</main>
+</div>
+<sc-if value="{{ modal }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ closeUpload }}" style="position:absolute;inset:0;background:rgba(22,21,15,0.3);display:flex;align-items:center;justify-content:center;z-index:20">
+<div onClick="{{ stop }}" style="width:460px;border-radius:14px;background:#FFFFFF;border:1px solid rgba(22,21,15,0.1);box-shadow:0 30px 80px rgba(22,21,15,0.14);padding:22px 20px 24px;display:flex;flex-direction:column;gap:18px">
+<div style="display:flex;align-items:center;justify-content:space-between"><span style="font:400 30px/1 'Instrument Serif',serif">Upload <span style="font-style:italic">video</span></span><button onClick="{{ closeUpload }}" title="Close" style="width:30px;height:30px;border-radius:7px;border:none;background:transparent;color:#45433C;font-size:15px;cursor:pointer" style-hover="background:#ECE9E1"><i class="icon-x"></i></button></div>
+<sc-if value="{{ notUploading }}" hint-placeholder-val="{{ true }}">
+<div onClick="{{ startUpload }}" style="height:250px;border-radius:12px;border:1.5px dashed rgba(22,21,15,0.18);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;cursor:pointer" style-hover="border-color:#4F6300;background:rgba(214,255,61,0.05)">
+<div style="width:52px;height:52px;border-radius:14px;background:#F4F2EC;border:1px solid rgba(22,21,15,0.08);display:flex;align-items:center;justify-content:center;font-size:22px;color:#45433C"><i class="icon-upload"></i></div>
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:15px;font-weight:500">Drag &amp; drop your video here</span><span style="font-size:13px;color:#6B685E">or <span style="color:#16150F;text-decoration:underline;text-underline-offset:3px">browse files</span></span></div>
+<span style="font:400 11.5px 'Geist Mono',monospace;color:#8F8C82">MP4 · WebM · MOV — up to 500 MB</span>
+</div>
+<button onClick="{{ closeUpload }}" style="height:40px;border-radius:10px;border:1px solid rgba(22,21,15,0.14);background:transparent;color:#16150F;font:500 13px Geist,sans-serif;cursor:pointer" style-hover="background:#ECE9E1">Cancel</button>
+</sc-if>
+<sc-if value="{{ uploading }}" hint-placeholder-val="{{ false }}">
+<div style="height:250px;border-radius:12px;background:#F4F2EC;border:1px solid rgba(22,21,15,0.08);display:flex;flex-direction:column;justify-content:center;gap:18px;padding:0 24px">
+<div style="display:flex;align-items:center;gap:12px"><div style="width:44px;height:44px;border-radius:10px;background:#ECE9E1;display:flex;align-items:center;justify-content:center;font-size:18px;color:#4F6300"><i class="icon-file-video"></i></div><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:14px;font-weight:500">my-new-video.mp4</span><span style="font:400 11.5px 'Geist Mono',monospace;color:#6B685E">148 MB · 0:18</span></div><span style="font:500 13px 'Geist Mono',monospace">{{ upPctLabel }}</span></div>
+<div style="height:6px;border-radius:3px;background:rgba(22,21,15,0.12)"><div style="width:{{ upPctLabel }};height:100%;border-radius:3px;background:#D6FF3D"></div></div>
+<span style="font-size:12.5px;color:#6B685E">Uploading… you'll land in the editor when it's done.</span>
+</div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{ isBilling }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Billing" style="height:100%;overflow:auto;padding:40px 56px;box-sizing:border-box">
+<div style="max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:28px">
+<button onClick="{{ goDash }}" style="align-self:flex-start;height:32px;padding:0 10px 0 6px;border-radius:8px;border:none;background:transparent;color:#6B685E;display:flex;align-items:center;gap:6px;font:500 13px Geist,sans-serif;cursor:pointer" style-hover="color:#16150F;background:#FFFFFF"><i class="icon-arrow-left" style="font-size:15px"></i>Back to dashboard</button>
+<div style="display:flex;flex-direction:column;gap:10px"><span style="font:400 52px/1 'Instrument Serif',serif">Billing</span><span style="font-size:13.5px;color:#6B685E">Manage your plan and usage.</span></div>
+<div style="border-radius:14px;background:#FFFFFF;border:1px solid rgba(22,21,15,0.08);padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12.5px;color:#6B685E">Current plan</span><span style="font-size:17px;font-weight:600">{{ planName }}</span></div>
+<div style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:#45433C">Minutes</span><span style="font:500 13px 'Geist Mono',monospace">6 <span style="color:#8F8C82">/ 10</span></span></div><div style="height:6px;border-radius:3px;background:rgba(22,21,15,0.12)"><div style="width:60%;height:100%;border-radius:3px;background:#16150F"></div></div></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
+<sc-for list="{{ planItems }}" as="pl" hint-placeholder-count="3">
+<div style="border-radius:14px;background:#FFFFFF;border:1px solid {{ pl.border }};padding:24px;display:flex;flex-direction:column;gap:20px">
+<div style="display:flex;align-items:center;justify-content:space-between;height:22px"><span style="font-size:15px;font-weight:600">{{ pl.name }}</span><sc-if value="{{ pl.current }}" hint-placeholder-val="{{ false }}"><span style="height:22px;padding:0 9px;border-radius:11px;background:#D6FF3D;color:#0E0E0C;display:flex;align-items:center;font:600 11px Geist,sans-serif">Current</span></sc-if></div>
+<div style="display:flex;align-items:baseline;gap:6px"><span style="font:400 64px/1 'Instrument Serif',serif">{{ pl.price }}</span><span style="font-size:13px;color:#6B685E">/ month</span></div>
+<div style="display:flex;flex-direction:column;gap:10px;flex:1"><sc-for list="{{ pl.features }}" as="ft" hint-placeholder-count="4"><span style="display:flex;align-items:flex-start;gap:10px;font-size:13.5px;line-height:1.4;color:#45433C"><i class="icon-check" style="font-size:14px;color:#4F6300;margin-top:2px"></i>{{ ft }}</span></sc-for></div>
+<sc-if value="{{ pl.canBuy }}" hint-placeholder-val="{{ false }}"><button onClick="{{ pl.onBuy }}" style="height:40px;border-radius:10px;border:none;background:#D6FF3D;color:#0E0E0C;font:600 13.5px Geist,sans-serif;cursor:pointer" style-hover="background:#E3FF70">Upgrade to {{ pl.name }}</button></sc-if>
+</div>
+</sc-for>
+</div>
+<span style="font-size:12px;color:#8F8C82">Payments are processed securely by Paddle. Prices in USD; local taxes may apply at checkout.</span>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isEditor }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Editor" style="height:100%;display:grid;grid-template-columns:64px 340px minmax(0,1fr);grid-template-rows:56px minmax(0,1fr)">
+<header style="grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(22,21,15,0.08);padding-right:14px">
+<div style="display:flex;align-items:center;gap:16px;min-width:0">
+<div style="width:64px;display:flex;justify-content:center;flex:none"><button onClick="{{ goDash }}" title="Back to dashboard" style="width:32px;height:32px;border-radius:8px;border:none;background:transparent;color:#6B685E;font-size:16px;cursor:pointer" style-hover="background:#ECE9E1;color:#16150F"><i class="icon-arrow-left"></i></button></div>
+<span style="font:400 24px/1 'Instrument Serif',serif">Supertitle<span style="color:#4F6300">.</span></span>
+<span style="width:1px;height:20px;background:rgba(22,21,15,0.1)"></span>
+<div style="display:flex;align-items:center;gap:6px;font-size:13.5px;white-space:nowrap"><span onClick="{{ goDash }}" style="color:#6B685E;cursor:pointer">Projects /</span><span style="font-weight:500">{{ pTitle }}</span></div>
+<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#6B685E;white-space:nowrap"><i class="icon-cloud-check" style="font-size:14px"></i>Saved</div>
+</div>
+<div style="display:flex;align-items:center;gap:4px;padding:3px;border-radius:10px;background:#FFFFFF;border:1px solid rgba(22,21,15,0.08)">
+<span style="height:30px;padding:0 10px;border-radius:7px;background:#ECE9E1;display:flex;align-items:center;gap:8px;font:500 12.5px Geist,sans-serif;white-space:nowrap"><i class="icon-smartphone" style="font-size:14px"></i>9:16</span>
+<span style="width:1px;height:16px;background:rgba(22,21,15,0.1);margin:0 4px"></span>
+<button onClick="{{ undo }}" title="Undo  ⌘Z" style="width:30px;height:30px;border-radius:7px;border:none;background:transparent;color:{{ undoColor }};font-size:15px;cursor:pointer" style-hover="background:#ECE9E1"><i class="icon-undo-2"></i></button>
+<button onClick="{{ redo }}" title="Redo  ⇧⌘Z" style="width:30px;height:30px;border-radius:7px;border:none;background:transparent;color:{{ redoColor }};font-size:15px;cursor:pointer" style-hover="background:#ECE9E1"><i class="icon-redo-2"></i></button>
+</div>
+<div style="display:flex;align-items:center;gap:8px">
+<div style="position:relative">
+<button onClick="{{ toggleExport }}" style="height:34px;padding:0 12px;border-radius:8px;border:1px solid rgba(22,21,15,0.14);background:transparent;color:#16150F;display:flex;align-items:center;gap:8px;font:500 13px Geist,sans-serif;cursor:pointer;white-space:nowrap" style-hover="background:#ECE9E1"><i class="icon-file-text" style="font-size:15px"></i>Export subtitles<i class="icon-chevron-down" style="font-size:13px;color:#6B685E"></i></button>
+<sc-if value="{{ exportMenu }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;top:40px;right:0;width:240px;padding:6px;border-radius:10px;background:#ECE9E1;border:1px solid rgba(22,21,15,0.12);box-shadow:0 12px 32px rgba(22,21,15,0.14);z-index:30;display:flex;flex-direction:column">
+<button onClick="{{ exportSrt }}" style="padding:10px;border-radius:7px;border:none;background:transparent;color:#16150F;text-align:left;display:flex;flex-direction:column;gap:2px;cursor:pointer" style-hover="background:#E2DED4"><span style="font-size:13px;font-weight:500">Export SRT</span><span style="font-size:11.5px;color:#6B685E">Universal subtitle format</span></button>
+<button onClick="{{ exportVtt }}" style="padding:10px;border-radius:7px;border:none;background:transparent;color:#16150F;text-align:left;display:flex;flex-direction:column;gap:2px;cursor:pointer" style-hover="background:#E2DED4"><span style="font-size:13px;font-weight:500">Export VTT</span><span style="font-size:11.5px;color:#6B685E">Web video text tracks</span></button>
+</div>
+</sc-if>
+</div>
+<sc-if value="{{ btnRender }}" hint-placeholder-val="{{ true }}"><button onClick="{{ render }}" style="height:34px;padding:0 14px;border-radius:8px;border:none;background:{{ renderBg }};color:{{ renderFg }};display:flex;align-items:center;gap:8px;font:600 13px Geist,sans-serif;cursor:pointer;white-space:nowrap"><i class="icon-film" style="font-size:15px"></i>Render video</button></sc-if>
+<sc-if value="{{ btnRendering }}" hint-placeholder-val="{{ false }}"><button style="height:34px;padding:0 14px;border-radius:8px;border:none;background:#DAD6CC;color:#6B685E;display:flex;align-items:center;gap:8px;font:600 13px Geist,sans-serif;white-space:nowrap"><i class="icon-loader-circle" style="font-size:15px;animation:spin 1s linear infinite"></i>Rendering…</button></sc-if>
+<sc-if value="{{ btnPreview }}" hint-placeholder-val="{{ false }}"><button onClick="{{ openPreview }}" style="height:34px;padding:0 14px;border-radius:8px;border:1px solid rgba(214,255,61,0.5);background:transparent;color:#4F6300;display:flex;align-items:center;gap:8px;font:600 13px Geist,sans-serif;cursor:pointer;white-space:nowrap" style-hover="background:rgba(214,255,61,0.08)"><i class="icon-play" style="font-size:14px"></i>Preview render</button></sc-if>
+<div style="width:32px;height:32px;border-radius:50%;background:#DAD6CC;display:flex;align-items:center;justify-content:center;font:500 12px Geist,sans-serif;margin-left:6px">I</div>
+</div>
+</header>
+
+<nav style="border-right:1px solid rgba(22,21,15,0.08);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px">
+<sc-for list="{{ railItems }}" as="r" hint-placeholder-count="4">
+<button onClick="{{ r.onClick }}" style="width:52px;padding:8px 0 6px;border-radius:10px;border:none;background:{{ r.bg }};color:{{ r.fg }};display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;font:500 10.5px Geist,sans-serif" style-hover="color:#16150F"><i class="{{ r.icon }}" style="font-size:19px"></i>{{ r.label }}</button>
+</sc-for>
+</nav>
+
+<aside style="border-right:1px solid rgba(22,21,15,0.08);display:flex;flex-direction:column;min-height:0">
+<sc-if value="{{ pSubs }}" hint-placeholder-val="{{ true }}">
+<div style="padding:22px 20px 14px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font:400 30px/1 'Instrument Serif',serif">Transcript</span><span style="font-size:12px;color:#6B685E">{{ subsMeta }}</span></div>
+<sc-if value="{{ hasSubs }}" hint-placeholder-val="{{ true }}"><div style="display:flex;gap:8px"><button onClick="{{ autoKw }}" style="flex:1;height:34px;border-radius:8px;border:1px solid rgba(22,21,15,0.14);background:{{ kwBg }};color:#16150F;display:flex;align-items:center;justify-content:center;gap:6px;font:500 12.5px Geist,sans-serif;cursor:pointer" style-hover="background:#ECE9E1"><i class="icon-sparkles" style="font-size:14px;color:#4F6300"></i>Auto-highlight keywords</button><button onClick="{{ clearKw }}" title="Clear highlights" style="width:34px;height:34px;border-radius:8px;border:1px solid rgba(22,21,15,0.14);background:transparent;color:#45433C;font-size:14px;cursor:pointer" style-hover="background:#ECE9E1"><i class="icon-eraser"></i></button></div></sc-if>
+</div>
+<sc-if value="{{ noSubs }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:0 32px 60px;text-align:center">
+<div style="width:56px;height:56px;border-radius:14px;background:#FFFFFF;border:1px solid rgba(22,21,15,0.08);display:flex;align-items:center;justify-content:center;font-size:24px;color:#4F6300"><i class="icon-audio-lines"></i></div>
+<span style="font:400 30px/1.05 'Instrument Serif',serif">Your video has <span style="font-style:italic">no subtitles yet</span></span>
+<span style="font-size:13.5px;line-height:1.5;color:#6B685E">We transcribe the audio and split it into synced blocks. Then just review the text.</span>
+<button onClick="{{ transcribe }}" style="width:100%;height:40px;border-radius:10px;border:none;background:{{ transBg }};color:#0E0E0C;display:flex;align-items:center;justify-content:center;gap:8px;font:600 13.5px Geist,sans-serif;cursor:pointer"><i class="icon-wand-sparkles" style="font-size:15px"></i>{{ transLabel }}</button>
+</div>
+</sc-if>
+<div style="flex:1;overflow:auto;padding:4px 12px;display:flex;flex-direction:column">
+<sc-for list="{{ subItems }}" as="s" hint-placeholder-count="4">
+<sc-if value="{{ s.hasGap }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:8px;padding:6px 12px 6px 82px;font:400 10.5px 'Geist Mono',monospace;color:#8F8C82"><span style="flex:1;height:1px;background:rgba(22,21,15,0.06)"></span>pause {{ s.gap }}<span style="flex:1;height:1px;background:rgba(22,21,15,0.06)"></span></div></sc-if>
+<div onClick="{{ s.onSelect }}" style="padding:12px;border-radius:12px;background:{{ s.bg }};display:grid;grid-template-columns:58px 1fr;gap:12px;cursor:pointer" style-hover="background:#FFFFFF">
+<div style="display:flex;flex-direction:column;gap:3px;font:400 11px/1.3 'Geist Mono',monospace;color:{{ s.tcColor }};padding-top:3px"><span>{{ s.a }}</span><span>{{ s.b }}</span></div>
+<div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+<sc-if value="{{ s.isSel }}" hint-placeholder-val="{{ false }}">
+<textarea value="{{ s.text }}" onChange="{{ s.onChange }}" rows="3" style="width:100%;box-sizing:border-box;resize:none;background:#F4F2EC;border:1px solid rgba(214,255,61,0.4);border-radius:8px;padding:8px 10px;color:#16150F;font:400 15px/1.5 Geist,sans-serif;outline:none"></textarea>
+<div style="display:flex;align-items:center;gap:4px;margin-left:-6px">
+<button onClick="{{ split }}" title="Split at playhead" style="height:26px;padding:0 8px;border-radius:6px;border:none;background:transparent;color:#45433C;display:flex;align-items:center;gap:5px;font:500 11.5px Geist,sans-serif;cursor:pointer" style-hover="background:#E2DED4;color:#16150F"><i class="icon-scissors" style="font-size:13px"></i>Split</button>
+<button onClick="{{ merge }}" title="Merge with next" style="height:26px;padding:0 8px;border-radius:6px;border:none;background:transparent;color:#45433C;display:flex;align-items:center;gap:5px;font:500 11.5px Geist,sans-serif;cursor:pointer" style-hover="background:#E2DED4;color:#16150F"><i class="icon-merge" style="font-size:13px"></i>Merge</button>
+<span style="flex:1"></span>
+<button onClick="{{ del }}" title="Delete subtitle" style="width:26px;height:26px;border-radius:6px;border:none;background:transparent;color:#6B685E;font-size:13px;cursor:pointer" style-hover="background:rgba(255,90,78,0.14);color:#C8372B"><i class="icon-trash-2"></i></button>
+</div>
+</sc-if>
+<sc-if value="{{ s.notSel }}" hint-placeholder-val="{{ true }}"><div style="font-size:15px;line-height:1.55;color:{{ s.fg }};text-wrap:pretty">{{ s.text }}</div></sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="padding:12px 20px 16px;border-top:1px solid rgba(22,21,15,0.08);display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11.5px;color:#6B685E">
+<span style="display:flex;align-items:center;gap:6px;white-space:nowrap"><span style="font:500 10.5px 'Geist Mono',monospace;color:#45433C;padding:2px 5px;border:1px solid rgba(22,21,15,0.14);border-radius:4px">Space</span>Play</span>
+<span style="display:flex;align-items:center;gap:6px;white-space:nowrap"><span style="font:500 10.5px 'Geist Mono',monospace;color:#45433C;padding:2px 5px;border:1px solid rgba(22,21,15,0.14);border-radius:4px">←</span><span style="font:500 10.5px 'Geist Mono',monospace;color:#45433C;padding:2px 5px;border:1px solid rgba(22,21,15,0.14);border-radius:4px">→</span>Seek</span>
+<span style="display:flex;align-items:center;gap:6px;white-space:nowrap"><span style="font:500 10.5px 'Geist Mono',monospace;color:#45433C;padding:2px 5px;border:1px solid rgba(22,21,15,0.14);border-radius:4px">⌘Z</span>Undo</span>
+</div>
+</sc-if>
+
+<sc-if value="{{ pStyle }}" hint-placeholder-val="{{ false }}">
+<div style="padding:22px 20px 14px;display:flex;flex-direction:column;gap:6px"><span style="font:400 30px/1 'Instrument Serif',serif">Style</span><span style="font-size:12px;color:#6B685E">Previewed on your own video</span></div>
+<div style="flex:1;overflow:auto;padding:0 20px 20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;align-content:start">
+<sc-for list="{{ tplItems }}" as="t" hint-placeholder-count="6">
+<div onClick="{{ t.onPick }}" style="display:flex;flex-direction:column;gap:7px;cursor:pointer">
+<div style="position:relative;height:104px;border-radius:10px;overflow:hidden;background-image:url('uploads/pasted-1790206875121-0.png');background-size:950px auto;background-position:-500px -170px;box-shadow:{{ t.ring }};display:flex;align-items:center;justify-content:center">
+<div style="position:absolute;inset:0;background:rgba(0,0,0,0.35)"></div>
+<span style="position:relative;font-family:{{ t.ff }};font-weight:{{ t.fw }};font-size:{{ t.fs }};color:{{ t.color }};text-shadow:{{ t.ts }};background:{{ t.bg }};padding:{{ t.pad }};border-radius:4px;line-height:1.1">{{ t.w1 }} <span style="color:{{ t.hc }};background:{{ t.hb }};padding:{{ t.hp }};border-radius:4px">{{ t.w2 }}</span></span>
+</div>
+<span style="font-size:12.5px;color:{{ t.lc }}">{{ t.name }}</span>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ pText }}" hint-placeholder-val="{{ false }}">
+<div style="padding:22px 20px 16px;display:flex;flex-direction:column;gap:6px"><span style="font:400 30px/1 'Instrument Serif',serif">Text <span style="font-style:italic">&amp; animation</span></span><span style="font-size:12px;color:#6B685E">Applies to all blocks</span></div>
+<div style="flex:1;overflow:auto">
+<div style="padding:16px 20px;border-top:1px solid rgba(22,21,15,0.08);display:flex;flex-direction:column;gap:14px">
+<span style="font-size:13px;font-weight:500">Font</span>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px"><sc-for list="{{ fontItems }}" as="fo" hint-placeholder-count="6"><button onClick="{{ fo.onPick }}" style="height:34px;border-radius:8px;border:1px solid {{ fo.bd }};background:#FFFFFF;color:#16150F;font-family:{{ fo.name }};font-weight:700;font-size:12.5px;cursor:pointer">{{ fo.name }}</button></sc-for></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="font-size:13px;color:#45433C;width:64px">Size</span><input type="range" min="24" max="64" value="{{ size }}" onChange="{{ onSize }}" style="flex:1;accent-color:#4F6300"><span style="width:36px;text-align:right;font:500 12px 'Geist Mono',monospace">{{ size }}</span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="font-size:13px;color:#45433C;width:64px">Color</span><div style="flex:1;display:flex;gap:8px"><sc-for list="{{ colorItems }}" as="c" hint-placeholder-count="6"><span onClick="{{ c.onPick }}" style="width:22px;height:22px;border-radius:50%;background:{{ c.c }};box-shadow:{{ c.ring }};cursor:pointer"></span></sc-for></div></div>
+</div>
+<div style="padding:16px 20px;border-top:1px solid rgba(22,21,15,0.08);display:flex;flex-direction:column;gap:12px">
+<span style="font-size:13px;font-weight:500">Entry animation</span>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px"><sc-for list="{{ animItems }}" as="an" hint-placeholder-count="5"><button onClick="{{ an.onPick }}" style="height:34px;border-radius:8px;border:none;background:#FFFFFF;box-shadow:{{ an.ring }};color:{{ an.fg }};font:500 11px Geist,sans-serif;cursor:pointer">{{ an.name }}</button></sc-for></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ pOverlays }}" hint-placeholder-val="{{ false }}">
+<div style="padding:22px 20px 16px;display:flex;flex-direction:column;gap:6px"><span style="font:400 30px/1 'Instrument Serif',serif">Overlays</span><span style="font-size:12px;color:#6B685E">Hook text and logo on top of the video</span></div>
+<div style="padding:0 20px;display:flex;flex-direction:column;gap:10px">
+<div style="border-radius:10px;background:#FFFFFF;border:1px solid rgba(22,21,15,0.08);padding:12px;display:flex;flex-direction:column;gap:12px">
+<div onClick="{{ toggleHook }}" style="display:flex;align-items:center;gap:10px;cursor:pointer"><i class="icon-heading" style="font-size:15px;color:#45433C"></i><span style="flex:1;font-size:13px">Hook</span><span style="width:34px;height:20px;border-radius:10px;background:{{ hookTrack }};position:relative"><span style="position:absolute;top:2px;left:{{ hookKnob }};width:16px;height:16px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 2px rgba(22,21,15,0.25)"></span></span></div>
+<input value="{{ hookText }}" onChange="{{ onHookText }}" placeholder="Hook text" style="height:34px;border-radius:7px;background:#F4F2EC;border:1px solid rgba(22,21,15,0.1);padding:0 10px;color:#16150F;font-size:13px;outline:none">
+</div>
+<div style="border-radius:10px;background:#FFFFFF;border:1px solid rgba(22,21,15,0.08);padding:12px;display:flex;flex-direction:column;gap:12px">
+<div onClick="{{ toggleLogo }}" style="display:flex;align-items:center;gap:10px;cursor:pointer"><i class="icon-image" style="font-size:15px;color:#45433C"></i><span style="flex:1;font-size:13px">Logo / watermark</span><span style="width:34px;height:20px;border-radius:10px;background:{{ logoTrack }};position:relative"><span style="position:absolute;top:2px;left:{{ logoKnob }};width:16px;height:16px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 2px rgba(22,21,15,0.25)"></span></span></div>
+<span style="font-size:12px;color:#8F8C82">PNG/JPG · up to 5 MB · top-right corner</span>
+</div>
+</div>
+</sc-if>
+</aside>
+
+<main style="display:flex;flex-direction:column;min-width:0;min-height:0">
+<div style="flex:1;position:relative;min-height:0;background-color:#E9E6DD;background-image:radial-gradient(rgba(22,21,15,0.07) 1px,transparent 1px);background-size:20px 20px;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box">
+<div style="position:relative;height:100%;max-height:640px;aspect-ratio:9/16;container-type:inline-size;border-radius:4px;overflow:hidden;background-image:url('uploads/pasted-1790206875121-0.png');background-size:579.68% auto;background-position:62.94% 33.09%;box-shadow:0 20px 60px rgba(22,21,15,0.14)">
+<sc-if value="{{ showHook }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:9%;right:9%;top:8%;padding:3cqw 4cqw;background:#FFFFFF;border-radius:2cqw;text-align:center;font:800 5.4cqw/1.15 Montserrat,sans-serif;color:#111;text-transform:uppercase">{{ hookText }}</div></sc-if>
+<sc-if value="{{ logo }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:4%;right:5%;width:12cqw;height:12cqw;border-radius:2cqw;background:rgba(22,21,15,0.85);color:#0E0E0C;display:flex;align-items:center;justify-content:center;font:400 7cqw/1 'Instrument Serif',serif">S.</div></sc-if>
+<sc-if value="{{ ovShow }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:7%;right:7%;top:{{ ovTop }};transform:translateY(-50%);text-align:center">
+<span style="display:inline;font-family:{{ ovFont }};font-weight:{{ ovWeight }};font-size:{{ ovSize }};line-height:1.2;color:{{ ovColor }};text-shadow:{{ ovShadow }};background:{{ ovBg }};padding:{{ ovPad }};border-radius:1cqw;box-decoration-break:clone;-webkit-box-decoration-break:clone;text-transform:{{ ovCase }}"><sc-for list="{{ ovWords }}" as="w" hint-placeholder-count="3"><span style="color:{{ w.color }};background:{{ w.bg }};padding:{{ w.pad }};border-radius:1cqw;display:inline-block;transform:{{ w.tf }}">{{ w.w }}</span> </sc-for></span>
+</div>
+</sc-if>
+<sc-if value="{{ jobOn }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;background:rgba(244,242,236,0.82);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:0 10%;text-align:center">
+<i class="icon-loader-circle" style="font-size:34px;color:#4F6300;animation:spin 1s linear infinite"></i>
+<span style="font:400 26px/1.05 'Instrument Serif',serif">{{ jobTitle }}</span>
+<span style="font-size:12.5px;line-height:1.5;color:#45433C">{{ jobText }}</span>
+<div style="width:100%;height:4px;border-radius:2px;background:rgba(22,21,15,0.14)"><div style="width:{{ jobPct }};height:100%;border-radius:2px;background:#D6FF3D"></div></div>
+</div>
+</sc-if>
+</div>
+<div style="position:absolute;bottom:14px;left:16px;display:flex;align-items:center;gap:6px;font-size:12px;color:#8F8C82"><i class="icon-move" style="font-size:13px"></i>Drag subtitle to reposition</div>
+</div>
+<div style="height:168px;flex:none;border-top:1px solid rgba(22,21,15,0.08);display:flex;flex-direction:column">
+<div style="height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid rgba(22,21,15,0.06)">
+<div style="display:flex;align-items:center;gap:4px">
+<button onClick="{{ split }}" title="Split selected block at playhead" style="height:28px;padding:0 10px;border-radius:7px;border:none;background:transparent;color:#45433C;display:flex;align-items:center;gap:6px;font:500 12px Geist,sans-serif;cursor:pointer" style-hover="background:#ECE9E1"><i class="icon-split" style="font-size:14px"></i>Split</button>
+</div>
+<div style="display:flex;align-items:center;gap:14px">
+<button onClick="{{ back }}" title="Back  ←" style="width:28px;height:28px;border:none;background:transparent;color:#45433C;font-size:15px;cursor:pointer"><i class="icon-rewind"></i></button>
+<button onClick="{{ togglePlay }}" title="Play  Space" style="width:36px;height:36px;border-radius:50%;border:none;background:#D6FF3D;color:#0E0E0C;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="{{ playIcon }}"></i></button>
+<button onClick="{{ fwd }}" title="Forward  →" style="width:28px;height:28px;border:none;background:transparent;color:#45433C;font-size:15px;cursor:pointer"><i class="icon-fast-forward"></i></button>
+<span style="font:500 13px 'Geist Mono',monospace;font-variant-numeric:tabular-nums;white-space:nowrap">{{ tLabel }}<span style="color:#8F8C82"> / {{ dLabel }}</span></span>
+</div>
+<div style="width:60px"></div>
+</div>
+<div style="flex:1;display:grid;grid-template-columns:88px minmax(0,1fr);padding:8px 16px 12px 0">
+<div style="display:flex;flex-direction:column;font-size:11px;color:#6B685E;padding-left:16px">
+<span style="height:22px"></span>
+<span style="height:36px;display:flex;align-items:center;gap:6px"><i class="icon-captions" style="font-size:13px"></i>Subtitles</span>
+<span style="height:44px;display:flex;align-items:center;gap:6px;margin-top:6px"><i class="icon-film" style="font-size:13px"></i>Video</span>
+</div>
+<div onClick="{{ seek }}" style="position:relative;display:flex;flex-direction:column;cursor:pointer">
+<div style="height:22px;position:relative;font:400 10px 'Geist Mono',monospace;color:#8F8C82"><sc-for list="{{ ticks }}" as="tk" hint-placeholder-count="9"><span style="position:absolute;left:{{ tk.left }};top:2px;padding-left:4px;border-left:1px solid rgba(22,21,15,0.12);height:12px;line-height:12px">{{ tk.label }}</span></sc-for></div>
+<div style="height:36px;position:relative"><sc-for list="{{ tBlocks }}" as="b" hint-placeholder-count="4"><div onClick="{{ b.onClick }}" style="position:absolute;top:3px;bottom:3px;left:{{ b.left }};width:{{ b.width }};border-radius:6px;background:{{ b.bg }};color:{{ b.fg }};border:1px solid {{ b.bd }};box-sizing:border-box;padding:0 8px;display:flex;align-items:center;font:500 11px Geist,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ b.text }}</div></sc-for></div>
+<div style="height:44px;margin-top:6px;border-radius:6px;overflow:hidden;display:flex;border:1px solid rgba(22,21,15,0.1)"><sc-for list="{{ film }}" as="fm" hint-placeholder-count="30"><div style="flex:none;width:25px;height:44px;background-image:url('uploads/pasted-1790206875121-0.png');background-size:143px auto;background-position:-75px -6.7px;border-right:1px solid rgba(0,0,0,0.4)"></div></sc-for></div>
+<div style="position:absolute;left:{{ playLeft }};top:0;bottom:-4px;width:2px;background:#16150F;transform:translateX(-1px);pointer-events:none"><span style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:12px;height:14px;background:#16150F;border-radius:3px 3px 6px 6px"></span></div>
+</div>
+</div>
+</div>
+</main>
+</div>
+
+<sc-if value="{{ preview }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ closePreview }}" style="position:absolute;inset:0;background:rgba(22,21,15,0.3);display:flex;align-items:center;justify-content:center;z-index:20">
+<div onClick="{{ stop }}" style="width:380px;border-radius:14px;background:#FFFFFF;border:1px solid rgba(22,21,15,0.1);box-shadow:0 30px 80px rgba(22,21,15,0.14);display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px 20px"><span style="font:400 26px/1 'Instrument Serif',serif">Rendered <span style="font-style:italic">video</span></span><button onClick="{{ closePreview }}" title="Close" style="width:30px;height:30px;border-radius:7px;border:none;background:transparent;color:#45433C;font-size:15px;cursor:pointer" style-hover="background:#ECE9E1"><i class="icon-x"></i></button></div>
+<div style="display:flex;justify-content:center;padding:0 20px"><div style="position:relative;width:180px;height:320px;border-radius:6px;background-image:url('uploads/pasted-1790206875121-0.png');background-size:579.68% auto;background-position:62.94% 33.09%;display:flex;align-items:center;justify-content:center"><span style="width:44px;height:44px;border-radius:50%;background:rgba(244,242,236,0.7);display:flex;align-items:center;justify-content:center;font-size:18px"><i class="icon-play"></i></span></div></div>
+<span style="text-align:center;font:400 11.5px 'Geist Mono',monospace;color:#6B685E;padding:12px 0 4px">{{ pTitle }} · 9:16 · {{ dLabel }}</span>
+<div style="display:flex;gap:8px;padding:12px 16px 16px">
+<button onClick="{{ rerender }}" style="flex:1;height:38px;border-radius:9px;border:1px solid rgba(22,21,15,0.14);background:transparent;color:#16150F;display:flex;align-items:center;justify-content:center;gap:6px;font:500 12.5px Geist,sans-serif;cursor:pointer" style-hover="background:#ECE9E1"><i class="icon-refresh-cw" style="font-size:14px"></i>Re-render</button>
+<button onClick="{{ download }}" style="flex:1;height:38px;border-radius:9px;border:none;background:#D6FF3D;color:#0E0E0C;display:flex;align-items:center;justify-content:center;gap:8px;font:600 13px Geist,sans-serif;cursor:pointer" style-hover="background:#E3FF70"><i class="icon-download" style="font-size:15px"></i>Download video</button>
+</div>
+</div>
+</div>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:#ECE9E1;border:1px solid rgba(22,21,15,0.12);box-shadow:0 8px 24px rgba(22,21,15,0.14);white-space:nowrap;animation:toastIn .2s ease-out"><span style="width:20px;height:20px;border-radius:50%;background:{{ toastDot }};color:#0E0E0C;display:flex;align-items:center;justify-content:center;font-size:12px"><i class="{{ toastIcon }}"></i></span><span style="font-size:13px">{{ toast }}</span></div>
+</sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const SUBS0 = [
+  { id: 1, s: 0, e: 6.11, text: 'O assunto do momento são as tarifas impostas pelo Trump ao Brasil.' },
+  { id: 2, s: 6.59, e: 8.11, text: 'Só se fala nisso e com razão.' },
+  { id: 3, s: 8.85, e: 14.11, text: 'Esse tema é de extrema importância e relevância e impacto para o Brasil.' },
+  { id: 4, s: 14.39, e: 18, text: 'Mas não só, porque ele envolve uma série de outras questões.' },
+];
+const KW = ['assunto', 'tarifas', 'trump', 'brasil', 'importância', 'impacto', 'questões', 'razão'];
+const st = (w, c = '#000') => { const d = +(w * 0.7).toFixed(1); return `${w}px 0 ${c},-${w}px 0 ${c},0 ${w}px ${c},0 -${w}px ${c},${d}px ${d}px ${c},-${d}px -${d}px ${c},${d}px -${d}px ${c},-${d}px ${d}px ${c}`; };
+const TPL = [
+  { id: 'hormozi', name: 'Hormozi', ff: 'Montserrat', fw: 900, color: '#FFFFFF', hc: '#FFD700', hb: 'transparent', ts: st(3), bg: 'transparent', upper: true, mode: 'word' },
+  { id: 'beast', name: 'Beast', ff: 'Poppins', fw: 900, color: '#FFFFFF', hc: '#FFE600', hb: 'transparent', ts: st(3.5), bg: 'transparent', upper: true, mode: 'word' },
+  { id: 'karaoke', name: 'Karaoke', ff: 'Montserrat', fw: 800, color: '#FFFFFF', hc: '#FFFFFF', hb: '#22C55E', ts: st(2), bg: 'transparent', upper: false, mode: 'word' },
+  { id: 'neon', name: 'Neon', ff: 'Montserrat', fw: 800, color: '#39FF14', hc: '#FFFFFF', hb: 'transparent', ts: st(2, '#003300'), bg: 'transparent', upper: true, mode: 'word' },
+  { id: 'clean', name: 'Clean', ff: 'Inter', fw: 700, color: '#FFFFFF', hc: '#FFFFFF', hb: 'transparent', ts: st(1.5), bg: 'transparent', upper: false, mode: 'sentence' },
+  { id: 'cinema', name: 'Cinema', ff: 'Helvetica, Arial', fw: 600, color: '#FFFFFF', hc: '#FFFFFF', hb: 'transparent', ts: 'none', bg: '#000000', upper: false, mode: 'sentence' },
+];
+const FONTS = ['Montserrat', 'Poppins', 'Inter', 'Roboto', 'Arial', 'Helvetica'];
+const COLORS = ['#FFFFFF', '#FFD700', '#22C55E', '#22D3EE', '#FF4FD8', '#FF9500'];
+const ANIMS = [['none', 'None'], ['pop', 'Pop'], ['scale', 'Scale'], ['slide-up', 'Slide-up'], ['fade', 'Fade']];
+const tc = s => { const m = Math.floor(s / 60), r = s - m * 60; return `${String(m).padStart(2, '0')}:${r.toFixed(2).padStart(5, '0')}`; };
+const sh = s => { const m = Math.floor(s / 60), r = s - m * 60; return `${m}:${r.toFixed(2).padStart(5, '0')}`; };
+const STATUS = {
+  uploaded: ['Needs subtitles', '#ECE9E1', '#16150F', '#6B685E'], transcribing: ['Transcribing', '#ECE9E1', '#16150F', '#4F6300'], rendering: ['Rendering', '#ECE9E1', '#16150F', '#4F6300'],
+  ready: ['Ready to edit', '#16150F', '#F4F2EC', '#F4F2EC'], completed: ['Rendered', '#D6FF3D', '#0E0E0C', '#0E0E0C'], failed: ['Failed', '#FDECEA', '#B3261E', '#C8372B'],
+};
+const clone = a => a.map(x => ({ ...x }));
+
+class Component extends DCLogic {
+  state = {
+    screen: 'login', email: 'igor@gmail.com', password: '', loginErr: '', signing: false, search: '',
+    projects: [
+      { id: 1, title: 'tarifas-trump.mp4', status: 'completed', dur: 18, date: 'Sep 24', y: -250, subs: clone(SUBS0), rendered: true },
+      { id: 2, title: 'podcast-ep12-cut.mp4', status: 'ready', dur: 18, date: 'Sep 23', y: -330, subs: clone(SUBS0), rendered: false },
+      { id: 3, title: 'entrevista-joao.mp4', status: 'uploaded', dur: 18, date: 'Sep 22', y: -380, subs: null, rendered: false },
+      { id: 4, title: 'teste-legenda-antigo.mp4', status: 'failed', dur: 18, date: 'Sep 18', y: -230, subs: null, rendered: false },
+    ],
+    modal: false, uploading: false, upPct: 0,
+    pid: null, t: 0, playing: false, sel: null, panel: 'subtitles', tpl: 'hormozi', size: 42, color: '#FFFFFF', font: null, anim: 'pop',
+    hook: true, hookText: 'Tarifas: o que muda pra você', logo: false, kw: false,
+    job: null, jobPct: 0, preview: false, toast: null, toastErr: false, exportMenu: false, hist: [], fut: [],
+  };
+  componentDidMount() {
+    this._key = e => {
+      if (this.state.screen !== 'editor') return;
+      const tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea') return;
+      if (e.code === 'Space') { e.preventDefault(); this.togglePlay(); }
+      else if (e.key === 'ArrowRight') this.seekTo(this.state.t + 1);
+      else if (e.key === 'ArrowLeft') this.seekTo(this.state.t - 1);
+      else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? this.redo() : this.undo(); }
+    };
+    window.addEventListener('keydown', this._key);
+  }
+  componentWillUnmount() { window.removeEventListener('keydown', this._key); clearInterval(this._play); clearInterval(this._job); clearInterval(this._up); clearTimeout(this._toast); }
+  proj() { return this.state.projects.find(p => p.id === this.state.pid); }
+  updP(fn) { this.setState(s => ({ projects: s.projects.map(p => p.id === s.pid ? { ...p, ...fn(p) } : p) })); }
+  flash(msg, err) { clearTimeout(this._toast); this.setState({ toast: msg, toastErr: !!err }); this._toast = setTimeout(() => this.setState({ toast: null }), 2600); }
+  commit(subs) { const p = this.proj(); this.setState(s => ({ hist: [...s.hist, clone(p.subs)], fut: [] })); this.updP(() => ({ subs })); }
+  undo = () => { const { hist } = this.state; if (!hist.length) return; const p = this.proj(); this.setState(s => ({ hist: s.hist.slice(0, -1), fut: [...s.fut, clone(p.subs)] })); this.updP(() => ({ subs: hist[hist.length - 1] })); };
+  redo = () => { const { fut } = this.state; if (!fut.length) return; const p = this.proj(); this.setState(s => ({ fut: s.fut.slice(0, -1), hist: [...s.hist, clone(p.subs)] })); this.updP(() => ({ subs: fut[fut.length - 1] })); };
+  seekTo(t) { const d = this.proj()?.dur || 18; this.setState({ t: Math.max(0, Math.min(d, t)) }); }
+  togglePlay = () => {
+    if (this.state.playing) { clearInterval(this._play); this.setState({ playing: false }); return; }
+    const d = this.proj()?.dur || 18;
+    if (this.state.t >= d - 0.05) this.setState({ t: 0 });
+    this.setState({ playing: true });
+    this._play = setInterval(() => {
+      const nt = this.state.t + 0.05;
+      if (nt >= d) { clearInterval(this._play); this.setState({ t: d, playing: false }); } else this.setState({ t: nt });
+    }, 50);
+  };
+  pause() { clearInterval(this._play); this.setState({ playing: false }); }
+  openProject(id) { this.pause(); this.setState({ screen: 'editor', pid: id, t: 0, sel: null, panel: 'subtitles', hist: [], fut: [], preview: false, exportMenu: false }); }
+  runJob(kind) {
+    this.pause(); clearInterval(this._job);
+    this.setState({ job: kind, jobPct: 0 });
+    this.updP(() => ({ status: kind === 'transcribe' ? 'transcribing' : 'rendering' }));
+    this._job = setInterval(() => {
+      const np = this.state.jobPct + 3 + Math.random() * 5;
+      if (np < 100) { this.setState({ jobPct: np }); return; }
+      clearInterval(this._job);
+      if (kind === 'transcribe') { this.updP(() => ({ subs: clone(SUBS0), status: 'ready' })); this.setState({ job: null }); this.flash('Transcription complete'); }
+      else { this.updP(() => ({ rendered: true, status: 'completed' })); this.setState({ job: null, preview: true }); this.flash('Video rendered — ready to download'); }
+    }, 120);
+  }
+  renderVals() {
+    const S = this.state, p = this.proj(), subs = p?.subs || [], d = p?.dur || 18, t = S.t;
+    const tpl = TPL.find(x => x.id === S.tpl);
+    const act = subs.find(x => t >= x.s && t < x.e);
+    const isKw = w => S.kw && KW.includes(w.toLowerCase().replace(/[.,!?]/g, ''));
+    const selSub = subs.find(x => x.id === S.sel);
+    // overlay
+    let ovWords = [];
+    if (act) {
+      const words = act.text.split(/\s+/);
+      if (tpl.mode === 'word') {
+        const idx = Math.min(words.length - 1, Math.floor((t - act.s) / (act.e - act.s) * words.length));
+        const g = Math.floor(idx / 3) * 3;
+        ovWords = words.slice(g, g + 3).map((w, i) => {
+          const cur = g + i === idx, kw = isKw(w);
+          const tf = cur && S.anim === 'pop' ? 'scale(1.12)' : cur && S.anim === 'scale' ? 'scale(1.06)' : cur && S.anim === 'slide-up' ? 'translateY(-4%)' : 'none';
+          return { w, color: cur ? tpl.hc : kw ? '#FFD700' : (S.color !== '#FFFFFF' ? S.color : tpl.color), bg: cur ? tpl.hb : 'transparent', pad: cur && tpl.hb !== 'transparent' ? '0 1.5cqw' : '0', tf };
+        });
+      } else ovWords = words.map(w => ({ w, color: isKw(w) ? '#FFD700' : (S.color !== '#FFFFFF' ? S.color : tpl.color), bg: 'transparent', pad: '0', tf: 'none' }));
+    }
+    const sizeCq = (tpl.mode === 'word' ? S.size * 0.235 : S.size * 0.13).toFixed(2) + 'cqw';
+    const rail = [['subtitles', 'icon-captions', 'Subtitles'], ['style', 'icon-palette', 'Style'], ['text', 'icon-type', 'Text'], ['overlays', 'icon-layers', 'Overlays']];
+    const projs = S.projects.filter(x => x.title.toLowerCase().includes(S.search.toLowerCase()));
+    const plans = [['Free', '$0', ['10 minutes of video / month', 'Videos up to 2 minutes', 'Up to 10 videos in your library', 'Auto subtitles + editor']], ['Starter', '$12', ['30 minutes of video / month', 'Videos up to 5 minutes', 'Up to 50 videos in your library', 'Auto subtitles + editor', 'SRT / VTT export']], ['Pro', '$29', ['120 minutes of video / month', 'Videos up to 15 minutes', 'Up to 200 videos in your library', 'Auto subtitles + editor', 'SRT / VTT export', 'Custom logo / watermark', 'Priority queue']]];
+    const trimCur = x => ({ ...x });
+    return {
+      isLogin: S.screen === 'login', isDash: S.screen === 'dashboard', isEditor: S.screen === 'editor', isBilling: S.screen === 'billing',
+      email: S.email, password: S.password, loginErr: S.loginErr, signInLabel: S.signing ? 'Signing in…' : 'Sign in',
+      onEmail: e => this.setState({ email: e.target.value, loginErr: '' }),
+      onPassword: e => this.setState({ password: e.target.value, loginErr: '' }),
+      onLoginKey: e => { if (e.key === 'Enter') this.signIn(); },
+      signIn: () => this.signIn(),
+      signInGoogle: () => this.setState({ screen: 'dashboard' }),
+      signOut: () => this.setState({ screen: 'login', password: '' }),
+      goBilling: () => this.setState({ screen: 'billing' }),
+      goDash: () => { this.pause(); this.setState({ screen: 'dashboard', preview: false, exportMenu: false }); },
+      planName: 'Free',
+      planItems: plans.map(([name, price, features], i) => ({ name, price, features, current: i === 0, canBuy: i > 0, border: i === 0 ? '#16150F' : 'rgba(22,21,15,0.08)', onBuy: () => this.flash(`Paddle checkout would open for ${name}`) })),
+      search: S.search, onSearch: e => this.setState({ search: e.target.value }),
+      projCount: `${S.projects.length} ${S.projects.length === 1 ? 'project' : 'projects'}`,
+      noResults: projs.length === 0,
+      projItems: projs.map(x => { const m = STATUS[x.status]; return { title: x.title, date: x.date, durLabel: sh(x.dur).replace(/\.\d+$/, ''), bgPos: `-1216px ${x.y}px`, dim: x.status === 'failed' ? 'rgba(244,242,236,0.55)' : 'transparent', sLabel: m[0], sBg: m[1], sFg: m[2], sDot: m[3], onOpen: () => this.openProject(x.id) }; }),
+      openUpload: () => this.setState({ modal: true, uploading: false, upPct: 0 }),
+      closeUpload: () => { if (!this.state.uploading) this.setState({ modal: false }); },
+      stop: e => e.stopPropagation(),
+      modal: S.modal, uploading: S.uploading, notUploading: !S.uploading, upPctLabel: Math.round(S.upPct) + '%',
+      startUpload: () => this.startUpload(),
+      // editor
+      pTitle: p?.title || '', undoColor: S.hist.length ? '#16150F' : '#C4C0B6', redoColor: S.fut.length ? '#16150F' : '#C4C0B6',
+      undo: this.undo, redo: this.redo,
+      exportMenu: S.exportMenu, toggleExport: () => this.setState(s => ({ exportMenu: !s.exportMenu })),
+      exportSrt: () => { this.setState({ exportMenu: false }); this.flash(subs.length ? `${(p.title).replace(/\.\w+$/, '')}.srt downloaded` : 'Transcribe the video first', !subs.length); },
+      exportVtt: () => { this.setState({ exportMenu: false }); this.flash(subs.length ? `${(p.title).replace(/\.\w+$/, '')}.vtt downloaded` : 'Transcribe the video first', !subs.length); },
+      btnRender: !S.job && !p?.rendered, btnRendering: S.job === 'render', btnPreview: !S.job && !!p?.rendered,
+      renderBg: subs.length ? '#D6FF3D' : '#DAD6CC', renderFg: subs.length ? '#0E0E0C' : '#8F8C82',
+      render: () => { if (!subs.length) return this.flash('Transcribe the video first', true); if (!S.job) this.runJob('render'); },
+      openPreview: () => this.setState({ preview: true }),
+      closePreview: () => this.setState({ preview: false }),
+      rerender: () => { this.setState({ preview: false }); this.updP(() => ({ rendered: false })); this.runJob('render'); },
+      download: () => { this.setState({ preview: false }); this.flash('Download started'); },
+      preview: S.preview,
+      railItems: rail.map(([id, icon, label]) => ({ icon, label, bg: S.panel === id ? '#ECE9E1' : 'transparent', fg: S.panel === id ? '#4F6300' : '#6B685E', onClick: () => this.setState({ panel: id }) })),
+      pSubs: S.panel === 'subtitles', pStyle: S.panel === 'style', pText: S.panel === 'text', pOverlays: S.panel === 'overlays',
+      hasSubs: subs.length > 0, noSubs: subs.length === 0,
+      subsMeta: subs.length ? `${subs.length} blocks · ${sh(d).replace(/\.\d+$/, '')}` : 'No blocks yet',
+      transcribe: () => { if (!S.job) this.runJob('transcribe'); }, transLabel: S.job === 'transcribe' ? 'Transcribing…' : 'Auto transcribe', transBg: S.job === 'transcribe' ? '#DAD6CC' : '#D6FF3D',
+      kwBg: S.kw ? 'rgba(214,255,61,0.25)' : 'transparent',
+      autoKw: () => { this.setState({ kw: true }); this.flash('Keywords highlighted'); }, clearKw: () => this.setState({ kw: false }),
+      subItems: subs.map((x, i) => {
+        const isSel = x.id === S.sel, isAct = act && act.id === x.id, gap = i > 0 ? x.s - subs[i - 1].e : 0;
+        return {
+          ...trimCur(x), a: tc(x.s), b: tc(x.e), isSel, notSel: !isSel, hasGap: gap > 0.05, gap: gap.toFixed(2) + 's',
+          bg: isSel ? '#ECE9E1' : 'transparent', fg: isAct ? '#16150F' : '#6B685E', tcColor: isAct ? '#4F6300' : '#8F8C82',
+          onSelect: () => { if (!isSel) this.setState({ sel: x.id, t: Math.max(this.state.t, 0) }); },
+          onChange: e => { const v = e.target.value; this.updP(pp => ({ subs: pp.subs.map(z => z.id === x.id ? { ...z, text: v } : z) })); },
+        };
+      }),
+      split: () => {
+        if (!selSub) return this.flash('Select a block first', true);
+        if (!(t > selSub.s + 0.1 && t < selSub.e - 0.1)) return this.flash('Move the playhead inside this subtitle to split it', true);
+        const w = selSub.text.split(/\s+/), k = Math.max(1, Math.min(w.length - 1, Math.round((t - selSub.s) / (selSub.e - selSub.s) * w.length)));
+        const nid = Date.now();
+        this.commit(subs.flatMap(z => z.id !== selSub.id ? [z] : [{ ...z, e: t, text: w.slice(0, k).join(' ') }, { id: nid, s: t, e: z.e, text: w.slice(k).join(' ') }]));
+      },
+      merge: () => {
+        const i = subs.findIndex(z => z.id === S.sel); if (i < 0 || i === subs.length - 1) return this.flash('No next block to merge with', true);
+        const a = subs[i], b = subs[i + 1];
+        this.commit([...subs.slice(0, i), { ...a, e: b.e, text: `${a.text} ${b.text}`.trim() }, ...subs.slice(i + 2)]);
+      },
+      del: () => { this.commit(subs.filter(z => z.id !== S.sel)); this.setState({ sel: null }); },
+      tplItems: TPL.map(x => ({ ...x, fs: x.mode === 'word' ? '17px' : '11px', w1: x.mode === 'word' ? (x.upper ? 'O' : 'o') : 'O assunto do', w2: x.mode === 'word' ? (x.upper ? 'ASSUNTO' : 'assunto') : 'momento', pad: x.bg !== 'transparent' ? '3px 6px' : '0', hp: x.hb !== 'transparent' ? '1px 5px' : '0', ring: x.id === S.tpl ? '0 0 0 2px #16150F' : '0 0 0 1px rgba(22,21,15,0.1)', lc: x.id === S.tpl ? '#16150F' : '#6B685E', onPick: () => this.setState({ tpl: x.id, font: null, color: '#FFFFFF' }) })),
+      fontItems: FONTS.map(n => ({ name: n, bd: (S.font || tpl.ff.split(',')[0]) === n ? '#16150F' : 'rgba(22,21,15,0.12)', onPick: () => this.setState({ font: n }) })),
+      size: S.size, onSize: e => this.setState({ size: +e.target.value }),
+      colorItems: COLORS.map(c => ({ c, ring: S.color === c ? '0 0 0 2px #FFFFFF,0 0 0 3.5px #16150F' : '0 0 0 1px rgba(22,21,15,0.2)', onPick: () => this.setState({ color: c }) })),
+      animItems: ANIMS.map(([id, name]) => ({ name, ring: S.anim === id ? '0 0 0 2px #16150F' : '0 0 0 1px rgba(22,21,15,0.1)', fg: S.anim === id ? '#16150F' : '#6B685E', onPick: () => this.setState({ anim: id }) })),
+      hookText: S.hookText, onHookText: e => this.setState({ hookText: e.target.value }),
+      toggleHook: () => this.setState(s => ({ hook: !s.hook })), toggleLogo: () => this.setState(s => ({ logo: !s.logo })),
+      hookTrack: S.hook ? '#D6FF3D' : '#DAD6CC', hookKnob: S.hook ? '16px' : '2px', logoTrack: S.logo ? '#D6FF3D' : '#DAD6CC', logoKnob: S.logo ? '16px' : '2px',
+      showHook: S.hook && !!S.hookText && t < 3, logo: S.logo,
+      ovShow: !!act && !S.job, ovWords, ovFont: S.font || tpl.ff, ovWeight: tpl.fw, ovSize: sizeCq, ovColor: tpl.color, ovShadow: tpl.ts, ovBg: tpl.bg, ovPad: tpl.bg !== 'transparent' ? '0.6cqw 2cqw' : '0', ovCase: tpl.upper ? 'uppercase' : 'none', ovTop: tpl.mode === 'word' ? '72%' : '84%',
+      jobOn: !!S.job, jobPct: Math.min(100, S.jobPct).toFixed(0) + '%',
+      jobTitle: S.job === 'render' ? 'Rendering your video' : 'Transcribing audio',
+      jobText: S.job === 'render' ? 'Burning in subtitles and overlays — this can take a few minutes.' : 'This can take a few minutes. You can keep editing other projects.',
+      togglePlay: this.togglePlay, playIcon: S.playing ? 'icon-pause' : 'icon-play',
+      back: () => this.seekTo(t - 1), fwd: () => this.seekTo(t + 1),
+      tLabel: sh(t), dLabel: sh(d), playLeft: (t / d * 100) + '%',
+      seek: e => { const r = e.currentTarget.getBoundingClientRect(); this.seekTo((e.clientX - r.left) / r.width * d); },
+      ticks: [0, 2, 4, 6, 8, 10, 12, 14, 16].map(s => ({ left: (s / d * 100) + '%', label: s + 's' })),
+      tBlocks: subs.map(x => { const on = x.id === S.sel; return { text: x.text, left: (x.s / d * 100) + '%', width: `calc(${(x.e - x.s) / d * 100}% - 3px)`, bg: on ? '#D6FF3D' : '#FFFFFF', fg: on ? '#0E0E0C' : '#45433C', bd: on ? '#B8DC1F' : 'rgba(22,21,15,0.12)', onClick: e => { e.stopPropagation(); this.setState({ sel: x.id, t: x.s, panel: 'subtitles' }); } }; }),
+      film: Array.from({ length: 60 }, (_, i) => i),
+      toast: S.toast, toastDot: S.toastErr ? '#FF5A4E' : '#D6FF3D', toastIcon: S.toastErr ? 'icon-x' : 'icon-check',
+    };
+  }
+  signIn() {
+    const { email, password } = this.state;
+    if (!email.includes('@')) return this.setState({ loginErr: 'Enter a valid email.' });
+    if (password.length < 1) return this.setState({ loginErr: 'Enter your password.' });
+    this.setState({ signing: true });
+    setTimeout(() => this.setState({ signing: false, screen: 'dashboard', loginErr: '' }), 600);
+  }
+  startUpload() {
+    this.setState({ uploading: true, upPct: 0 });
+    clearInterval(this._up);
+    this._up = setInterval(() => {
+      const np = this.state.upPct + 4 + Math.random() * 6;
+      if (np < 100) return this.setState({ upPct: np });
+      clearInterval(this._up);
+      const id = Date.now();
+      this.setState(s => ({ upPct: 100, projects: [{ id, title: 'my-new-video.mp4', status: 'uploaded', dur: 18, date: 'Today', y: -300, subs: null, rendered: false }, ...s.projects] }));
+      setTimeout(() => { this.setState({ modal: false, uploading: false }); this.openProject(id); }, 400);
+    }, 120);
+  }
+}
+
+</script>
+</body>
+</html>

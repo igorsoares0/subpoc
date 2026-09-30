@@ -2,7 +2,9 @@
 
 import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { X, Upload, Film, Loader2 } from "lucide-react"
+import { X, Upload, FileVideo } from "lucide-react"
+import { Button, IconButton } from "@/components/ui/Button"
+import { Banner } from "@/components/ui/Banner"
 
 interface NewProjectModalProps {
   isOpen: boolean
@@ -16,6 +18,7 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState("")
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [fileInfo, setFileInfo] = useState<{ name: string; size: number; duration: number } | null>(null)
 
   if (!isOpen) return null
 
@@ -93,6 +96,7 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
 
     try {
       const duration = await readVideoDuration(file)
+      setFileInfo({ name: file.name, size: file.size, duration })
 
       // 1. Pedir presigned URL (valida tipo/tamanho e cria o projeto)
       const startRes = await fetch("/api/videos/upload", {
@@ -142,98 +146,109 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
     }
   }
 
+  const formatSize = (bytes: number) =>
+    bytes >= 1024 * 1024 * 1024
+      ? `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`
+      : `${Math.max(1, Math.round(bytes / 1024 / 1024))} MB`
+
+  const formatDuration = (s: number) =>
+    `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`
+
   return (
     <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      onClick={onClose}
+      className="fixed inset-0 bg-[var(--backdrop)] flex items-center justify-center z-50 p-4"
+      onClick={() => !isUploading && onClose()}
     >
       <div
-        className="bg-surface rounded-2xl p-6 max-w-lg w-full border border-white/[0.06] shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upload-title"
+        className="w-[460px] max-w-full rounded-2xl bg-surface border border-line/10 shadow-[var(--shadow-modal)] pt-[22px] px-5 pb-6 flex flex-col gap-[18px]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold">Upload Video</h3>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300 transition-colors"
-            disabled={isUploading}
-          >
-            <X className="w-4 h-4" />
-          </button>
+        <div className="flex items-center justify-between">
+          <h2 id="upload-title" className="font-serif text-[30px] leading-none text-paper">
+            Upload <em className="italic">video</em>
+          </h2>
+          <IconButton title="Close" onClick={onClose} disabled={isUploading}>
+            <X className="size-4" />
+          </IconButton>
         </div>
 
-        {error && (
-          <div className="mb-4 flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl text-[13px]">
-            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            {error}
+        {error && <Banner variant="danger">{error}</Banner>}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/*"
+          onChange={handleFileSelect}
+          className="hidden"
+          disabled={isUploading}
+        />
+
+        {isUploading ? (
+          <div className="h-[250px] rounded-xl bg-canvas border border-line/8 flex flex-col justify-center gap-[18px] px-6">
+            <div className="flex items-center gap-3">
+              <div className="size-11 rounded-lg bg-elevated flex items-center justify-center flex-none">
+                <FileVideo className="size-[18px] text-accent-ink" strokeWidth={1.75} />
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col gap-[3px]">
+                <span className="text-[14px] font-medium text-paper truncate">{fileInfo?.name}</span>
+                {fileInfo && (
+                  <span className="font-mono tabular-nums text-[11.5px] text-ink-3">
+                    {formatSize(fileInfo.size)}
+                    {fileInfo.duration > 0 && ` · ${formatDuration(fileInfo.duration)}`}
+                  </span>
+                )}
+              </div>
+              <span className="font-mono tabular-nums text-[13px] font-medium text-paper">{uploadProgress}%</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-line/12 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-accent transition-[width] duration-300"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+            <span className="text-[12.5px] text-ink-3">
+              Uploading… you&apos;ll land in the editor when it&apos;s done.
+            </span>
+          </div>
+        ) : (
+          <div
+            role="button"
+            tabIndex={0}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && fileInputRef.current?.click()}
+            className={`h-[250px] rounded-xl border-[1.5px] border-dashed flex flex-col items-center justify-center gap-3.5 text-center cursor-pointer transition-colors duration-150 ${
+              isDragging
+                ? "border-accent bg-accent/6"
+                : "border-line/18 hover:border-accent-ink hover:bg-accent/5"
+            }`}
+          >
+            <div className="size-[52px] rounded-[14px] bg-canvas border border-line/8 flex items-center justify-center">
+              <Upload className="size-[22px] text-ink-2" strokeWidth={1.75} />
+            </div>
+            {isDragging ? (
+              <span className="text-[15px] font-medium text-paper">Drop to upload</span>
+            ) : (
+              <div className="flex flex-col gap-1">
+                <span className="text-[15px] font-medium text-paper">Drag &amp; drop your video here</span>
+                <span className="text-[13px] text-ink-3">
+                  or <span className="text-paper underline underline-offset-[3px]">browse files</span>
+                </span>
+              </div>
+            )}
+            <span className="font-mono text-[11.5px] text-ink-4">MP4 · WebM · MOV — up to 500 MB</span>
           </div>
         )}
 
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`
-            border-2 border-dashed rounded-xl p-12 text-center transition-all
-            ${isDragging ? "border-blue-500/50 bg-blue-500/[0.05]" : "border-white/[0.08] hover:border-white/[0.15]"}
-            ${isUploading ? "opacity-60 pointer-events-none" : "cursor-pointer"}
-          `}
-          onClick={() => !isUploading && fileInputRef.current?.click()}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="video/*"
-            onChange={handleFileSelect}
-            className="hidden"
-            disabled={isUploading}
-          />
-
-          {isUploading ? (
-            <div className="space-y-5">
-              <div className="w-12 h-12 rounded-full bg-blue-600/10 border border-blue-600/20 flex items-center justify-center mx-auto">
-                <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-              </div>
-              <div>
-                <p className="text-[14px] font-medium mb-3">Uploading...</p>
-                <div className="w-full max-w-xs mx-auto bg-white/[0.04] rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className="bg-blue-500 h-full transition-all duration-300 rounded-full"
-                    style={{ width: `${uploadProgress}%` }}
-                  />
-                </div>
-                <p className="text-[12px] text-zinc-500 mt-2">{uploadProgress}%</p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center mx-auto">
-                <Upload className="w-6 h-6 text-zinc-500" />
-              </div>
-              <div>
-                <p className="text-[14px] font-medium mb-1">
-                  Drag & drop your video here
-                </p>
-                <p className="text-[13px] text-zinc-500 mb-4">
-                  or click to browse files
-                </p>
-                <p className="text-[11px] text-zinc-600">
-                  Supports MP4, WebM, MOV (max 500MB)
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
         {!isUploading && (
-          <button
-            onClick={onClose}
-            className="w-full mt-4 bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 py-2.5 rounded-xl transition-colors text-[13px] font-medium border border-white/[0.08]"
-          >
+          <Button variant="ghost" onClick={onClose} className="w-full text-[13px]">
             Cancel
-          </button>
+          </Button>
         )}
       </div>
     </div>

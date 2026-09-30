@@ -1,171 +1,197 @@
 @import "tailwindcss";
 
+/*
+ * Supertitle — "Editorial studio" theme.
+ * Light (paper) by default; dark (warm near-black) via data-theme="dark". ONE accent (lime).
+ * Drop-in replacement for app/globals.css. Existing class names
+ * (bg-canvas / bg-surface / bg-elevated / bg-hover) keep working with new values.
+ */
+
+/* Theme values. LIGHT is the default; add data-theme="dark" on <html> for dark mode. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: var(--c-canvas);
+  --foreground: var(--c-paper);
+  --c-canvas: #F4F2EC;
+  --c-stage: #E9E6DD;
+  --c-surface: #FFFFFF;
+  --c-elevated: #ECE9E1;
+  --c-hover: #E2DED4;
+  --c-track: #DAD6CC;
+  --c-paper: #16150F;        /* "paper" token = primary text, so it inverts */
+  --c-ink-2: #45433C;
+  --c-ink-3: #6B685E;
+  --c-ink-4: #8F8C82;
+  --c-accent-ink: #4F6300;
+  --c-ring: #16150F;
+  --c-danger-ink: #C8372B;
+  --c-danger-surface: #FDECEA;
+  --c-danger-text: #B3261E;
+  --c-line: 22, 21, 15;
+  --c-scrim: 244, 242, 236;
+  --shadow-lg: 0 20px 60px rgba(22, 21, 15, 0.16);
+  --shadow-modal: 0 30px 80px rgba(22, 21, 15, 0.16);
+  --shadow-menu: 0 8px 24px rgba(22, 21, 15, 0.14);
+  --backdrop: rgba(22, 21, 15, 0.3);
+  color-scheme: light;
 }
 
-/*
- * OLED dark theme — pure-black canvas with surfaces defined by borders
- * rather than lighter greys. Single source of truth for the editor's
- * dark tones; bg-canvas / bg-surface / bg-elevated / bg-hover read these.
- */
+[data-theme="dark"] {
+  --c-canvas: #0E0E0C;
+  --c-stage: #0A0A09;
+  --c-surface: #151513;
+  --c-elevated: #1D1D1A;
+  --c-hover: #252521;
+  --c-track: #2A2A26;
+  --c-paper: #F2EFE6;
+  --c-ink-2: #C9C6BB;
+  --c-ink-3: #A6A398;
+  --c-ink-4: #75736B;
+  --c-accent-ink: #D6FF3D;   /* accent used as TEXT / icon color */
+  --c-ring: #D6FF3D;         /* selection rings, playhead, current-plan border */
+  --c-danger-ink: #FF5A4E;
+  --c-danger-surface: #2A1614;
+  --c-danger-text: #FF8A80;
+  --c-line: 242, 239, 230;   /* rgb triplet for hairlines: rgba(var(--c-line), .08) */
+  --c-scrim: 14, 14, 12;     /* rgb triplet for overlays on video/thumbnails */
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.6);
+  --shadow-modal: 0 30px 80px rgba(0, 0, 0, 0.6);
+  --shadow-menu: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --backdrop: rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-instrument-serif);
 
-  --color-canvas: #000000;   /* app background */
-  --color-surface: #0a0a0b;  /* header, sidebar, timeline panels */
-  --color-elevated: #141416; /* dropdowns, modals, cards */
-  --color-hover: #1c1c1f;    /* hover / active fills */
+  --color-canvas: var(--c-canvas);
+  --color-stage: var(--c-stage);
+  --color-surface: var(--c-surface);
+  --color-elevated: var(--c-elevated);
+  --color-hover: var(--c-hover);
+  --color-track: var(--c-track);
+
+  --color-paper: var(--c-paper);
+  --color-ink-2: var(--c-ink-2);
+  --color-ink-3: var(--c-ink-3);
+  --color-ink-4: var(--c-ink-4);
+
+  /* Accent FILL is the same lime in both themes; text on it is always #0E0E0C */
+  --color-accent: #D6FF3D;
+  --color-accent-hover: #E3FF70;
+  --color-on-accent: #0E0E0C;
+  --color-accent-ink: var(--c-accent-ink);
+  --color-ring: var(--c-ring);
+
+  --color-danger: #FF5A4E;            /* fill (buttons) */
+  --color-danger-ink: var(--c-danger-ink);
+  --color-danger-surface: var(--c-danger-surface);
+  --color-danger-text: var(--c-danger-text);
+
+  /* Hairlines / scrims as colors so opacity modifiers work: border-line/8, bg-scrim/80 */
+  --color-line: rgb(var(--c-line));
+  --color-scrim: rgb(var(--c-scrim));
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #000000;
-    --foreground: #ededed;
-  }
-}
+/* Borders are the text color at low alpha (theme-aware via --c-line):
+ *   hairline  rgba(var(--c-line), 0.08)  panel dividers, cards
+ *   field     rgba(var(--c-line), 0.10)  inputs
+ *   control   rgba(var(--c-line), 0.14)  secondary (ghost) buttons
+ * Video content (frames, subtitle previews, template tiles) never changes with theme.
+ */
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-/* Custom scrollbar */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+/* In @layer base so Tailwind utilities on <Link> / <a> still win. */
+@layer base {
+  a { color: var(--color-paper); }
+  a:hover { color: var(--c-accent-ink); }
+  input::placeholder, textarea::placeholder { color: var(--c-ink-4); }
 }
 
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+/* Stage dot grid (video area, auth left panel) */
+.bg-dots {
+  background-image: radial-gradient(rgba(var(--c-line), 0.07) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
-/* Custom scrollbar for sidebar */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
+::selection { background: rgba(214, 255, 61, 0.3); }
 
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 10px;
-}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  transition: background 0.2s;
-}
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(var(--c-line), 0.08); border-radius: 10px; transition: background 0.2s; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(var(--c-line), 0.15); }
+.custom-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(var(--c-line), 0.08) transparent; }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-/* Firefox */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
-}
-
-/* Custom range slider */
+/* Range slider — 4px rail, paper fill, 14px paper thumb.
+ * Filled portion is passed inline (rangeFill helper in editor-client.tsx):
+ * update its colors to paper #F2EFE6 on rgba(242,239,230,0.14). */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 6px;
+  height: 4px;
   border-radius: 9999px;
-  /* Visible default rail so the track never disappears on the pure-black
-     canvas. Sliders that pass an inline gradient (filled track) override this. */
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(var(--c-line), 0.14);
   cursor: pointer;
 }
-
-/* Track (WebKit) — let the input's own background show as the rail */
-input[type="range"]::-webkit-slider-runnable-track {
-  height: 6px;
-  border-radius: 9999px;
-  background: transparent;
-}
-
-/* Track + filled portion (Firefox) */
-input[type="range"]::-moz-range-track {
-  height: 6px;
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.14);
-}
-
-input[type="range"]::-moz-range-progress {
-  height: 6px;
-  border-radius: 9999px;
-  background: #2563eb;
-}
-
+input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 9999px; background: transparent; }
+input[type="range"]::-moz-range-track { height: 4px; border-radius: 9999px; background: rgba(var(--c-line), 0.14); }
+input[type="range"]::-moz-range-progress { height: 4px; border-radius: 9999px; background: var(--c-paper); }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 14px;
   height: 14px;
-  margin-top: -4px; /* center the 14px thumb on the 6px track */
+  margin-top: -5px;
   border-radius: 50%;
-  background: #2563eb;
+  background: var(--c-paper);
+  border: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  border: 2px solid rgba(255, 255, 255, 0.15);
   transition: transform 0.1s ease;
 }
-
-input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
-}
-
-input[type="range"]::-webkit-slider-thumb:active {
-  transform: scale(1.05);
-}
-
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.05); }
 input[type="range"]::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #2563eb;
-  cursor: pointer;
-  border: 2px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--c-paper); border: none; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); cursor: pointer;
+}
+input[type="range"]:focus { outline: none; }
+input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(214, 255, 61, 0.35); }
+input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px rgba(214, 255, 61, 0.35); }
+
+/* Color swatch input */
+input[type="color"] { -webkit-appearance: none; appearance: none; border: none; cursor: pointer; }
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; box-shadow: 0 0 0 1px rgba(var(--c-line), 0.15); }
+
+select option { background: var(--c-elevated); color: var(--c-paper); }
+
+/* Focus ring for keyboard users. In @layer base so `outline-none` on
+ * text fields (which show focus via their wrapper border) still wins. */
+@layer base {
+  :focus-visible { outline: 2px solid var(--c-ring); outline-offset: 2px; }
 }
 
-input[type="range"]:focus {
-  outline: none;
-}
-
-input[type="range"]:focus::-webkit-slider-thumb {
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
-}
-
-input[type="range"]:focus::-moz-range-thumb {
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
-}
-
-/* Color input */
-input[type="color"] {
-  -webkit-appearance: none;
-  appearance: none;
-  border: none;
-  cursor: pointer;
-}
-
-input[type="color"]::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-
-input[type="color"]::-webkit-color-swatch {
-  border: 2px solid rgba(255, 255, 255, 0.08);
-  border-radius: 50%;
-}
-
-/* Select styling for dark theme */
-select option {
-  background: #141416;
-  color: #fff;
-}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* Indeterminate progress (job overlay): a 1/3-width bar sweeping across. */
+@keyframes indeterminate { from { transform: translateX(-100%); } to { transform: translateX(300%); } }

@@ -1,63 +1,38 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { createPortal } from "react-dom"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { VideoTimeline } from "@/components/timeline/VideoTimeline"
-import { AnimationPreview } from "@/components/editor/AnimationPreview"
 import { toast } from "@/lib/toast"
 import {
   SubtitleTrack,
   HookOverlay,
-  resolveFontFamily,
   annotateSubtitleKeywords,
   clearSubtitleKeywords,
+  normalizePosition,
   DEFAULT_SUBTITLE_STYLE,
-  SUBTITLE_PRESETS,
-  matchesPreset,
   type Subtitle,
   type SubtitleStyle,
   type SubtitleWord,
   type HookOverlayData,
 } from "@/lib/subtitle-track"
+import { AlertTriangle, Download, Loader2, Move, RefreshCw, RotateCcw, X } from "lucide-react"
+import { EditorHeader } from "@/components/editor/EditorHeader"
+import { EditorRail } from "@/components/editor/EditorRail"
+import { FloatingToolbar } from "@/components/editor/FloatingToolbar"
+import { TranscriptPanel } from "@/components/editor/panels/TranscriptPanel"
+import { StylePanel } from "@/components/editor/panels/StylePanel"
+import { TextPanel } from "@/components/editor/panels/TextPanel"
+import { OverlaysPanel } from "@/components/editor/panels/OverlaysPanel"
+import { useVideoFrame } from "@/components/editor/useVideoFrame"
+import { Button, IconButton } from "@/components/ui/Button"
 import {
-  ArrowLeft,
-  Play,
-  Pause,
-  Monitor,
-  Image,
-  Undo2,
-  Redo2,
-  Download,
-  FileText,
-  Film,
-  Type,
-  Palette,
-  Mic,
-  Check,
-  X,
-  Upload,
-  Trash2,
-  ChevronDown,
-  Save,
-  Loader2,
-  Pencil,
-  Move,
-  RotateCcw,
-  AlignCenter,
-  Sparkles,
-  Plus,
-  Scissors,
-  Combine,
-} from "lucide-react"
-
-interface LogoOverlay {
-  logoUrl: string | null
-  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
-  size: number  // percentage (5-20)
-  opacity: number  // 0-1
-}
+  formatShort,
+  getFormatAspectRatio,
+  getFormatLabel,
+  type EditorPanel,
+  type LogoOverlay,
+} from "@/components/editor/types"
 
 // Snapshot of everything undo/redo tracks (item 4).
 interface EditorDoc {
@@ -86,6 +61,7 @@ export interface VideoProject {
 
 interface EditorClientProps {
   video: VideoProject
+  user?: { name: string | null; email: string | null }
 }
 
 // Default hook/headline overlay used when the user first adds one (item 5).
@@ -104,48 +80,13 @@ const DEFAULT_HOOK: HookOverlayData = {
   uppercase: true,
 }
 
-// Quick-pick palette for subtitle/background colors — the most common
-// caption colors so users don't have to fish in the native color picker.
-const COLOR_PRESETS = [
-  "#FFFFFF", "#000000", "#FFD700", "#00E676",
-  "#00E5FF", "#FF5252", "#FF4FD8", "#FF9100",
-]
-
-// Filled-track background for range sliders so the progress is visible on the
-// black canvas (blue up to the thumb, faint rail after). Mirrors the opacity slider.
-function rangeFill(value: number, min: number, max: number): string {
-  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100))
-  return `linear-gradient(to right, #2563eb 0%, #2563eb ${pct}%, rgba(255,255,255,0.14) ${pct}%, rgba(255,255,255,0.14) 100%)`
-}
-
-// Mapeamento de formatos para exibição e backend
-const FORMAT_OPTIONS = [
-  { label: "Original", value: null, aspectRatio: null },
-  { label: "16:9", value: "youtube", aspectRatio: 16/9 },
-  { label: "9:16", value: "instagram_story", aspectRatio: 9/16 },
-  { label: "1:1", value: "instagram_feed", aspectRatio: 1 },
-  { label: "4:3", value: "classic", aspectRatio: 4/3 },
-]
-
-// Helper para obter label a partir do valor backend
-function getFormatLabel(backendValue: string | null): string {
-  const format = FORMAT_OPTIONS.find(f => f.value === backendValue)
-  return format?.label || "Original"
-}
-
-// Helper para obter aspect ratio a partir do valor backend
-function getFormatAspectRatio(backendValue: string | null): number | null {
-  const format = FORMAT_OPTIONS.find(f => f.value === backendValue)
-  return format?.aspectRatio || null
-}
-
-export default function EditorClient({ video: initialVideo }: EditorClientProps) {
+export default function EditorClient({ video: initialVideo, user }: EditorClientProps) {
   const router = useRouter()
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [activeTab, setActiveTab] = useState<"subtitles" | "styles">("subtitles")
+  const [activePanel, setActivePanel] = useState<EditorPanel>("subtitles")
   const [video, setVideo] = useState(initialVideo)
   const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(initialVideo.duration * 60) // Convert minutes to seconds
+  const [duration, setDuration] = useState(initialVideo.duration) // stored in seconds
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [videoDimensions, setVideoDimensions] = useState({ width: 0, height: 0 })
@@ -154,16 +95,17 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   // + letterbox bars); for "Original" it equals the video element box.
   const [frameDimensions, setFrameDimensions] = useState({ width: 0, height: 0 })
   const [nativeVideoWidth, setNativeVideoWidth] = useState(1920)
+  // Source aspect ratio — sizes the preview frame for the "Original" format.
+  const [nativeAspect, setNativeAspect] = useState<number | null>(null)
+  // Stage (video area) content box, used to fit the preview frame.
+  const stageRef = useRef<HTMLDivElement>(null)
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 })
   const [editingSubtitle, setEditingSubtitle] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [isRendering, setIsRendering] = useState(false)
-  const [showExportMenu, setShowExportMenu] = useState(false)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
-  const [showLogoModal, setShowLogoModal] = useState(false)
   const [showRenderPreview, setShowRenderPreview] = useState(false)
-  const [logoFile, setLogoFile] = useState<File | null>(null)
-  const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
   const logoUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
   const hookUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -177,9 +119,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     startDist: number
     startFontSize: number
   } | null>(null)
-  const [showFormatDropdown, setShowFormatDropdown] = useState(false)
   const formatUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const formatButtonRef = useRef<HTMLButtonElement>(null)
   const [trim, setTrim] = useState<{ start: number; end: number } | null>(initialVideo.trim)
   const trimUpdateTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [isDraggingTrimHandle, setIsDraggingTrimHandle] = useState<'start' | 'end' | null>(null)
@@ -188,8 +128,6 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   // and the retry banner can offer the right action.
   const activeJobRef = useRef<"transcribe" | "render" | null>(null)
   const [failedJob, setFailedJob] = useState<"transcribe" | "render" | null>(null)
-  // Ref to the active cue card, used to auto-scroll the list during playback.
-  const activeCueRef = useRef<HTMLDivElement>(null)
   // Undo/redo history (item 4). Snapshots of the editable document, coalesced
   // by a debounce so a slider drag becomes a single undo step.
   const presentDocRef = useRef<EditorDoc | null>(null)
@@ -250,13 +188,6 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       setSelectedSubtitleId(null)
     }
   }, [currentSubtitle?.id, isPlaying, selectedSubtitleId])
-
-  // Auto-scroll the cue list to the active subtitle so it stays in view as the
-  // video plays. block:'nearest' avoids jumping when the cue is already visible.
-  useEffect(() => {
-    if (activeTab !== "subtitles") return
-    activeCueRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })
-  }, [highlightedSubtitleId, activeTab])
 
   // Polling for video updates
   const startPolling = () => {
@@ -468,6 +399,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       setVideoDimensions({ width: actualWidth, height: actualHeight })
       setFrameDimensions({ width: containerWidth, height: containerHeight })
       setNativeVideoWidth(videoWidth)
+      setNativeAspect(videoAspect)
     }
 
     videoElement.addEventListener('loadedmetadata', updateVideoDimensions)
@@ -490,6 +422,19 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       resizeObserver.disconnect()
     }
   }, [])
+
+  useEffect(() => {
+    const el = stageRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) =>
+      setStageSize({ width: entry.contentRect.width, height: entry.contentRect.height })
+    )
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // Still from the user's own video for the Style panel's template tiles.
+  const templateFrame = useVideoFrame(video.videoUrl, activePanel === "style")
 
   // Initialize video at trim.start when trim changes
   useEffect(() => {
@@ -636,39 +581,6 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     }
   }, [])
 
-  // Close format dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (showFormatDropdown) {
-        const target = e.target as HTMLElement
-        // Check if click is outside both the button container AND the dropdown menu
-        if (!target.closest('.format-dropdown-container') && !target.closest('.format-dropdown-menu')) {
-          setShowFormatDropdown(false)
-        }
-      }
-    }
-
-    if (showFormatDropdown) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [showFormatDropdown])
-
-  // Close export menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (showExportMenu) {
-        const target = e.target as HTMLElement
-        if (!target.closest('.export-menu-container')) {
-          setShowExportMenu(false)
-        }
-      }
-    }
-
-    document.addEventListener('click', handleClickOutside)
-    return () => document.removeEventListener('click', handleClickOutside)
-  }, [showExportMenu])
-
   const transcribeVideo = async () => {
     setFailedJob(null)
     setIsTranscribing(true)
@@ -698,18 +610,15 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
   const exportSRT = () => {
     window.open(`/api/videos/${video.id}/export/srt`, '_blank')
-    setShowExportMenu(false)
   }
 
   const exportVTT = () => {
     window.open(`/api/videos/${video.id}/export/vtt`, '_blank')
-    setShowExportMenu(false)
   }
 
   const renderVideo = async () => {
     setFailedJob(null)
     setIsRendering(true)
-    setShowExportMenu(false)
     activeJobRef.current = "render"
     try {
       const response = await fetch(`/api/videos/${video.id}/render`, {
@@ -736,7 +645,6 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
 
   const downloadRenderedVideo = () => {
     window.open(`/api/videos/${video.id}/render`, '_blank')
-    setShowExportMenu(false)
   }
 
   const updateSubtitleText = async (id: number, newText: string) => {
@@ -1126,13 +1034,6 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     await saveSubtitles(updated)
   }
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    const ms = Math.floor((seconds % 1) * 100)
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}:${ms.toString().padStart(2, '0')}`
-  }
-
   const seekToSubtitle = (start: number, subtitleId: number) => {
     if (videoRef.current) {
       videoRef.current.currentTime = start
@@ -1145,34 +1046,21 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     }
   }
 
-  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        toast.error('Please select an image file')
-        return
-      }
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast.error('Image file size must be less than 5MB')
-        return
-      }
-      setLogoFile(file)
-      // Create preview URL
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setLogoPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+  // Logo card (Overlays panel): validate, then upload right away.
+  const uploadLogo = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file')
+      return
     }
-  }
-
-  const uploadLogo = async () => {
-    if (!logoFile) return
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      toast.error('Image file size must be less than 5MB')
+      return
+    }
 
     setIsUploadingLogo(true)
     try {
       const formData = new FormData()
-      formData.append('logo', logoFile)
+      formData.append('logo', file)
       formData.append('videoId', video.id)
 
       const response = await fetch('/api/videos/upload-logo', {
@@ -1185,14 +1073,11 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
       const data = await response.json()
 
       // Update video with logo overlay
-      setVideo({
-        ...video,
+      setVideo((v) => ({
+        ...v,
         logoOverlay: data.logoOverlay
-      })
+      }))
 
-      setShowLogoModal(false)
-      setLogoFile(null)
-      setLogoPreview(null)
       router.refresh()
       toast.success('Logo added')
     } catch (error) {
@@ -1408,7 +1293,6 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
   const updateFormat = (newFormat: string | null) => {
     // Atualizar estado local imediatamente
     setVideo({ ...video, format: newFormat })
-    setShowFormatDropdown(false)
 
     // Debounce API call - salvar após 300ms
     if (formatUpdateTimerRef.current) {
@@ -1541,7 +1425,7 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     setIsDraggingTrimHandle(null)
   }
 
-  const style = video?.subtitleStyle || {
+  const style: SubtitleStyle = video?.subtitleStyle || {
     fontFamily: "Montserrat",
     fontSize: 24,
     boxWidth: 90,
@@ -1555,1390 +1439,426 @@ export default function EditorClient({ video: initialVideo }: EditorClientProps)
     outlineWidth: 2
   }
 
+  const subtitles = video.subtitles ?? []
+  const hasSubtitles = subtitles.length > 0
+
   // Whether any word currently carries keyword emphasis — drives the
   // "Auto-highlight" button's on/off appearance so it reflects real state
   // instead of looking permanently selected.
-  const keywordsActive = !!video?.subtitles?.some(
-    (sub) => sub.words?.some((w) => w.emphasis),
-  )
+  const keywordsActive = subtitles.some((sub) => sub.words?.some((w) => w.emphasis))
+
+  const frame =
+    frameDimensions.width > 0 && videoDimensions.width > 0
+      ? computeFrameGeometry(frameDimensions.width, frameDimensions.height)
+      : null
+
+  // Fit the preview frame inside the stage (contain), using the export format's
+  // aspect ratio or, for "Original", the source video's.
+  const frameAspect = getFormatAspectRatio(video.format) ?? nativeAspect
+  const frameBox =
+    frameAspect && stageSize.width > 0 && stageSize.height > 0
+      ? (() => {
+          const w = Math.min(stageSize.width, stageSize.height * frameAspect)
+          return { width: w, height: w / frameAspect }
+        })()
+      : { width: "100%", height: "100%" }
+
+  // Floating text toolbar sits above the selected subtitle (below if no room).
+  const toolbarAnchor = (() => {
+    if (!frame || selectedSubtitleId === null || !displayedSubtitle) return null
+    if (isPlaying || isDraggingSubtitle || resize) return null
+    const pos = normalizePosition(style.position)
+    const scale = frame.width / nativeVideoWidth
+    const halfH = Math.max(style.fontSize * scale, 12) * 0.75 + 10
+    const left = frame.offsetX + (pos.x / 100) * frame.width
+    const cy = frame.offsetY + (pos.y / 100) * frame.height
+    return cy - halfH - 8 > 48
+      ? { left, top: cy - halfH - 8, placement: "above" as const }
+      : { left, top: cy + halfH + 8, placement: "below" as const }
+  })()
+
+  // Timeline "Split": the selected block, else the one under the playhead.
+  const splitAtPlayhead = () => {
+    const target = subtitles.find((s) => s.id === selectedSubtitleId) ?? currentSubtitle
+    if (!target) {
+      toast.error("Move the playhead inside a subtitle to split it")
+      return
+    }
+    splitSubtitleAtPlayhead(target)
+  }
+
+  const togglePlay = () => {
+    const v = videoRef.current
+    if (!v) return
+    if (v.paused) v.play()
+    else v.pause()
+  }
 
   return (
-    <div className="h-screen bg-canvas text-white flex flex-col p-4 gap-3 overflow-hidden">
-      {/* Header — three equal-width columns so the center toolbar stays
-          truly centered without absolute positioning (survives narrow widths). */}
-      <header className="bg-surface rounded-xl px-4 h-[56px] flex items-center w-full border border-white/[0.08] flex-shrink-0">
-        {/* Left - Back + Logo */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <Link href="/dashboard" className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors text-zinc-400 hover:text-white">
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
-          <div className="w-px h-5 bg-white/[0.08]" />
-          <h1 className="text-[14px] font-bold tracking-wide bg-gradient-to-r from-[#2563eb] to-[#60a5fa] bg-clip-text text-transparent">
-            SUPERTITLE
-          </h1>
-        </div>
+    <div
+      className="h-screen min-w-[1180px] bg-canvas text-paper grid overflow-hidden"
+      style={{
+        gridTemplateColumns: `64px ${sidebarWidth}px minmax(0, 1fr)`,
+        gridTemplateRows: "56px minmax(0, 1fr)",
+      }}
+    >
+      <EditorHeader
+        title={video.title}
+        isSaving={isSaving}
+        format={video.format}
+        onFormatChange={updateFormat}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
+        hasSubtitles={hasSubtitles}
+        onExportSRT={exportSRT}
+        onExportVTT={exportVTT}
+        isRendering={isRendering}
+        hasRender={!!video.outputUrl}
+        onRender={renderVideo}
+        onPreviewRender={() => setShowRenderPreview(true)}
+        user={user}
+      />
 
-        {/* Center - Tools */}
-        <div className="flex items-center gap-1 bg-white/[0.04] rounded-lg p-1 flex-shrink-0">
-          <div className="relative format-dropdown-container">
-            <button
-              ref={formatButtonRef}
-              onClick={() => setShowFormatDropdown(!showFormatDropdown)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                video.format
-                  ? 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
-                  : 'text-zinc-400 hover:bg-white/[0.06] hover:text-white'
-              }`}
-              title={`Format: ${getFormatLabel(video.format)}`}
-            >
-              <Monitor className="w-3.5 h-3.5" />
-              <span>{getFormatLabel(video.format)}</span>
-              <ChevronDown className="w-3 h-3 opacity-50" />
-            </button>
+      <EditorRail active={activePanel} onChange={setActivePanel} />
 
-            {/* Format Dropdown */}
-            {showFormatDropdown && (() => {
-              const buttonRect = formatButtonRef.current?.getBoundingClientRect()
-              if (!buttonRect || typeof window === 'undefined') return null
+      {/* Task panel (resizable) */}
+      <aside className="relative border-r border-line/8 min-h-0 flex flex-col">
+        {activePanel === "subtitles" && (
+          <TranscriptPanel
+            subtitles={subtitles}
+            durationSeconds={duration}
+            selectedId={selectedSubtitleId}
+            activeId={currentSubtitle?.id ?? null}
+            editingId={editingSubtitle}
+            displayTime={displayTime}
+            keywordsActive={keywordsActive}
+            isTranscribing={isTranscribing}
+            emphasisColor={style.emphasisColor || "#FFD700"}
+            onTranscribe={transcribeVideo}
+            onSelect={(sub) => seekToSubtitle(sub.start, sub.id)}
+            onEdit={(sub) => {
+              seekToSubtitle(sub.start, sub.id)
+              setEditingSubtitle(sub.id)
+            }}
+            onStopEdit={() => setEditingSubtitle(null)}
+            onTextChange={updateSubtitleText}
+            onTimingChange={updateSubtitleTiming}
+            onSplit={splitSubtitleAtPlayhead}
+            onMerge={mergeWithNext}
+            onDelete={deleteSubtitle}
+            onAdd={addSubtitleAtPlayhead}
+            onAutoHighlight={autoHighlightKeywords}
+            onClearHighlights={clearKeywordHighlights}
+          />
+        )}
+        {activePanel === "style" && (
+          <StylePanel
+            style={style}
+            frameUrl={templateFrame}
+            sampleText={subtitles[0]?.text ?? ""}
+            onApply={(preset) => updateStyle(preset.style, true)}
+            onOpenText={() => setActivePanel("text")}
+          />
+        )}
+        {activePanel === "text" && (
+          <TextPanel style={style} onChange={commitStyle} onOpenStyle={() => setActivePanel("style")} />
+        )}
+        {activePanel === "overlays" && (
+          <OverlaysPanel
+            style={style}
+            onPosition={updateSubtitlePosition}
+            onStyle={commitStyle}
+            keywordColor={style.emphasisColor || "#FFD700"}
+            onAutoHighlight={autoHighlightKeywords}
+            onClearHighlights={clearKeywordHighlights}
+            hook={video.hookOverlay}
+            onHookChange={updateHook}
+            onHookEnable={() => updateHook({})}
+            onHookRemove={removeHook}
+            logo={video.logoOverlay}
+            isUploadingLogo={isUploadingLogo}
+            onLogoFile={uploadLogo}
+            onLogoRemove={removeLogo}
+            onLogoChange={updateLogoSettings}
+          />
+        )}
 
-              return createPortal(
-                <div
-                  className="format-dropdown-menu fixed bg-elevated border border-white/[0.08] rounded-xl shadow-2xl z-[9999] min-w-[160px] overflow-hidden py-1"
-                  style={{
-                    top: `${buttonRect.bottom + 8}px`,
-                    left: `${buttonRect.left}px`,
-                  }}
-                >
-                  {FORMAT_OPTIONS.map((format) => (
-                    <button
-                      key={format.label}
-                      onClick={() => updateFormat(format.value)}
-                      className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center justify-between ${
-                        video.format === format.value
-                          ? 'bg-blue-600/15 text-blue-400'
-                          : 'text-zinc-300 hover:bg-white/[0.06]'
-                      }`}
-                    >
-                      <span>{format.label}</span>
-                      {video.format === format.value && (
-                        <Check className="w-3.5 h-3.5 text-blue-400" />
-                      )}
-                    </button>
-                  ))}
-                </div>,
-                document.body
-              )
-            })()}
-          </div>
-
-          <div className="w-px h-4 bg-white/[0.08]" />
-
-          <button
-            onClick={() => setShowLogoModal(true)}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              video.logoOverlay
-                ? 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
-                : 'text-zinc-400 hover:bg-white/[0.06] hover:text-white'
-            }`}
-            title="Add Logo/Watermark"
-          >
-            <Image className="w-3.5 h-3.5" />
-            <span>Logo</span>
-          </button>
-
-          <div className="w-px h-4 bg-white/[0.08]" />
-
-          <button
-            onClick={undo}
-            disabled={!canUndo}
-            className="p-1.5 rounded-md text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-500"
-            title="Undo (Ctrl+Z)"
-          >
-            <Undo2 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={redo}
-            disabled={!canRedo}
-            className="p-1.5 rounded-md text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-500"
-            title="Redo (Ctrl+Shift+Z)"
-          >
-            <Redo2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        {/* Right - Status + Export */}
-        <div className="flex items-center gap-3 flex-1 justify-end relative export-menu-container">
-          {isSaving && (
-            <span className="flex items-center gap-1.5 text-xs text-blue-400">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              Saving
-            </span>
-          )}
-          {isTranscribing && (
-            <span className="flex items-center gap-1.5 text-xs text-amber-400">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              Transcribing
-            </span>
-          )}
-          {isRendering && (
-            <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              Rendering
-            </span>
-          )}
-
-          {/* Export — secondary action, subtitle files only */}
-          <button
-            onClick={() => setShowExportMenu(!showExportMenu)}
-            disabled={!video?.subtitles || (video?.subtitles as any[]).length === 0}
-            className="flex items-center gap-2 bg-white/[0.06] hover:bg-white/[0.1] text-zinc-200 px-3.5 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed h-[32px] text-[13px]"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            Export
-          </button>
-
-            {/* Export Dropdown Menu — SRT / VTT */}
-            {showExportMenu && (
-              <div className="absolute top-full right-0 mt-2 w-60 bg-elevated border border-white/[0.08] rounded-xl shadow-2xl z-50 overflow-hidden py-1">
-                  <button
-                    onClick={exportSRT}
-                    className="w-full text-left px-4 py-3 hover:bg-white/[0.06] transition-colors flex items-center gap-3"
-                  >
-                    <FileText className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                    <div>
-                      <div className="text-sm font-medium">Export SRT</div>
-                      <div className="text-[11px] text-zinc-500">Universal subtitle format</div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={exportVTT}
-                    className="w-full text-left px-4 py-3 hover:bg-white/[0.06] transition-colors flex items-center gap-3"
-                  >
-                    <FileText className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                    <div>
-                      <div className="text-sm font-medium">Export VTT</div>
-                      <div className="text-[11px] text-zinc-500">Web video text tracks</div>
-                    </div>
-                  </button>
-              </div>
-            )}
-
-          {/* Render — primary action. Turns into Preview once a render exists. */}
-          {isRendering ? (
-            <button
-              disabled
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-1.5 rounded-lg font-medium opacity-70 cursor-not-allowed h-[32px] text-[13px]"
-            >
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              Rendering…
-            </button>
-          ) : video?.outputUrl ? (
-            <button
-              onClick={() => setShowRenderPreview(true)}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-lg font-medium transition-colors h-[32px] text-[13px]"
-            >
-              <Play className="w-3.5 h-3.5" />
-              Preview
-            </button>
-          ) : (
-            <button
-              onClick={renderVideo}
-              disabled={!video?.subtitles || (video?.subtitles as any[]).length === 0}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed h-[32px] text-[13px]"
-            >
-              <Film className="w-3.5 h-3.5" />
-              Render
-            </button>
-          )}
-        </div>
-      </header>
-
-      {/* Main Editor — fills the remaining viewport via flex instead of a
-          hand-computed height, so header/padding changes can't desync it. */}
-      <div className="flex gap-3 flex-1 min-h-0">
-        {/* Left Sidebar - Subtitle Editor */}
-        <aside
-          style={{ width: sidebarWidth }}
-          className="bg-surface rounded-xl flex flex-col flex-shrink-0 self-stretch border border-white/[0.08]"
-        >
-          <div className="px-4 pt-4 pb-3">
-            {/* Tabs */}
-            <div className="flex gap-1 bg-white/[0.04] rounded-lg p-1">
-              <button
-                onClick={() => setActiveTab("subtitles")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[13px] font-medium transition-all ${
-                  activeTab === "subtitles"
-                    ? "bg-white/[0.1] text-white shadow-sm"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                <Type className="w-3.5 h-3.5" />
-                Subtitles
-              </button>
-              <button
-                onClick={() => setActiveTab("styles")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[13px] font-medium transition-all ${
-                  activeTab === "styles"
-                    ? "bg-white/[0.1] text-white shadow-sm"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                <Palette className="w-3.5 h-3.5" />
-                Styles
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar">
-            {activeTab === "subtitles" ? (
-              <div className="space-y-1.5">
-                {!video?.subtitles || video?.subtitles.length === 0 ? (
-                  <div className="text-center py-16 px-4">
-                    <div className="w-12 h-12 rounded-full bg-white/[0.04] flex items-center justify-center mx-auto mb-4">
-                      <Mic className="w-5 h-5 text-zinc-500" />
-                    </div>
-                    <p className="text-[13px] text-zinc-500 mb-1">
-                      No subtitles yet
-                    </p>
-                    <p className="text-[11px] text-zinc-600 mb-6">
-                      Transcribe your video to generate subtitles automatically
-                    </p>
-                    <button
-                      onClick={transcribeVideo}
-                      disabled={isTranscribing}
-                      className="w-full bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-lg text-[13px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {isTranscribing ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Transcribing...
-                        </>
-                      ) : (
-                        <>
-                          <Mic className="w-4 h-4" />
-                          Auto Transcribe
-                        </>
-                      )}
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                  {video?.subtitles?.map((sub, idx, arr) => (
-                    <div
-                      key={sub.id}
-                      ref={highlightedSubtitleId === sub.id ? activeCueRef : undefined}
-                      className={`group p-3 cursor-pointer transition-all rounded-lg border ${
-                        highlightedSubtitleId === sub.id
-                          ? "bg-blue-600/10 border-blue-500/20"
-                          : "border-transparent hover:bg-white/[0.03]"
-                      }`}
-                      onClick={() => seekToSubtitle(sub.start, sub.id)}
-                    >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[10px] text-zinc-500 font-mono tracking-wide">
-                          {formatTime(sub.start)} - {formatTime(sub.end)}
-                        </span>
-                        <div
-                          className={`flex items-center gap-0.5 transition-opacity ${
-                            editingSubtitle === sub.id || highlightedSubtitleId === sub.id
-                              ? "opacity-100"
-                              : "opacity-0 group-hover:opacity-100"
-                          }`}
-                        >
-                          {editingSubtitle === sub.id ? (
-                            <button
-                              className="p-1.5 rounded hover:bg-white/[0.08] transition-all"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setEditingSubtitle(null)
-                              }}
-                              title="Done"
-                            >
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
-                            </button>
-                          ) : (
-                            <button
-                              className="p-1.5 rounded hover:bg-white/[0.08] transition-all"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                seekToSubtitle(sub.start, sub.id)
-                                setEditingSubtitle(sub.id)
-                              }}
-                              title="Edit text"
-                            >
-                              <Pencil className="w-3.5 h-3.5 text-zinc-400" />
-                            </button>
-                          )}
-                          <button
-                            className="p-1.5 rounded hover:bg-white/[0.08] transition-all"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              splitSubtitleAtPlayhead(sub)
-                            }}
-                            title="Split at playhead"
-                          >
-                            <Scissors className="w-3.5 h-3.5 text-zinc-400" />
-                          </button>
-                          <button
-                            disabled={idx === arr.length - 1}
-                            className="p-1.5 rounded hover:bg-white/[0.08] transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              mergeWithNext(sub)
-                            }}
-                            title="Merge with next"
-                          >
-                            <Combine className="w-3.5 h-3.5 text-zinc-400" />
-                          </button>
-                          {/* Divider isolates the destructive action from merge to avoid mis-clicks */}
-                          <div className="w-px h-4 bg-white/[0.08] mx-0.5" />
-                          <button
-                            className="p-1.5 rounded hover:bg-red-500/10 transition-all group/del"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              deleteSubtitle(sub.id)
-                            }}
-                            title="Delete subtitle"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 text-zinc-400 group-hover/del:text-red-400" />
-                          </button>
-                        </div>
-                      </div>
-                      {editingSubtitle === sub.id ? (
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <textarea
-                            value={sub.text}
-                            onChange={(e) => updateSubtitleText(sub.id, e.target.value)}
-                            className={`w-full bg-transparent text-[13px] leading-relaxed resize-none border-none focus:outline-none p-0 mb-2 ${
-                              highlightedSubtitleId === sub.id ? "text-white" : "text-zinc-300"
-                            }`}
-                            rows={2}
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === 'Escape') {
-                                setEditingSubtitle(null)
-                              }
-                            }}
-                          />
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              defaultValue={sub.start.toFixed(2)}
-                              onBlur={(e) =>
-                                updateSubtitleTiming(sub.id, "start", parseFloat(e.target.value))
-                              }
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-                              }}
-                              className="w-[64px] bg-white/[0.04] border border-white/[0.06] rounded px-2 py-1 text-[11px] font-mono text-zinc-200 focus:outline-none focus:border-blue-500/50"
-                              title="Start (seconds)"
-                            />
-                            <span className="text-zinc-600 text-[11px]">→</span>
-                            <input
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              defaultValue={sub.end.toFixed(2)}
-                              onBlur={(e) =>
-                                updateSubtitleTiming(sub.id, "end", parseFloat(e.target.value))
-                              }
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-                              }}
-                              className="w-[64px] bg-white/[0.04] border border-white/[0.06] rounded px-2 py-1 text-[11px] font-mono text-zinc-200 focus:outline-none focus:border-blue-500/50"
-                              title="End (seconds)"
-                            />
-                            <span className="text-[10px] text-zinc-600">sec</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <p
-                          className={`text-[13px] leading-relaxed cursor-text ${
-                            highlightedSubtitleId === sub.id ? "text-white" : "text-zinc-400"
-                          }`}
-                          onDoubleClick={(e) => {
-                            e.stopPropagation()
-                            seekToSubtitle(sub.start, sub.id)
-                            setEditingSubtitle(sub.id)
-                          }}
-                        >
-                          {sub.text}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                  <button
-                    onClick={addSubtitleAtPlayhead}
-                    className="w-full flex items-center justify-center gap-1.5 mt-1 py-2 rounded-lg border border-dashed border-white/[0.08] text-[12px] text-zinc-500 hover:text-zinc-300 hover:border-white/[0.16] hover:bg-white/[0.02] transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add subtitle at playhead
-                  </button>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {/* Templates */}
-                <div>
-                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-3">Templates</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {SUBTITLE_PRESETS.map((template) => {
-                      const isActive = matchesPreset(style, template)
-
-                      const previewBg = (() => {
-                        if (template.style.backgroundOpacity <= 0) return "transparent"
-                        const hex = template.style.backgroundColor.replace('#', '')
-                        const r = parseInt(hex.substring(0, 2), 16)
-                        const g = parseInt(hex.substring(2, 4), 16)
-                        const b = parseInt(hex.substring(4, 6), 16)
-                        return `rgba(${r}, ${g}, ${b}, ${template.style.backgroundOpacity})`
-                      })()
-
-                      // Match worker: outline only renders when backgroundOpacity <= 0 (BorderStyle=1)
-                      const w = template.style.outlineWidth
-                      const oc = template.style.outlineColor
-                      const textShadow = template.style.outline && template.style.backgroundOpacity <= 0
-                        ? `${w}px 0 0 ${oc}, -${w}px 0 0 ${oc}, 0 ${w}px 0 ${oc}, 0 -${w}px 0 ${oc}, ${w}px ${w}px 0 ${oc}, -${w}px -${w}px 0 ${oc}, ${w}px -${w}px 0 ${oc}, -${w}px ${w}px 0 ${oc}`
-                        : "none"
-
-                      const animMode = template.style.animationMode
-                      const isAnimated = !!animMode && animMode !== 'none'
-
-                      return (
-                        <button
-                          key={template.id}
-                          onClick={() => updateStyle(template.style, true)}
-                          className={`flex flex-col items-center gap-1.5 rounded-lg p-2 transition-all border ${
-                            isActive
-                              ? "border-blue-500/50 bg-blue-600/10"
-                              : "border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06]"
-                          }`}
-                        >
-                          <div
-                            className="relative w-full h-[48px] rounded flex items-center justify-center overflow-hidden"
-                            style={{ backgroundColor: "#18181b" }}
-                          >
-                            {isAnimated && (
-                              <div
-                                className="absolute top-1 right-1 flex items-center justify-center rounded-full bg-black/60 p-0.5"
-                                title={`Animation: ${animMode}`}
-                              >
-                                <Sparkles className="w-2.5 h-2.5 text-amber-300 animate-pulse" />
-                              </div>
-                            )}
-                            {template.style.displayMode === 'word-group' ? (
-                              <span style={{
-                                fontFamily: resolveFontFamily(template.style.fontFamily),
-                                fontSize: "16px",
-                                fontWeight: template.style.fontWeight ?? 700,
-                                textShadow,
-                                backgroundColor: !template.style.highlightBg ? previewBg : undefined,
-                                padding: !template.style.highlightBg && template.style.backgroundOpacity > 0 ? "2px 6px" : undefined,
-                                borderRadius: "2px",
-                              }}>
-                                <span style={{ color: template.style.color, marginRight: '4px' }}>DO </span>
-                                <span style={{
-                                  color: template.style.highlightBg ? (template.style.highlightColor || '#FFFFFF') : (template.style.highlightColor || '#FFD700'),
-                                  backgroundColor: template.style.highlightBg || undefined,
-                                  padding: template.style.highlightBg ? '1px 4px' : undefined,
-                                  borderRadius: template.style.highlightBg ? '3px' : undefined,
-                                }}>IT</span>
-                              </span>
-                            ) : (
-                              <span
-                                style={{
-                                  color: template.style.color,
-                                  fontFamily: resolveFontFamily(template.style.fontFamily),
-                                  fontSize: "18px",
-                                  fontWeight: template.style.fontWeight ?? 700,
-                                  textShadow,
-                                  backgroundColor: previewBg,
-                                  padding: template.style.backgroundOpacity > 0 ? "2px 6px" : undefined,
-                                  borderRadius: "2px",
-                                }}
-                              >
-                                Aa
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[11px] text-gray-400">{template.name}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Subtitle Color */}
-                <div>
-                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Subtitle Color</label>
-                  <div className="flex items-center gap-3 mb-2.5">
-                    <input
-                      type="color"
-                      value={style.color}
-                      onChange={(e) => updateStyle({ color: e.target.value })}
-                      className="w-10 h-10 rounded-full cursor-pointer border-2 border-zinc-700"
-                      style={{ backgroundColor: style.color }}
-                    />
-                    <span className="text-[12px] font-mono uppercase text-zinc-400">{style.color}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {COLOR_PRESETS.map((preset) => (
-                      <button
-                        key={preset}
-                        onClick={() => updateStyle({ color: preset })}
-                        title={preset}
-                        aria-label={`Set subtitle color ${preset}`}
-                        className={`w-6 h-6 rounded-full border transition-transform hover:scale-110 ${
-                          style.color.toLowerCase() === preset.toLowerCase()
-                            ? "border-blue-400 ring-2 ring-blue-400/40"
-                            : "border-white/[0.12]"
-                        }`}
-                        style={{ backgroundColor: preset }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Background Color */}
-                <div>
-                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Subtitle Background</label>
-                  <div className="flex items-center gap-3 mb-2.5">
-                    <input
-                      type="color"
-                      value={style.backgroundColor}
-                      onChange={(e) => updateStyle({ backgroundColor: e.target.value })}
-                      className="w-10 h-10 rounded-full cursor-pointer border-2 border-zinc-700"
-                      style={{ backgroundColor: style.backgroundColor }}
-                    />
-                    <span className="text-[12px] font-mono uppercase text-zinc-400">{style.backgroundColor}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {COLOR_PRESETS.map((preset) => (
-                      <button
-                        key={preset}
-                        onClick={() => updateStyle({ backgroundColor: preset })}
-                        title={preset}
-                        aria-label={`Set background color ${preset}`}
-                        className={`w-6 h-6 rounded-full border transition-transform hover:scale-110 ${
-                          style.backgroundColor.toLowerCase() === preset.toLowerCase()
-                            ? "border-blue-400 ring-2 ring-blue-400/40"
-                            : "border-white/[0.12]"
-                        }`}
-                        style={{ backgroundColor: preset }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Background Opacity */}
-                <div>
-                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Background Opacity</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={style.backgroundOpacity}
-                    onChange={(e) => updateStyle({ backgroundOpacity: parseFloat(e.target.value) })}
-                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer slider-blue"
-                    style={{
-                      background: `linear-gradient(to right, rgb(37, 99, 235) 0%, rgb(37, 99, 235) ${style.backgroundOpacity * 100}%, rgb(39, 39, 42) ${style.backgroundOpacity * 100}%, rgb(39, 39, 42) 100%)`
-                    }}
-                  />
-                </div>
-
-                {/* Font Family */}
-                <div>
-                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Font</label>
-                  <select
-                    value={style.fontFamily}
-                    onChange={(e) => updateStyle({ fontFamily: e.target.value })}
-                    className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-colors hover:bg-white/[0.06]"
-                  >
-                    <option value="Montserrat">Montserrat</option>
-                    <option value="Arial">Arial</option>
-                    <option value="Helvetica">Helvetica</option>
-                    <option value="Inter">Inter</option>
-                    <option value="Roboto">Roboto</option>
-                    <option value="Poppins">Poppins</option>
-                  </select>
-                </div>
-
-                {/* Font Size */}
-                <div>
-                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Font Size</label>
-                  <input
-                    type="range"
-                    min="12"
-                    max="120"
-                    value={style.fontSize}
-                    onChange={(e) => updateStyle({ fontSize: parseInt(e.target.value) })}
-                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer slider-blue"
-                    style={{
-                      background: `linear-gradient(to right, rgb(37, 99, 235) 0%, rgb(37, 99, 235) ${((style.fontSize - 12) / (120 - 12)) * 100}%, rgb(39, 39, 42) ${((style.fontSize - 12) / (120 - 12)) * 100}%, rgb(39, 39, 42) 100%)`
-                    }}
-                  />
-                </div>
-
-                {/* Per-word entrance animation selector (item 3) */}
-                {style.displayMode === 'word-group' && (
-                  <div>
-                    <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">
-                      Animation
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {([
-                        { value: 'none', label: 'None' },
-                        { value: 'pop', label: 'Pop' },
-                        { value: 'scale', label: 'Scale' },
-                        { value: 'slide-up', label: 'Slide-up' },
-                        { value: 'fade', label: 'Fade' },
-                      ] as const).map((opt) => {
-                        const active = (style.animationMode ?? 'none') === opt.value
-                        return (
-                          <button
-                            key={opt.value}
-                            onClick={() => updateStyle({ animationMode: opt.value })}
-                            className={`px-2 py-2 rounded-lg border text-[12px] font-medium transition-colors ${
-                              active
-                                ? 'bg-blue-600/20 border-blue-500/40 text-blue-300 hover:bg-blue-600/30'
-                                : 'bg-white/[0.04] border-white/[0.06] text-zinc-300 hover:bg-white/[0.08]'
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        )
-                      })}
-                    </div>
-                    <p className="text-[11px] text-zinc-600 mt-2">
-                      Each word animates in as it&apos;s spoken (Submagic style).
-                    </p>
-
-                    {/* Intensity — scales duration/magnitude/overshoot together */}
-                    {(style.animationMode ?? 'none') !== 'none' && (
-                      <div className="mt-3">
-                        <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">
-                          <span>Intensity</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          {([
-                            { value: 'subtle', label: 'Subtle' },
-                            { value: 'medium', label: 'Medium' },
-                            { value: 'strong', label: 'Strong' },
-                          ] as const).map((opt) => {
-                            const active = (style.animationIntensity ?? 'medium') === opt.value
-                            return (
-                              <button
-                                key={opt.value}
-                                onClick={() => updateStyle({ animationIntensity: opt.value })}
-                                className={`px-2 py-2 rounded-lg border text-[12px] font-medium transition-colors ${
-                                  active
-                                    ? 'bg-blue-600/20 border-blue-500/40 text-blue-300 hover:bg-blue-600/30'
-                                    : 'bg-white/[0.04] border-white/[0.06] text-zinc-300 hover:bg-white/[0.08]'
-                                }`}
-                              >
-                                {opt.label}
-                              </button>
-                            )
-                          })}
-                        </div>
-
-                        {/* Live preview — loops the selected mode/intensity on a
-                            sample word using the same math as the renderer. */}
-                        <AnimationPreview
-                          mode={style.animationMode ?? 'none'}
-                          intensity={style.animationIntensity ?? 'medium'}
-                          color={style.highlightColor || '#FFD700'}
-                          fontFamily={style.fontFamily}
-                          uppercase={style.uppercase}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Auto-split (item 4): controls how words are chunked into
-                    on-screen caption blocks. Re-chunks live (computed on the fly). */}
-                {style.displayMode === 'word-group' && (
-                  <div>
-                    <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">
-                      Auto-split
-                    </label>
-
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex items-center justify-between text-[12px] text-zinc-400 mb-1.5">
-                          <span>Max words / block</span>
-                          <span className="text-zinc-200 font-medium">{style.wordsPerGroup ?? 4}</span>
-                        </div>
-                        <input
-                          type="range"
-                          min={1}
-                          max={6}
-                          step={1}
-                          value={style.wordsPerGroup ?? 4}
-                          onChange={(e) => updateStyle({ wordsPerGroup: Number(e.target.value) })}
-                          className="w-full"
-                          style={{ background: rangeFill(style.wordsPerGroup ?? 4, 1, 6) }}
-                        />
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between text-[12px] text-zinc-400 mb-1.5">
-                          <span>Max chars / block</span>
-                          <span className="text-zinc-200 font-medium">{style.maxCharsPerGroup ?? 24}</span>
-                        </div>
-                        <input
-                          type="range"
-                          min={10}
-                          max={40}
-                          step={1}
-                          value={style.maxCharsPerGroup ?? 24}
-                          onChange={(e) => updateStyle({ maxCharsPerGroup: Number(e.target.value) })}
-                          className="w-full"
-                          style={{ background: rangeFill(style.maxCharsPerGroup ?? 24, 10, 40) }}
-                        />
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between text-[12px] text-zinc-400 mb-1.5">
-                          <span>Pause split</span>
-                          <span className="text-zinc-200 font-medium">{(style.splitPauseGap ?? 0.35).toFixed(2)}s</span>
-                        </div>
-                        <input
-                          type="range"
-                          min={0.1}
-                          max={1}
-                          step={0.05}
-                          value={style.splitPauseGap ?? 0.35}
-                          onChange={(e) => updateStyle({ splitPauseGap: Number(e.target.value) })}
-                          className="w-full"
-                          style={{ background: rangeFill(style.splitPauseGap ?? 0.35, 0.1, 1) }}
-                        />
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-zinc-600 mt-2">
-                      Splits speech into readable blocks by pause and length.
-                    </p>
-                  </div>
-                )}
-
-                {/* Keyword highlight (item 2) */}
-                {style.displayMode === 'word-group' && (
-                  <div>
-                    <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">
-                      Keywords
-                    </label>
-                    <div className="flex items-center gap-3 mb-3">
-                      <input
-                        type="color"
-                        value={style.emphasisColor || '#FFD700'}
-                        onChange={(e) => updateStyle({ emphasisColor: e.target.value })}
-                        className="w-10 h-10 rounded-full cursor-pointer border-2 border-zinc-700"
-                        style={{ backgroundColor: style.emphasisColor || '#FFD700' }}
-                      />
-                      <span className="text-[12px] text-zinc-400">Highlight color</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={autoHighlightKeywords}
-                        className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12px] transition-colors border ${
-                          keywordsActive
-                            ? "bg-blue-600/20 border-blue-500/40 text-blue-300 hover:bg-blue-600/30"
-                            : "bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.06] text-zinc-300"
-                        }`}
-                      >
-                        <Palette className="w-3 h-3" />
-                        Auto-highlight
-                      </button>
-                      <button
-                        onClick={clearKeywordHighlights}
-                        className="flex items-center justify-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg px-3 py-2 text-[12px] transition-colors"
-                      >
-                        <X className="w-3 h-3" />
-                        Clear
-                      </button>
-                    </div>
-                    <p className="text-[11px] text-zinc-600 mt-2">
-                      Highlights keywords in a fixed color (heuristic). Requires word-by-word data.
-                    </p>
-                  </div>
-                )}
-
-                {/* Position Reset */}
-                <div>
-                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">Position</label>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => updateSubtitlePosition({ x: 50, y: 90 })}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg px-3 py-2 text-[12px] transition-colors"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      Bottom
-                    </button>
-                    <button
-                      onClick={() => updateSubtitlePosition({ x: 50, y: 50 })}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg px-3 py-2 text-[12px] transition-colors"
-                    >
-                      <AlignCenter className="w-3 h-3" />
-                      Center
-                    </button>
-                  </div>
-                  <p className="flex items-center gap-1.5 text-[11px] text-zinc-600 mt-2">
-                    <Move className="w-3 h-3" />
-                    Drag subtitle on video to reposition
-                  </p>
-                </div>
-
-                {/* Group separator: everything below is a video overlay, not
-                    subtitle text styling — keeps the long Styles panel scannable. */}
-                <div className="flex items-center gap-2 pt-1">
-                  <div className="h-px flex-1 bg-white/[0.08]" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">Overlays</span>
-                  <div className="h-px flex-1 bg-white/[0.08]" />
-                </div>
-
-                {/* Hook / headline overlay (item 5) */}
-                <div>
-                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2.5">
-                    Hook / Title
-                  </label>
-                  {!video.hookOverlay ? (
-                    <button
-                      onClick={() => updateHook({})}
-                      className="w-full flex items-center justify-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg px-3 py-2 text-[12px] transition-colors"
-                    >
-                      <Type className="w-3 h-3" />
-                      Add hook
-                    </button>
-                  ) : (() => {
-                    const hook = video.hookOverlay
-                    return (
-                      <div className="space-y-3">
-                        <input
-                          type="text"
-                          value={hook.text}
-                          onChange={(e) => updateHook({ text: e.target.value })}
-                          placeholder="Hook text"
-                          className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50"
-                        />
-
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="color"
-                            value={hook.color}
-                            onChange={(e) => updateHook({ color: e.target.value })}
-                            className="w-10 h-10 rounded-full cursor-pointer border-2 border-zinc-700"
-                            style={{ backgroundColor: hook.color }}
-                          />
-                          <span className="text-[12px] text-zinc-400">Text color</span>
-                        </div>
-
-                        <div>
-                          <div className="flex items-center justify-between text-[12px] text-zinc-400 mb-1.5">
-                            <span>Size</span>
-                            <span className="text-zinc-200 font-medium">{hook.fontSize}</span>
-                          </div>
-                          <input
-                            type="range"
-                            min={16}
-                            max={96}
-                            step={1}
-                            value={hook.fontSize}
-                            onChange={(e) => updateHook({ fontSize: Number(e.target.value) })}
-                            className="w-full"
-                            style={{ background: rangeFill(hook.fontSize, 16, 96) }}
-                          />
-                        </div>
-
-                        <div>
-                          <div className="flex items-center justify-between text-[12px] text-zinc-400 mb-1.5">
-                            <span>Vertical position</span>
-                            <span className="text-zinc-200 font-medium">{Math.round(hook.position.y)}%</span>
-                          </div>
-                          <input
-                            type="range"
-                            min={2}
-                            max={98}
-                            step={1}
-                            value={hook.position.y}
-                            onChange={(e) => updateHook({ position: { x: hook.position.x, y: Number(e.target.value) } })}
-                            className="w-full"
-                            style={{ background: rangeFill(hook.position.y, 2, 98) }}
-                          />
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => updateHook({ uppercase: !hook.uppercase })}
-                            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12px] border transition-colors ${
-                              hook.uppercase
-                                ? 'bg-blue-600/20 border-blue-500/40 text-blue-300 hover:bg-blue-600/30'
-                                : 'bg-white/[0.04] border-white/[0.06] text-zinc-300 hover:bg-white/[0.08]'
-                            }`}
-                          >
-                            UPPERCASE
-                          </button>
-                          <button
-                            onClick={removeHook}
-                            className="flex items-center justify-center gap-1.5 bg-white/[0.04] hover:bg-red-600/20 border border-white/[0.06] hover:border-red-500/40 text-zinc-300 hover:text-red-300 rounded-lg px-3 py-2 text-[12px] transition-colors"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })()}
-                </div>
-              </div>
-            )}
-          </div>
-        </aside>
-
-        {/* Drag handle to resize the sidebar */}
+        {/* Drag handle to resize the panel */}
         <div
           onMouseDown={handleSidebarResizeStart}
-          className="group flex items-center justify-center w-1.5 flex-shrink-0 cursor-ew-resize self-stretch -mx-1 z-10"
+          className="group absolute top-0 bottom-0 -right-[5px] w-2.5 z-20 cursor-ew-resize flex items-center justify-center"
           role="separator"
           aria-orientation="vertical"
-          aria-label="Resize sidebar"
+          aria-label="Resize panel"
         >
-          <div className="w-1 h-12 rounded-full bg-white/[0.08] group-hover:bg-blue-400/50 transition-colors" />
+          <div className="w-1 h-12 rounded-full bg-line/12 group-hover:bg-accent-ink/60 transition-colors duration-150" />
         </div>
+      </aside>
 
-        {/* Center - Video Preview */}
-        <main className="flex-1 flex flex-col min-w-0 gap-3">
-          {/* Video Area */}
-          <div className="flex-1 flex items-center justify-center min-h-0">
-            <div className="w-full h-full">
-              <div className="w-full h-full bg-canvas rounded-xl overflow-hidden relative flex items-center justify-center border border-white/[0.08]">
-                {/* Aspect Ratio Wrapper */}
-                <div
-                  className="relative bg-black"
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    width: (() => {
-                      const ratio = getFormatAspectRatio(video.format)
-                      return ratio ? 'auto' : '100%'
-                    })(),
-                    height: (() => {
-                      const ratio = getFormatAspectRatio(video.format)
-                      return ratio ? '100%' : '100%'
-                    })(),
-                    aspectRatio: (() => {
-                      const ratio = getFormatAspectRatio(video.format)
-                      return ratio ? `${ratio}` : 'auto'
-                    })(),
-                  }}
-                >
-                  <video
-                    ref={videoRef}
-                    src={video?.videoUrl}
-                    className="w-full h-full"
-                    style={{ objectFit: 'contain' }}
-                    onClick={() => {
-                      if (videoRef.current) {
-                        if (videoRef.current.paused) {
-                          videoRef.current.play()
-                        } else {
-                          videoRef.current.pause()
-                        }
-                      }
-                    }}
-                  >
-                    Your browser does not support the video tag.
-                  </video>
-
-                  {/* Subtitle Preview Overlay */}
-                {(() => {
-                  if (frameDimensions.width === 0 || videoDimensions.width === 0) return null
-                  const frame = computeFrameGeometry(frameDimensions.width, frameDimensions.height)
-                  return (
-                    <SubtitleTrack
-                      currentTime={displayTime}
-                      subtitles={video.subtitles || []}
-                      style={style}
-                      videoWidth={frame.width}
-                      videoHeight={frame.height}
-                      nativeVideoWidth={nativeVideoWidth}
-                      offsetX={frame.offsetX}
-                      offsetY={frame.offsetY}
-                      overrideSubtitle={displayedSubtitle ?? null}
-                      interactive
-                      isDragging={isDraggingSubtitle}
-                      onMouseDown={handleSubtitleMouseDown}
-                      onResizeStart={handleResizeStart}
-                    />
-                  )
-                })()}
-
-                {/* Hook Preview Overlay (item 5) */}
-                {video.hookOverlay && videoDimensions.width > 0 && frameDimensions.width > 0 && (() => {
-                  const frame = computeFrameGeometry(frameDimensions.width, frameDimensions.height)
-                  return (
-                    <HookOverlay
-                      hook={video.hookOverlay}
-                      videoWidth={frame.width}
-                      videoHeight={frame.height}
-                      nativeVideoWidth={nativeVideoWidth}
-                      offsetX={frame.offsetX}
-                      offsetY={frame.offsetY}
-                    />
-                  )
-                })()}
-
-                {/* Logo Preview Overlay */}
-                {video.logoOverlay && video.logoOverlay.logoUrl && videoDimensions.width > 0 && frameDimensions.width > 0 && (
-                  (() => {
-                    // Anchor the logo to the export frame corners — with a fixed
-                    // format that includes the letterbox bars, matching the render.
-                    const frame = computeFrameGeometry(frameDimensions.width, frameDimensions.height)
-                    const offsetX = frame.offsetX
-                    const offsetY = frame.offsetY
-
-                    // Calculate logo size based on frame width
-                    const logoMaxSize = (frame.width * video.logoOverlay.size) / 100
-                    const padding = 16 // 1rem = 16px
-
-                    // Calculate position based on selected corner
-                    let left, right, top, bottom
-
-                    if (video.logoOverlay.position === 'top-left') {
-                      left = offsetX + padding
-                      top = offsetY + padding
-                    } else if (video.logoOverlay.position === 'top-right') {
-                      right = offsetX + padding
-                      top = offsetY + padding
-                    } else if (video.logoOverlay.position === 'bottom-left') {
-                      left = offsetX + padding
-                      bottom = offsetY + padding + 48 // Extra space for timeline controls
-                    } else { // bottom-right
-                      right = offsetX + padding
-                      bottom = offsetY + padding + 48
-                    }
-
-                    return (
-                      <div
-                        className="absolute pointer-events-none"
-                        style={{
-                          left: left !== undefined ? `${left}px` : undefined,
-                          right: right !== undefined ? `${right}px` : undefined,
-                          top: top !== undefined ? `${top}px` : undefined,
-                          bottom: bottom !== undefined ? `${bottom}px` : undefined,
-                          opacity: video.logoOverlay.opacity
-                        }}
-                      >
-                        <img
-                          src={video.logoOverlay.logoUrl}
-                          alt="Logo"
-                          style={{
-                            maxWidth: `${logoMaxSize}px`,
-                            maxHeight: `${logoMaxSize}px`,
-                            objectFit: 'contain'
-                          }}
-                        />
-                      </div>
-                    )
-                  })()
-                )}
-                </div>
-
-                {/* Failed-job banner with retry (item 3) */}
-                {failedJob && (
-                  <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 bg-elevated border border-red-500/30 rounded-xl shadow-2xl px-4 py-3 max-w-[90%]">
-                    <X className="w-4 h-4 text-red-400 flex-shrink-0" />
-                    <span className="text-[13px] text-zinc-100">
-                      {failedJob === 'transcribe'
-                        ? 'Transcription failed.'
-                        : 'Rendering failed.'}
-                    </span>
-                    <button
-                      onClick={failedJob === 'transcribe' ? transcribeVideo : renderVideo}
-                      className="text-[12px] font-medium text-blue-400 hover:text-blue-300 transition-colors flex-shrink-0"
-                    >
-                      Try again
-                    </button>
-                    <button
-                      onClick={() => setFailedJob(null)}
-                      className="text-zinc-500 hover:text-zinc-300 transition-colors flex-shrink-0"
-                      aria-label="Dismiss"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-
-                {/* Long-running job overlay — render/transcription take minutes,
-                    so make the in-flight state impossible to miss over the preview. */}
-                {(isTranscribing || isRendering) && (
-                  <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/70 backdrop-blur-sm">
-                    <div className="relative flex items-center justify-center">
-                      <Loader2 className={`w-10 h-10 animate-spin ${isRendering ? 'text-emerald-400' : 'text-amber-400'}`} />
-                    </div>
-                    <div className="text-center px-6">
-                      <p className="text-[15px] font-semibold text-white">
-                        {isRendering ? 'Rendering your video' : 'Transcribing audio'}
-                      </p>
-                      <p className="text-[12px] text-zinc-400 mt-1">
-                        {isRendering
-                          ? 'Burning in subtitles and overlays — this can take a few minutes. You can keep editing other projects.'
-                          : 'Generating subtitles from speech — usually under a couple of minutes.'}
-                      </p>
-                    </div>
-                    <div className="h-1 w-40 overflow-hidden rounded-full bg-white/[0.08]">
-                      <div className={`h-full w-1/3 animate-pulse rounded-full ${isRendering ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Timeline with Filmstrip */}
-          <VideoTimeline
-            videoId={video.id}
-            videoUrl={video.videoUrl}
-            duration={duration}
-            currentTime={currentTime}
-            isPlaying={isPlaying}
-            isMuted={isMuted}
-            trim={trim}
-            videoDuration={videoRef.current?.duration || initialVideo.duration * 60}
-            onPlayPause={() => {
-              if (videoRef.current) {
-                if (videoRef.current.paused) {
-                  videoRef.current.play()
-                } else {
-                  videoRef.current.pause()
-                }
-              }
-            }}
-            onToggleMute={() => {
-              if (videoRef.current) {
-                videoRef.current.muted = !videoRef.current.muted
-                setIsMuted(videoRef.current.muted)
-              }
-            }}
-            onSeek={(time) => {
-              if (videoRef.current) {
-                videoRef.current.currentTime = time
-              }
-            }}
-            onToggleTrim={toggleTrim}
-            onTrimHandleDragStart={handleTrimHandleDragStart}
-          />
-        </main>
-      </div>
-
-      {/* Logo Upload Modal */}
-      {showLogoModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowLogoModal(false)}>
-          <div className="bg-[#1a1a1f] border border-white/[0.08] rounded-2xl p-6 w-[460px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-semibold">Logo / Watermark</h2>
-              <button onClick={() => setShowLogoModal(false)} className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors text-zinc-400 hover:text-white">
-                <X className="w-4 h-4" />
+      {/* Stage + timeline */}
+      <main className="flex flex-col min-w-0 min-h-0">
+        <div
+          ref={stageRef}
+          className="flex-1 min-h-0 relative bg-stage bg-dots flex items-center justify-center p-5 overflow-hidden"
+        >
+          {/* Failed-job banner with retry, pinned to the top of the stage */}
+          {failedJob && (
+            <div
+              role="alert"
+              className="absolute top-4 left-4 right-4 mx-auto max-w-[560px] z-40 flex items-center gap-3 pl-4 pr-2 py-2 rounded-lg bg-danger-surface border border-danger/40 shadow-[var(--shadow-menu)]"
+            >
+              <AlertTriangle className="size-4 text-danger-ink flex-none" />
+              <span className="flex-1 text-[13px] text-paper">
+                {failedJob === "transcribe" ? "Transcription failed." : "Rendering failed."}
+              </span>
+              <button
+                type="button"
+                onClick={failedJob === "transcribe" ? transcribeVideo : renderVideo}
+                className="h-7 px-2.5 rounded-[7px] bg-danger text-on-accent text-[12px] font-semibold flex items-center gap-1.5 hover:opacity-90 flex-none"
+              >
+                <RotateCcw className="size-3.5" />
+                Try again
               </button>
+              <IconButton title="Dismiss" size={26} onClick={() => setFailedJob(null)}>
+                <X className="size-3.5" />
+              </IconButton>
             </div>
+          )}
 
-            {video.logoOverlay ? (
-              /* Logo already exists - show settings */
-              <div className="space-y-4">
-                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-                  <img src={video.logoOverlay.logoUrl || ''} alt="Logo" className="max-h-28 mx-auto" />
-                </div>
+          {/* Preview frame — video content never changes with theme */}
+          <div
+            className="relative bg-black shadow-[var(--shadow-lg)] rounded-xs"
+            style={{ width: frameBox.width, height: frameBox.height, maxWidth: "100%", maxHeight: "100%" }}
+          >
+            <video
+              ref={videoRef}
+              src={video?.videoUrl}
+              className="w-full h-full"
+              style={{ objectFit: "contain" }}
+              onClick={togglePlay}
+            >
+              Your browser does not support the video tag.
+            </video>
 
-                <div>
-                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Position</label>
-                  <select
-                    value={video.logoOverlay.position}
-                    onChange={(e) => updateLogoSettings({ position: e.target.value as LogoOverlay['position'] })}
-                    className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                  >
-                    <option value="top-left">Top Left</option>
-                    <option value="top-right">Top Right</option>
-                    <option value="bottom-left">Bottom Left</option>
-                    <option value="bottom-right">Bottom Right</option>
-                  </select>
-                </div>
+            {/* Subtitle Preview Overlay */}
+            {frame && (
+              <SubtitleTrack
+                currentTime={displayTime}
+                subtitles={subtitles}
+                style={style}
+                videoWidth={frame.width}
+                videoHeight={frame.height}
+                nativeVideoWidth={nativeVideoWidth}
+                offsetX={frame.offsetX}
+                offsetY={frame.offsetY}
+                overrideSubtitle={displayedSubtitle ?? null}
+                interactive
+                isDragging={isDraggingSubtitle}
+                onMouseDown={handleSubtitleMouseDown}
+                onResizeStart={handleResizeStart}
+              />
+            )}
 
-                <div>
-                  <label className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">
-                    <span>Size</span>
-                    <span className="text-zinc-400 normal-case tracking-normal">{video.logoOverlay.size}%</span>
-                  </label>
-                  <input
-                    type="range"
-                    min="5"
-                    max="20"
-                    value={video.logoOverlay.size}
-                    onChange={(e) => updateLogoSettings({ size: parseInt(e.target.value) })}
-                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+            {/* Hook Preview Overlay (item 5) */}
+            {video.hookOverlay && frame && (
+              <HookOverlay
+                hook={video.hookOverlay}
+                videoWidth={frame.width}
+                videoHeight={frame.height}
+                nativeVideoWidth={nativeVideoWidth}
+                offsetX={frame.offsetX}
+                offsetY={frame.offsetY}
+              />
+            )}
+
+            {/* Logo Preview Overlay */}
+            {video.logoOverlay && video.logoOverlay.logoUrl && frame && (
+              (() => {
+                // Anchor the logo to the export frame corners — with a fixed
+                // format that includes the letterbox bars, matching the render.
+                const offsetX = frame.offsetX
+                const offsetY = frame.offsetY
+
+                // Calculate logo size based on frame width
+                const logoMaxSize = (frame.width * video.logoOverlay.size) / 100
+                const padding = 16 // 1rem = 16px
+
+                // Calculate position based on selected corner
+                let left, right, top, bottom
+
+                if (video.logoOverlay.position === 'top-left') {
+                  left = offsetX + padding
+                  top = offsetY + padding
+                } else if (video.logoOverlay.position === 'top-right') {
+                  right = offsetX + padding
+                  top = offsetY + padding
+                } else if (video.logoOverlay.position === 'bottom-left') {
+                  left = offsetX + padding
+                  bottom = offsetY + padding + 48 // Extra space for timeline controls
+                } else { // bottom-right
+                  right = offsetX + padding
+                  bottom = offsetY + padding + 48
+                }
+
+                return (
+                  <div
+                    className="absolute pointer-events-none"
                     style={{
-                      background: `linear-gradient(to right, rgb(37, 99, 235) 0%, rgb(37, 99, 235) ${((video.logoOverlay.size - 5) / 15) * 100}%, rgb(39, 39, 42) ${((video.logoOverlay.size - 5) / 15) * 100}%, rgb(39, 39, 42) 100%)`
+                      left: left !== undefined ? `${left}px` : undefined,
+                      right: right !== undefined ? `${right}px` : undefined,
+                      top: top !== undefined ? `${top}px` : undefined,
+                      bottom: bottom !== undefined ? `${bottom}px` : undefined,
+                      opacity: video.logoOverlay.opacity
                     }}
-                  />
-                </div>
-
-                <div>
-                  <label className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">
-                    <span>Opacity</span>
-                    <span className="text-zinc-400 normal-case tracking-normal">{Math.round(video.logoOverlay.opacity * 100)}%</span>
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={video.logoOverlay.opacity * 100}
-                    onChange={(e) => updateLogoSettings({ opacity: parseInt(e.target.value) / 100 })}
-                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
-                    style={{
-                      background: `linear-gradient(to right, rgb(37, 99, 235) 0%, rgb(37, 99, 235) ${video.logoOverlay.opacity * 100}%, rgb(39, 39, 42) ${video.logoOverlay.opacity * 100}%, rgb(39, 39, 42) 100%)`
-                    }}
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-1">
-                  <button
-                    onClick={removeLogo}
-                    className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-lg transition-colors text-[13px] font-medium border border-red-500/20"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Remove
-                  </button>
-                  <button
-                    onClick={() => setShowLogoModal(false)}
-                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-lg transition-colors text-[13px] font-medium"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* No logo - show upload form */
-              <div className="space-y-4">
-                <div className="border-2 border-dashed border-white/[0.08] rounded-xl p-8 text-center hover:border-blue-500/30 transition-colors">
-                  {logoPreview ? (
-                    <div className="space-y-3">
-                      <img src={logoPreview} alt="Logo preview" className="max-h-28 mx-auto" />
-                      <p className="text-[12px] text-zinc-500">{logoFile?.name}</p>
-                    </div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={video.logoOverlay.logoUrl}
+                      alt="Logo"
+                      style={{
+                        maxWidth: `${logoMaxSize}px`,
+                        maxHeight: `${logoMaxSize}px`,
+                        objectFit: 'contain'
+                      }}
+                    />
+                  </div>
+                )
+              })()
+            )}
+
+            {/* Quick text controls above the selected subtitle */}
+            {toolbarAnchor && (
+              <FloatingToolbar
+                style={style}
+                left={toolbarAnchor.left}
+                top={toolbarAnchor.top}
+                placement={toolbarAnchor.placement}
+                onChange={commitStyle}
+                onOpenText={() => setActivePanel("text")}
+              />
+            )}
+
+            {/* Long-running job overlay — render/transcription take minutes,
+                so make the in-flight state impossible to miss over the preview. */}
+            {(isTranscribing || isRendering) && (
+              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3.5 px-[10%] text-center bg-canvas/[0.82]">
+                <Loader2 className="size-[34px] text-accent-ink animate-spin" strokeWidth={1.75} />
+                <p className="font-serif text-[26px] leading-[1.05] text-paper">
+                  {isRendering ? (
+                    <>
+                      Rendering your <em className="italic">video</em>
+                    </>
                   ) : (
-                    <div className="space-y-3">
-                      <div className="w-12 h-12 rounded-full bg-white/[0.04] flex items-center justify-center mx-auto">
-                        <Upload className="w-5 h-5 text-zinc-500" />
-                      </div>
-                      <p className="text-[13px] text-zinc-400">Click to upload or drag and drop</p>
-                      <p className="text-[11px] text-zinc-600">PNG, JPG or SVG (max 5MB)</p>
-                    </div>
+                    <>
+                      Transcribing <em className="italic">audio</em>
+                    </>
                   )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoFileChange}
-                    className="hidden"
-                    id="logo-upload"
-                  />
-                  <label htmlFor="logo-upload" className="cursor-pointer mt-4 inline-flex items-center gap-2 bg-white/[0.06] hover:bg-white/[0.1] text-white px-4 py-2 rounded-lg transition-colors text-[13px]">
-                    <Image className="w-3.5 h-3.5" />
-                    Select Image
-                  </label>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setShowLogoModal(false)
-                      setLogoFile(null)
-                      setLogoPreview(null)
-                    }}
-                    className="flex-1 bg-white/[0.06] hover:bg-white/[0.1] text-white py-2.5 rounded-lg transition-colors text-[13px] font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={uploadLogo}
-                    disabled={!logoFile || isUploadingLogo}
-                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[13px] font-medium flex items-center justify-center gap-2"
-                  >
-                    {isUploadingLogo ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-3.5 h-3.5" />
-                        Upload & Add
-                      </>
-                    )}
-                  </button>
+                </p>
+                <p className="text-[12.5px] leading-normal text-ink-2 max-w-[320px]">
+                  {isRendering
+                    ? 'Burning in subtitles and overlays — this can take a few minutes. You can keep editing other projects.'
+                    : 'Generating subtitles from speech — usually under a couple of minutes.'}
+                </p>
+                <div className="w-full max-w-[260px] h-1 rounded-full bg-line/14 overflow-hidden">
+                  <div className="h-full w-1/3 rounded-full bg-accent animate-[indeterminate_1.4s_ease-in-out_infinite]" />
                 </div>
               </div>
             )}
           </div>
+
+          <div className="absolute bottom-3.5 left-4 flex items-center gap-1.5 text-[12px] text-ink-4 pointer-events-none">
+            <Move className="size-[13px]" />
+            Drag subtitle to reposition
+          </div>
         </div>
-      )}
+
+        {/* Timeline */}
+        <VideoTimeline
+          videoId={video.id}
+          videoUrl={video.videoUrl}
+          duration={duration}
+          currentTime={currentTime}
+          isPlaying={isPlaying}
+          isMuted={isMuted}
+          trim={trim}
+          videoDuration={videoRef.current?.duration || initialVideo.duration}
+          subtitles={subtitles}
+          selectedSubtitleId={selectedSubtitleId}
+          activeSubtitleId={currentSubtitle?.id ?? null}
+          onSelectSubtitle={(sub) => seekToSubtitle(sub.start, sub.id)}
+          onPlayPause={togglePlay}
+          onToggleMute={() => {
+            if (videoRef.current) {
+              videoRef.current.muted = !videoRef.current.muted
+              setIsMuted(videoRef.current.muted)
+            }
+          }}
+          onSeek={(time) => {
+            if (videoRef.current) {
+              videoRef.current.currentTime = time
+            }
+          }}
+          onToggleTrim={toggleTrim}
+          onClearTrim={clearTrim}
+          onSplit={splitAtPlayhead}
+          onTrimHandleDragStart={handleTrimHandleDragStart}
+        />
+      </main>
 
       {/* Render Preview Modal — shows the finished render with download/re-render */}
       {showRenderPreview && video.outputUrl && (
         <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-[var(--backdrop)] flex items-center justify-center z-50 p-4"
           onClick={() => setShowRenderPreview(false)}
         >
           <div
-            className="bg-[#1a1a1f] border border-white/[0.08] rounded-2xl p-5 w-[760px] max-w-[92vw] max-h-[90vh] overflow-y-auto shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="render-title"
+            className="min-w-[380px] max-w-[min(92vw,760px)] rounded-2xl bg-surface border border-line/10 shadow-[var(--shadow-modal)] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-full bg-emerald-500/15 flex items-center justify-center">
-                  <Check className="w-4 h-4 text-emerald-400" />
-                </div>
-                <h2 className="text-lg font-semibold">Rendered video</h2>
-              </div>
-              <button
-                onClick={() => setShowRenderPreview(false)}
-                className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors text-zinc-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
+            <div className="flex items-center justify-between pt-4 pr-4 pb-3 pl-5">
+              <h2 id="render-title" className="font-serif text-[26px] leading-none text-paper">
+                Rendered <em className="italic">video</em>
+              </h2>
+              <IconButton title="Close" onClick={() => setShowRenderPreview(false)}>
+                <X className="size-4" />
+              </IconButton>
             </div>
 
-            <div className="rounded-xl overflow-hidden bg-black mb-4 flex items-center justify-center">
+            <div className="px-5 flex justify-center">
               <video
                 src={video.outputUrl}
                 controls
                 autoPlay
-                className="w-full max-h-[60vh]"
+                className="max-h-[60vh] max-w-full rounded-sm bg-black"
               />
             </div>
 
-            <div className="flex items-center gap-3">
-              <button
+            <p className="px-5 pt-3 pb-1 text-center font-mono tabular-nums text-[11.5px] text-ink-3 truncate">
+              {video.title} · {getFormatLabel(video.format)} · {formatShort(duration)}
+            </p>
+
+            <div className="flex gap-2 px-4 pt-3 pb-4">
+              <Button
+                variant="ghost"
+                className="flex-1 h-[38px] text-[12.5px]"
                 onClick={() => {
                   setShowRenderPreview(false)
                   renderVideo()
                 }}
                 disabled={isRendering}
-                className="flex items-center justify-center gap-2 bg-white/[0.06] hover:bg-white/[0.1] text-zinc-200 px-4 py-2.5 rounded-lg transition-colors text-[13px] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Film className="w-3.5 h-3.5" />
+                <RefreshCw className="size-3.5" />
                 Re-render
-              </button>
-              <button
-                onClick={downloadRenderedVideo}
-                className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-lg transition-colors text-[13px] font-medium"
-              >
-                <Download className="w-3.5 h-3.5" />
+              </Button>
+              <Button className="flex-1 h-[38px] text-[13px]" onClick={downloadRenderedVideo}>
+                <Download className="size-[15px]" />
                 Download video
-              </button>
+              </Button>
             </div>
           </div>
         </div>

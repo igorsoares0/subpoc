@@ -9,6 +9,8 @@ interface TimelineFilmstripProps {
   duration: number
   currentTime: number
   onSeek: (time: number) => void
+  /** Strip height in px. */
+  height?: number
 }
 
 export function TimelineFilmstrip({
@@ -16,7 +18,8 @@ export function TimelineFilmstrip({
   videoUrl,
   duration,
   currentTime,
-  onSeek
+  onSeek,
+  height = 44
 }: TimelineFilmstripProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -24,7 +27,7 @@ export function TimelineFilmstrip({
 
   const filmstripState = useFilmstrip(videoId, videoUrl, duration)
 
-  const FRAME_HEIGHT = 55 // Altura fixa da timeline
+  const FRAME_HEIGHT = height
 
   /**
    * Detecta mudanças no tamanho do container
@@ -62,7 +65,7 @@ export function TimelineFilmstrip({
     canvas.height = FRAME_HEIGHT
 
     // Limpar canvas
-    ctx.fillStyle = '#18181b' // zinc-900
+    ctx.fillStyle = '#1D1D1A'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     // Modo 1: Renderizar frames extraídos via Canvas API
@@ -120,9 +123,9 @@ export function TimelineFilmstrip({
     else if (filmstripState.status === 'loading') {
       // Skeleton com gradiente animado
       const gradient = ctx.createLinearGradient(0, 0, containerWidth, 0)
-      gradient.addColorStop(0, '#27272a')    // zinc-800
-      gradient.addColorStop(0.5, '#3f3f46')  // zinc-700
-      gradient.addColorStop(1, '#27272a')    // zinc-800
+      gradient.addColorStop(0, '#2A2A26')
+      gradient.addColorStop(0.5, '#4a4a44')
+      gradient.addColorStop(1, '#2A2A26')
 
       ctx.fillStyle = gradient
       ctx.fillRect(0, 0, containerWidth, FRAME_HEIGHT)
@@ -130,10 +133,10 @@ export function TimelineFilmstrip({
 
     // Modo Error: Mostrar mensagem de erro
     else if (filmstripState.status === 'error') {
-      ctx.fillStyle = '#18181b' // zinc-900
+      ctx.fillStyle = '#1D1D1A'
       ctx.fillRect(0, 0, containerWidth, FRAME_HEIGHT)
 
-      ctx.fillStyle = '#ef4444' // red-500
+      ctx.fillStyle = '#FF5A4E'
       ctx.font = '12px sans-serif'
       ctx.textAlign = 'center'
       ctx.fillText(
@@ -143,7 +146,7 @@ export function TimelineFilmstrip({
       )
     }
 
-  }, [filmstripState, containerWidth])
+  }, [filmstripState, containerWidth, FRAME_HEIGHT])
 
   /**
    * Manipula clique na timeline para fazer seek
@@ -163,14 +166,14 @@ export function TimelineFilmstrip({
     <div ref={containerRef} className="relative w-full" style={{ height: `${FRAME_HEIGHT}px` }}>
       <canvas
         ref={canvasRef}
-        className="w-full h-full rounded cursor-pointer hover:opacity-90 transition-opacity"
+        className="w-full h-full cursor-pointer"
         onClick={handleClick}
       />
 
       {/* Indicador sutil e discreto quando filmstrip HD ainda está processando */}
       {filmstripState.status === 'canvas-ready' && (
-        <div className="absolute top-1 right-1 bg-zinc-800/70 backdrop-blur-sm text-zinc-400 text-[9px] font-medium px-1.5 py-0.5 rounded flex items-center gap-1">
-          <div className="w-1 h-1 bg-blue-400 rounded-full animate-pulse" />
+        <div className="absolute top-1 right-1 bg-black/60 text-[#C9C6BB] font-mono text-[9px] font-medium px-1.5 py-0.5 rounded-xs flex items-center gap-1 pointer-events-none">
+          <div className="w-1 h-1 bg-accent rounded-full animate-pulse" />
           HD
         </div>
       )}

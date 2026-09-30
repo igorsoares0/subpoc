@@ -72,14 +72,14 @@ export function AnimationPreview({
   const label = uppercase ? word.toUpperCase() : word;
 
   return (
-    <div className="mt-3 flex h-16 items-center justify-center overflow-hidden rounded-lg border border-white/[0.06] bg-black/40">
+    <div className="flex h-16 items-center justify-center overflow-hidden rounded-lg border border-line/8 bg-[#1D1D1A]">
       <span
         style={{
           display: "inline-block",
           fontFamily: resolveFontFamily(fontFamily),
           fontSize: 26,
           fontWeight: 800,
-          color: enabled ? color : "#71717a",
+          color: enabled ? color : "#75736B",
           transform: anim.transform,
           opacity: anim.opacity ?? 1,
           willChange: "transform, opacity",
