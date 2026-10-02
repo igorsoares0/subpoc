@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { putObject, projectKey, resolveMediaUrl } from "@/lib/r2"
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
     const updatedVideo = await prisma.videoProject.update({
       where: { id: videoId },
       data: {
-        logoOverlay: logoOverlay as any
+        logoOverlay: logoOverlay as Prisma.InputJsonValue
       }
     })
 

@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { Lock, Loader2, ArrowRight, CheckCircle2, AlertCircle } from "lucide-react"
+import { Loader2, ArrowRight, ArrowLeft, CheckCircle2, Link2Off } from "lucide-react"
 import { AuthShell, AuthHeading, AuthState } from "@/components/auth/AuthShell"
 import { Button, buttonClass } from "@/components/ui/Button"
 import { Field, Input } from "@/components/ui/Field"
@@ -54,24 +54,25 @@ function ResetPasswordForm() {
   if (!token) {
     return (
       <AuthState
-        icon={AlertCircle}
+        icon={Link2Off}
         tone="danger"
         title="Invalid"
-        em="link"
+        highlight="link"
         action={
-          <Link href="/forgot-password" className={buttonClass("ghost", "md")}>
+          <Link href="/forgot-password" className={buttonClass("secondary", "xl", "hover:text-paper")}>
+            <ArrowLeft className="size-[15px]" />
             Request a new link
           </Link>
         }
       >
-        This reset link is invalid.
+        This reset link is invalid or has expired.
       </AuthState>
     )
   }
 
   if (success) {
     return (
-      <AuthState icon={CheckCircle2} title="Password" em="updated">
+      <AuthState icon={CheckCircle2} title="Password" highlight="updated">
         Redirecting to sign in…
       </AuthState>
     )
@@ -79,14 +80,17 @@ function ResetPasswordForm() {
 
   return (
     <>
-      <AuthHeading title="Choose a new" em="password" />
+      <AuthHeading title="Choose a new" highlight="password" />
 
-      {error && <Banner variant="danger">{error}</Banner>}
+      {error && (
+        <Banner variant="danger" compact>
+          {error}
+        </Banner>
+      )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-[22px]">
         <Field label="New password">
           <Input
-            icon={Lock}
             id="password"
             type="password"
             value={password}
@@ -100,8 +104,8 @@ function ResetPasswordForm() {
 
         <Field label="Confirm password">
           <Input
-            icon={Lock}
             id="confirm"
+            invalid={error === "Passwords don't match"}
             type="password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
@@ -112,7 +116,7 @@ function ResetPasswordForm() {
           />
         </Field>
 
-        <Button type="submit" size="lg" disabled={isLoading} className="w-full">
+        <Button type="submit" size="2xl" disabled={isLoading} className="w-full">
           {isLoading ? (
             <>
               <Loader2 className="size-4 animate-spin" />
@@ -121,7 +125,7 @@ function ResetPasswordForm() {
           ) : (
             <>
               Update password
-              <ArrowRight className="size-[15px]" />
+              <ArrowRight className="size-4" />
             </>
           )}
         </Button>
@@ -133,7 +137,7 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <AuthShell>
-      <Suspense fallback={<Loader2 className="size-5 animate-spin text-ink-4 mx-auto" />}>
+      <Suspense fallback={<Loader2 className="size-5 animate-spin text-ink-3 mx-auto" />}>
         <ResetPasswordForm />
       </Suspense>
     </AuthShell>

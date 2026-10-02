@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=DM+Mono:wght@400;500&family=Montserrat:wght@700;900&family=Inter:wght@700&family=Roboto:wght@700&family=Poppins:wght@700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<style>body{margin:0}a{color:inherit}a:hover{color:#2B3BFF}</style>
+</helmet>
+<div style="--bg:#FFFFFF;--panel:#F2F2EF;--raise:#E7E7E3;--line:#E2E2DE;--ink:#0D0D0D;--ink2:#3F3F3C;--ink3:#6D6D68;--acc:#2B3BFF;--onacc:#FFFFFF;--accink:#2B3BFF;--acctint:rgba(43,59,255,.09);--stage:#F2F2EF;--danger:#E5322D;--dangertint:#FDECEB;font-family:'Archivo',system-ui,sans-serif;font-stretch:100%">
+<div style="{{ themeVars }}">
+<div data-screen-label="B · Editor" style="position:relative;width:1440px;height:900px;display:grid;grid-template-rows:64px minmax(0,1fr) 236px;background:var(--bg);color:var(--ink);overflow:hidden;font-size:14px">
+
+  <header style="display:flex;align-items:center;gap:16px;padding:0 20px">
+    <span title="Back to projects" style="width:36px;height:36px;border-radius:50%;background:var(--panel);display:flex;align-items:center;justify-content:center"><i data-lucide="arrow-left" style="width:17px;height:17px"></i></span>
+    <span style="font-stretch:125%;font-weight:900;font-size:20px;letter-spacing:-.02em">super<span style="background:var(--acc);color:var(--onacc);padding:0 4px">title</span></span>
+    <span style="width:1px;height:22px;background:var(--line)"></span>
+    <span style="font-weight:600;font-size:15px">tarifas-trump.mp4</span>
+    <span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">saved</span>
+    <span style="flex:1"></span>
+    <div style="display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--panel)">
+      <span style="height:32px;display:flex;align-items:center;padding:0 14px;border-radius:999px;background:var(--ink);color:var(--bg);font-weight:600;font-size:13px">9:16</span>
+      <span style="height:32px;display:flex;align-items:center;padding:0 12px;font-weight:600;font-size:13px;color:var(--ink3)">16:9</span>
+      <span style="height:32px;display:flex;align-items:center;padding:0 12px;font-weight:600;font-size:13px;color:var(--ink3)">1:1</span>
+      <span style="height:32px;display:flex;align-items:center;padding:0 12px;font-weight:600;font-size:13px;color:var(--ink3)">4:3</span>
+      <span style="height:32px;display:flex;align-items:center;padding:0 12px;font-weight:600;font-size:13px;color:var(--ink3)">Original</span>
+    </div>
+    <span title="Undo ⌘Z" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:var(--ink2)"><i data-lucide="undo-2" style="width:17px;height:17px"></i></span>
+    <span title="Redo ⇧⌘Z" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:var(--ink3)"><i data-lucide="redo-2" style="width:17px;height:17px"></i></span>
+    <span style="flex:1"></span>
+    <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+      <span style="height:40px;flex:none;white-space:nowrap;display:flex;align-items:center;padding:0 18px;border-radius:999px;background:var(--panel);color:var(--ink3);font-weight:600;font-size:13.5px">Export .srt / .vtt</span>
+      <span style="height:40px;flex:none;white-space:nowrap;display:flex;align-items:center;gap:8px;padding:0 20px;border-radius:999px;background:var(--raise);color:var(--ink3);font-weight:700;font-size:13.5px">Render video<i data-lucide="arrow-right" style="width:15px;height:15px"></i></span>
+    </sc-if>
+    <sc-if value="{{ headerNormal }}" hint-placeholder-val="{{ true }}">
+      <span style="height:40px;flex:none;white-space:nowrap;display:flex;align-items:center;padding:0 18px;border-radius:999px;background:var(--panel);font-weight:600;font-size:13.5px">Export .srt / .vtt</span>
+      <span style="height:40px;flex:none;white-space:nowrap;display:flex;align-items:center;gap:8px;padding:0 20px;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700;font-size:13.5px">Render video<i data-lucide="arrow-right" style="width:15px;height:15px"></i></span>
+    </sc-if>
+    <sc-if value="{{ isRendering }}" hint-placeholder-val="{{ false }}">
+      <span style="height:40px;flex:none;white-space:nowrap;display:flex;align-items:center;padding:0 18px;border-radius:999px;background:var(--panel);font-weight:600;font-size:13.5px">Export .srt / .vtt</span>
+      <span style="position:relative;height:40px;flex:none;white-space:nowrap;display:flex;align-items:center;gap:8px;padding:0 20px;border-radius:999px;background:var(--raise);color:var(--ink2);font-weight:700;font-size:13.5px;overflow:hidden"><span style="position:absolute;left:0;top:0;bottom:0;width:42%;background:var(--acctint)"></span><span style="position:relative">Rendering… <span style="font-family:'DM Mono';font-weight:500">42%</span></span></span>
+    </sc-if>
+    <sc-if value="{{ isRendered }}" hint-placeholder-val="{{ false }}">
+      <span style="height:40px;flex:none;white-space:nowrap;display:flex;align-items:center;padding:0 18px;border-radius:999px;background:var(--panel);font-weight:600;font-size:13.5px">Export .srt / .vtt</span>
+      <span style="height:40px;flex:none;white-space:nowrap;display:flex;align-items:center;gap:8px;padding:0 20px;border-radius:999px;box-shadow:inset 0 0 0 2px var(--acc);color:var(--accink);font-weight:700;font-size:13.5px"><i data-lucide="play" style="width:14px;height:14px;fill:currentColor"></i>Preview render</span>
+    </sc-if>
+    <span style="width:36px;height:36px;border-radius:50%;background:var(--ink);color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">IS</span>
+  </header>
+
+  <div style="display:grid;grid-template-columns:420px minmax(0,1fr) 360px;min-height:0">
+    <section style="display:flex;flex-direction:column;min-height:0;padding:8px 0 0">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:12px 28px 16px">
+        <span style="font-stretch:125%;font-weight:800;font-size:28px;letter-spacing:-.02em">Script</span>
+        <span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">{{ scriptMeta }}</span>
+      </div>
+
+      <sc-if value="{{ showList }}" hint-placeholder-val="{{ true }}">
+        <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:4px;padding:0 16px">
+          <div style="padding:14px 12px;border-radius:10px;background:var(--panel);display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:8px;font-family:'DM Mono';font-size:12px">
+              <span style="padding:3px 7px;border-radius:6px;background:var(--bg);box-shadow:inset 0 0 0 1.5px var(--acc)">0:00.00</span><span style="color:var(--ink3)">→</span><span style="padding:3px 7px;border-radius:6px;background:var(--bg)">0:06.11</span>
+              <span style="flex:1"></span><span style="color:var(--ink3)">6.1s</span>
+            </div>
+            <p style="margin:0;font-size:20px;line-height:1.35;font-weight:600;letter-spacing:-.01em;text-wrap:pretty">O <span style="background:var(--acc);color:var(--onacc);padding:0 3px;border-radius:3px">assunto</span> <span style="color:var(--ink3)">do momento são as <span style="background:#FFE14D;color:#0D0D0D;padding:0 2px">tarifas</span> impostas pelo <span style="background:#FFE14D;color:#0D0D0D;padding:0 2px">Trump</span> ao Brasil.</span></p>
+            <div style="display:flex;gap:6px;font-size:12.5px;font-weight:600">
+              <span style="height:30px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:999px;background:var(--bg)"><i data-lucide="scissors" style="width:13px;height:13px"></i>Split</span>
+              <span style="height:30px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:999px;background:var(--bg)"><i data-lucide="merge" style="width:13px;height:13px"></i>Merge</span>
+              <span style="height:30px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:999px;background:var(--bg)"><i data-lucide="pencil" style="width:13px;height:13px"></i>Edit</span>
+              <span style="flex:1"></span>
+              <span title="Delete" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:var(--ink3)"><i data-lucide="trash-2" style="width:14px;height:14px"></i></span>
+            </div>
+          </div>
+          <div style="padding:12px;display:flex;flex-direction:column;gap:6px"><span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">0:06.59 → 0:08.11</span><p style="margin:0;font-size:20px;line-height:1.35;font-weight:600;letter-spacing:-.01em;color:var(--ink2)">Só se fala nisso e com razão.</p></div>
+          <div style="padding:12px;display:flex;flex-direction:column;gap:6px"><span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">0:08.85 → 0:14.11</span><p style="margin:0;font-size:20px;line-height:1.35;font-weight:600;letter-spacing:-.01em;color:var(--ink2);text-wrap:pretty">Esse tema é de extrema importância e relevância e impacto para o Brasil.</p></div>
+          <div style="padding:12px;display:flex;flex-direction:column;gap:6px"><span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">0:14.39 → 0:18.00</span><p style="margin:0;font-size:20px;line-height:1.35;font-weight:600;letter-spacing:-.01em;color:var(--ink2);text-wrap:pretty">Mas não só, porque ele envolve uma série de outras questões.</p></div>
+        </div>
+        <div style="display:flex;gap:8px;padding:10px 28px 14px">
+          <span style="height:34px;flex:none;white-space:nowrap;display:flex;align-items:center;gap:7px;padding:0 14px;border-radius:999px;background:var(--acctint);color:var(--accink);font-weight:700;font-size:12.5px"><i data-lucide="sparkles" style="width:14px;height:14px"></i>Auto-highlight keywords</span>
+          <span style="height:34px;display:flex;align-items:center;padding:0 14px;border-radius:999px;background:var(--panel);font-weight:600;font-size:12.5px">Clear</span>
+          <span style="flex:1"></span>
+          <span title="Add subtitle at playhead" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--panel)"><i data-lucide="plus" style="width:15px;height:15px"></i></span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px;padding:0 28px 60px">
+          <span style="font-stretch:125%;font-weight:800;font-size:40px;line-height:1;letter-spacing:-.03em">No subtitles <span style="background:var(--acc);color:var(--onacc);padding:0 6px">yet</span></span>
+          <p style="margin:0;font-size:15px;line-height:1.5;color:var(--ink2)">We transcribe the audio and split it into synced blocks. Then just review the text.</p>
+          <span style="align-self:flex-start;height:48px;display:flex;align-items:center;gap:9px;padding:0 24px;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700;font-size:15px"><i data-lucide="wand-sparkles" style="width:17px;height:17px"></i>Auto transcribe</span>
+          <span style="font-size:13px;color:var(--ink3)">Uses 1 of your 4 remaining minutes.</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isTranscribing }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:18px;padding:4px 28px">
+          <div style="display:flex;flex-direction:column;gap:8px"><span style="width:110px;height:10px;border-radius:999px;background:var(--panel)"></span><span style="width:100%;height:18px;border-radius:6px;background:var(--panel)"></span><span style="width:72%;height:18px;border-radius:6px;background:var(--panel)"></span></div>
+          <div style="display:flex;flex-direction:column;gap:8px;opacity:.7"><span style="width:110px;height:10px;border-radius:999px;background:var(--panel)"></span><span style="width:84%;height:18px;border-radius:6px;background:var(--panel)"></span></div>
+          <div style="display:flex;flex-direction:column;gap:8px;opacity:.45"><span style="width:110px;height:10px;border-radius:999px;background:var(--panel)"></span><span style="width:100%;height:18px;border-radius:6px;background:var(--panel)"></span><span style="width:58%;height:18px;border-radius:6px;background:var(--panel)"></span></div>
+          <div style="display:flex;flex-direction:column;gap:8px;opacity:.25"><span style="width:110px;height:10px;border-radius:999px;background:var(--panel)"></span><span style="width:90%;height:18px;border-radius:6px;background:var(--panel)"></span></div>
+        </div>
+        <div style="padding:12px 28px 18px;font-size:13px;color:var(--ink3)">Lines appear here as soon as the transcript is ready.</div>
+      </sc-if>
+    </section>
+
+    <section style="position:relative;background:var(--stage);border-radius:16px;margin:0 0 12px;display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden">
+      <div style="position:relative;width:300px;height:533px;border-radius:14px;overflow:hidden;background:#000">
+        <img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
+        <sc-if value="{{ showList }}" hint-placeholder-val="{{ true }}">
+          <div style="position:absolute;left:8%;right:8%;top:8%;background:#fff;color:#111;font-family:'Montserrat';font-weight:900;font-size:16px;line-height:1.15;text-align:center;padding:10px 12px;border-radius:6px">Tarifas: o que muda pra você</div>
+          <span style="position:absolute;right:5%;bottom:4%;width:30px;height:30px;border-radius:7px;background:#fff;opacity:.8;display:flex;align-items:center;justify-content:center;font-stretch:125%;font-weight:900;font-size:13px;color:#0D0D0D">st</span>
+        </sc-if>
+        <sc-if value="{{ subOnVideo }}" hint-placeholder-val="{{ true }}">
+          <div style="position:absolute;left:6%;right:6%;top:50%;display:flex;justify-content:center;padding:6px 0;outline:2px solid var(--acc);outline-offset:2px;border-radius:4px">
+            <span style="white-space:nowrap;font-family:'Montserrat';font-weight:900;font-size:27px;color:#fff;-webkit-text-stroke:5px #000;paint-order:stroke fill">O <span style="color:#FFE14D">ASSUNTO</span> DO</span>
+          </div>
+        </sc-if>
+        <sc-if value="{{ isJob }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;background:rgba(13,13,13,.62)"></div>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{ isJob }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:340px;background:var(--bg);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:14px;box-shadow:0 24px 60px rgba(0,0,0,.25);box-sizing:border-box">
+          <span style="width:36px;height:36px;border-radius:50%;border:3.5px solid var(--raise);border-top-color:var(--acc);box-sizing:border-box;transform:rotate(30deg)"></span>
+          <span style="font-stretch:125%;font-weight:800;font-size:26px;line-height:1.05;letter-spacing:-.025em">{{ jobTitle }}</span>
+          <p style="margin:0;font-size:13.5px;line-height:1.5;color:var(--ink2)">{{ jobCopy }}</p>
+          <div style="position:relative;height:8px;border-radius:999px;background:var(--raise);overflow:hidden"><span style="{{ jobBar }}"></span></div>
+          <div style="display:flex;justify-content:space-between;font-family:'DM Mono';font-size:12px;color:var(--ink3)"><span>{{ jobLeft }}</span><span>{{ jobRight }}</span></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;left:16px;right:16px;top:16px;display:flex;align-items:center;gap:12px;padding:10px 10px 10px 16px;border-radius:14px;background:var(--dangertint);color:var(--danger)">
+          <i data-lucide="triangle-alert" style="width:18px;height:18px"></i>
+          <span style="flex:1;font-weight:700;font-size:14px">Rendering failed. <span style="font-weight:500;color:var(--ink2)">Your edits are saved.</span></span>
+          <span style="height:34px;display:flex;align-items:center;gap:7px;padding:0 16px;border-radius:999px;background:var(--danger);color:#fff;font-weight:700;font-size:13px"><i data-lucide="rotate-ccw" style="width:14px;height:14px"></i>Try again</span>
+          <span title="Dismiss" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:var(--ink2)"><i data-lucide="x" style="width:16px;height:16px"></i></span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showList }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:5px;border-radius:999px;background:var(--ink);color:var(--bg);font-size:12.5px;font-weight:600;white-space:nowrap">
+          <span style="height:30px;display:flex;align-items:center;gap:6px;padding:0 12px">Montserrat<i data-lucide="chevron-down" style="width:13px;height:13px;opacity:.6"></i></span>
+          <span style="height:30px;display:flex;align-items:center;padding:0 10px;font-family:'DM Mono'">42</span>
+          <span style="width:20px;height:20px;border-radius:50%;background:#FFD700;margin:0 6px"></span>
+          <span style="height:30px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:999px;background:var(--acc);color:#fff"><i data-lucide="move" style="width:13px;height:13px"></i>Drag to move</span>
+        </div>
+      </sc-if>
+    </section>
+
+    <aside style="display:flex;flex-direction:column;min-height:0;padding:8px 20px 12px;overflow:hidden">
+      <div style="display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--panel);margin-top:4px;flex:none">
+        <span style="{{ tabLooks }}">Looks</span>
+        <span style="{{ tabText }}">Text</span>
+        <span style="{{ tabOverlays }}">Overlays</span>
+      </div>
+
+      <sc-if value="{{ pLooks }}" hint-placeholder-val="{{ false }}">
+        <span style="margin:20px 0 10px;font-weight:700;font-size:13px">Word by word</span>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="position:relative;height:96px;border-radius:10px;overflow:hidden;box-shadow:0 0 0 2.5px var(--acc)"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 30%;filter:brightness(.65)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Montserrat;font-weight:900;font-size:17px;color:#fff;-webkit-text-stroke:4px #000;paint-order:stroke fill">DO <span style="color:#FFE14D">&nbsp;IT</span></span><span style="position:absolute;left:8px;bottom:6px;font-size:11px;font-weight:700;color:#fff">Hormozi</span><span style="position:absolute;right:6px;top:6px;width:18px;height:18px;border-radius:50%;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center"><i data-lucide="check" style="width:11px;height:11px"></i></span></div>
+          <div style="position:relative;height:96px;border-radius:10px;overflow:hidden"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 30%;filter:brightness(.65)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Montserrat;font-weight:900;font-size:17px;color:#fff">DO&nbsp;<span style="background:#22C55E;padding:0 4px">IT</span></span><span style="position:absolute;left:8px;bottom:6px;font-size:11px;font-weight:700;color:#fff">Karaoke</span></div>
+          <div style="position:relative;height:96px;border-radius:10px;overflow:hidden"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 30%;filter:brightness(.65)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Montserrat;font-weight:900;font-size:17px;color:#fff;-webkit-text-stroke:4px #000;paint-order:stroke fill">DO <span style="color:#FF4FD8">&nbsp;IT</span></span><span style="position:absolute;left:8px;bottom:6px;font-size:11px;font-weight:700;color:#fff">Beast</span></div>
+          <div style="position:relative;height:96px;border-radius:10px;overflow:hidden"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 30%;filter:brightness(.65)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Montserrat;font-weight:900;font-size:17px;color:#39FF6A">DO IT</span><span style="position:absolute;left:8px;bottom:6px;font-size:11px;font-weight:700;color:#fff">Neon</span></div>
+        </div>
+        <span style="margin:18px 0 10px;font-weight:700;font-size:13px">Full sentence</span>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="position:relative;height:96px;border-radius:10px;overflow:hidden"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 70%;filter:brightness(.65)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="font-family:Inter,sans-serif;font-weight:700;font-size:13px;color:#fff;background:rgba(0,0,0,.75);padding:3px 7px">Aa Clean</span></span><span style="position:absolute;left:8px;bottom:6px;font-size:11px;font-weight:700;color:#fff">Cinema</span></div>
+          <div style="position:relative;height:96px;border-radius:10px;overflow:hidden"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 70%;filter:brightness(.65)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="font-family:Inter,sans-serif;font-weight:700;font-size:13px;color:#111;background:#fff;padding:3px 7px">Aa Light</span></span><span style="position:absolute;left:8px;bottom:6px;font-size:11px;font-weight:700;color:#fff">Light</span></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ pText }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:10px;padding-top:14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:700;font-size:13px">Font</span><span style="font-size:12px;color:var(--ink3)">Applies to all lines</span></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+            <span style="height:44px;border-radius:10px;background:var(--ink);color:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px"><span style="font-family:Montserrat;font-weight:900;font-size:17px">Aa</span><span style="font-size:10.5px;font-weight:600">Montserrat</span></span>
+            <span style="height:44px;border-radius:10px;background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px"><span style="font-family:Arial;font-weight:700;font-size:17px">Aa</span><span style="font-size:10.5px;font-weight:600;color:var(--ink3)">Arial</span></span>
+            <span style="height:44px;border-radius:10px;background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px"><span style="font-family:Helvetica,Arial;font-weight:700;font-size:17px">Aa</span><span style="font-size:10.5px;font-weight:600;color:var(--ink3)">Helvetica</span></span>
+            <span style="height:44px;border-radius:10px;background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px"><span style="font-family:Inter;font-weight:700;font-size:17px">Aa</span><span style="font-size:10.5px;font-weight:600;color:var(--ink3)">Inter</span></span>
+            <span style="height:44px;border-radius:10px;background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px"><span style="font-family:Roboto;font-weight:700;font-size:17px">Aa</span><span style="font-size:10.5px;font-weight:600;color:var(--ink3)">Roboto</span></span>
+            <span style="height:44px;border-radius:10px;background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px"><span style="font-family:Poppins;font-weight:700;font-size:17px">Aa</span><span style="font-size:10.5px;font-weight:600;color:var(--ink3)">Poppins</span></span>
+          </div>
+          <div style="display:grid;grid-template-columns:76px minmax(0,1fr) 40px;align-items:center;gap:10px"><span style="font-weight:600;font-size:13px">Size</span><div style="position:relative;height:6px;border-radius:999px;background:var(--raise)"><span style="position:absolute;left:0;top:0;bottom:0;width:28%;border-radius:999px;background:var(--ink)"></span><span style="position:absolute;left:28%;top:50%;width:18px;height:18px;border-radius:50%;background:var(--bg);box-shadow:inset 0 0 0 2.5px var(--ink);transform:translate(-50%,-50%)"></span></div><span style="font-family:'DM Mono';font-size:13px;text-align:right">42</span></div>
+          <div style="display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;gap:10px"><span style="font-weight:600;font-size:13px">Color</span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap"><span style="width:24px;height:24px;border-radius:50%;background:#FFFFFF;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)"></span><span style="width:24px;height:24px;border-radius:50%;background:#FFD700;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--ink)"></span><span style="width:24px;height:24px;border-radius:50%;background:#00E676"></span><span style="width:24px;height:24px;border-radius:50%;background:#00E5FF"></span><span style="width:24px;height:24px;border-radius:50%;background:#FF5252"></span><span style="width:24px;height:24px;border-radius:50%;background:#FF4FD8"></span><span style="width:24px;height:24px;border-radius:50%;background:#FF9100"></span><span style="width:24px;height:24px;border-radius:50%;background:#000000"></span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;gap:10px"><span style="font-weight:600;font-size:13px">Box</span>
+            <div style="display:flex;gap:6px;align-items:center"><span style="width:24px;height:24px;border-radius:50%;background:var(--bg);box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--ink),inset 0 0 0 1px var(--line);position:relative;overflow:hidden"><span style="position:absolute;left:50%;top:-2px;bottom:-2px;width:2px;background:var(--danger);transform:rotate(45deg)"></span></span><span style="width:24px;height:24px;border-radius:50%;background:#000"></span><span style="width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)"></span><span style="width:24px;height:24px;border-radius:50%;background:#FFD700"></span><span style="width:24px;height:24px;border-radius:50%;background:#FF4FD8"></span><span style="flex:1"></span><span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">off</span></div>
+          </div>
+          <div style="height:1px;background:var(--line);margin:2px 0"></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:700;font-size:13px">Entry animation</span><span style="font-size:12px;color:var(--ink3)">Word by word</span></div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
+            <span style="height:44px;border-radius:10px;background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><span style="font-family:Montserrat;font-weight:900;font-size:14px;color:var(--ink3)">Aa</span><span style="font-size:10px;font-weight:600;color:var(--ink3)">None</span></span>
+            <span style="height:44px;border-radius:10px;background:var(--acc);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><span style="font-family:Montserrat;font-weight:900;font-size:16px">Aa</span><span style="font-size:10px;font-weight:700">Pop</span></span>
+            <span style="height:44px;border-radius:10px;background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><span style="font-family:Montserrat;font-weight:900;font-size:11px">Aa</span><span style="font-size:10px;font-weight:600;color:var(--ink3)">Scale</span></span>
+            <span style="height:44px;border-radius:10px;background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><span style="font-family:Montserrat;font-weight:900;font-size:14px;transform:translateY(3px)">Aa</span><span style="font-size:10px;font-weight:600;color:var(--ink3)">Slide-up</span></span>
+            <span style="height:44px;border-radius:10px;background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><span style="font-family:Montserrat;font-weight:900;font-size:14px;opacity:.35">Aa</span><span style="font-size:10px;font-weight:600;color:var(--ink3)">Fade</span></span>
+          </div>
+          <div style="display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--panel)"><span style="flex:1;height:28px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12.5px;color:var(--ink3)">Subtle</span><span style="flex:1;height:28px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:var(--bg);font-weight:700;font-size:12.5px">Medium</span><span style="flex:1;height:28px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12.5px;color:var(--ink3)">Strong</span></div>
+          <div style="height:1px;background:var(--line);margin:2px 0"></div>
+          <span style="font-weight:700;font-size:13px">Grouping</span>
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-weight:600;font-size:13px">Words per group</span><span style="display:flex;align-items:center;height:32px;border-radius:999px;background:var(--panel)"><span style="width:32px;display:flex;justify-content:center"><i data-lucide="minus" style="width:14px;height:14px"></i></span><span style="width:22px;text-align:center;font-family:'DM Mono';font-size:13px">3</span><span style="width:32px;display:flex;justify-content:center"><i data-lucide="plus" style="width:14px;height:14px"></i></span></span></div>
+          <div style="display:grid;grid-template-columns:110px minmax(0,1fr) 44px;align-items:center;gap:10px"><span style="font-weight:600;font-size:13px">Max characters</span><div style="position:relative;height:6px;border-radius:999px;background:var(--raise)"><span style="position:absolute;left:0;top:0;bottom:0;width:47%;border-radius:999px;background:var(--ink)"></span><span style="position:absolute;left:47%;top:50%;width:18px;height:18px;border-radius:50%;background:var(--bg);box-shadow:inset 0 0 0 2.5px var(--ink);transform:translate(-50%,-50%)"></span></div><span style="font-family:'DM Mono';font-size:13px;text-align:right">24</span></div>
+          <div style="display:grid;grid-template-columns:110px minmax(0,1fr) 44px;align-items:center;gap:10px"><span style="font-weight:600;font-size:13px">Pause split</span><div style="position:relative;height:6px;border-radius:999px;background:var(--raise)"><span style="position:absolute;left:0;top:0;bottom:0;width:28%;border-radius:999px;background:var(--ink)"></span><span style="position:absolute;left:28%;top:50%;width:18px;height:18px;border-radius:50%;background:var(--bg);box-shadow:inset 0 0 0 2.5px var(--ink);transform:translate(-50%,-50%)"></span></div><span style="font-family:'DM Mono';font-size:13px;text-align:right">0.35s</span></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ pOverlays }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:12px;padding-top:16px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:700;font-size:13px">Position</span><span style="font-size:12px;color:var(--ink3)">Or drag it on the video</span></div>
+          <div style="display:flex;gap:14px;align-items:center">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:4px;width:96px;height:96px;padding:5px;border-radius:12px;background:var(--panel);box-sizing:border-box;flex:none">
+              <span style="display:flex;align-items:center;justify-content:center"><span style="width:12px;height:3px;border-radius:2px;background:var(--line)"></span></span><span style="display:flex;align-items:center;justify-content:center"><span style="width:12px;height:3px;border-radius:2px;background:var(--line)"></span></span><span style="display:flex;align-items:center;justify-content:center"><span style="width:12px;height:3px;border-radius:2px;background:var(--line)"></span></span>
+              <span style="display:flex;align-items:center;justify-content:center"><span style="width:12px;height:3px;border-radius:2px;background:var(--line)"></span></span><span style="display:flex;align-items:center;justify-content:center;border-radius:7px;background:var(--acc)"><span style="width:16px;height:3px;border-radius:2px;background:#fff"></span></span><span style="display:flex;align-items:center;justify-content:center"><span style="width:12px;height:3px;border-radius:2px;background:var(--line)"></span></span>
+              <span style="display:flex;align-items:center;justify-content:center"><span style="width:12px;height:3px;border-radius:2px;background:var(--line)"></span></span><span style="display:flex;align-items:center;justify-content:center"><span style="width:12px;height:3px;border-radius:2px;background:var(--line)"></span></span><span style="display:flex;align-items:center;justify-content:center"><span style="width:12px;height:3px;border-radius:2px;background:var(--line)"></span></span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px"><span style="font-weight:700;font-size:14px">Center</span><span style="font-size:12.5px;line-height:1.45;color:var(--ink3)">Best for word-by-word — stays clear of the Reels/TikTok UI.</span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:90px minmax(0,1fr) 40px;align-items:center;gap:10px"><span style="font-weight:600;font-size:13px">Block width</span><div style="position:relative;height:6px;border-radius:999px;background:var(--raise)"><span style="position:absolute;left:0;top:0;bottom:0;width:87%;border-radius:999px;background:var(--ink)"></span><span style="position:absolute;left:87%;top:50%;width:18px;height:18px;border-radius:50%;background:var(--bg);box-shadow:inset 0 0 0 2.5px var(--ink);transform:translate(-50%,-50%)"></span></div><span style="font-family:'DM Mono';font-size:13px;text-align:right">90%</span></div>
+          <div style="height:1px;background:var(--line)"></div>
+          <div style="display:flex;align-items:center;gap:8px"><span style="font-weight:700;font-size:13px;flex:1">Keywords</span><span style="font-size:12px;color:var(--ink3)">Color</span><span style="width:22px;height:22px;border-radius:50%;background:#FFE14D;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)"></span></div>
+          <div style="display:flex;gap:6px"><span style="flex:1;height:32px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;background:var(--acctint);color:var(--accink);font-weight:700;font-size:12.5px"><i data-lucide="sparkles" style="width:13px;height:13px"></i>Auto-highlight</span><span style="flex:1;height:32px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;background:var(--panel);font-weight:600;font-size:12.5px"><i data-lucide="eraser" style="width:13px;height:13px"></i>Clear</span></div>
+          <div style="height:1px;background:var(--line)"></div>
+          <div style="border-radius:14px;background:var(--panel);padding:12px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:8px"><i data-lucide="heading" style="width:15px;height:15px"></i><span style="flex:1;font-weight:700;font-size:13px">Hook</span><span style="width:36px;height:22px;border-radius:999px;background:var(--acc);position:relative"><span style="position:absolute;right:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff"></span></span></div>
+            <div style="display:flex;gap:6px"><span style="flex:1;height:34px;display:flex;align-items:center;padding:0 12px;border-radius:10px;background:var(--bg);font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden">Tarifas: o que muda pra você</span><span style="width:34px;height:34px;border-radius:10px;background:var(--bg);display:flex;align-items:center;justify-content:center"><span style="width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)"></span></span><span title="Uppercase" style="width:34px;height:34px;border-radius:10px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;color:var(--ink3)">AA</span></div>
+            <div style="display:grid;grid-template-columns:64px minmax(0,1fr) 36px;align-items:center;gap:8px"><span style="font-size:12.5px;font-weight:600">Size</span><div style="position:relative;height:6px;border-radius:999px;background:var(--raise)"><span style="position:absolute;left:0;top:0;bottom:0;width:20%;border-radius:999px;background:var(--ink)"></span><span style="position:absolute;left:20%;top:50%;width:16px;height:16px;border-radius:50%;background:var(--bg);box-shadow:inset 0 0 0 2.5px var(--ink);transform:translate(-50%,-50%)"></span></div><span style="font-family:'DM Mono';font-size:12px;text-align:right">32</span></div>
+            <div style="display:grid;grid-template-columns:64px minmax(0,1fr) 36px;align-items:center;gap:8px"><span style="font-size:12.5px;font-weight:600">Vertical</span><div style="position:relative;height:6px;border-radius:999px;background:var(--raise)"><span style="position:absolute;left:0;top:0;bottom:0;width:10%;border-radius:999px;background:var(--ink)"></span><span style="position:absolute;left:10%;top:50%;width:16px;height:16px;border-radius:50%;background:var(--bg);box-shadow:inset 0 0 0 2.5px var(--ink);transform:translate(-50%,-50%)"></span></div><span style="font-family:'DM Mono';font-size:12px;text-align:right">12%</span></div>
+          </div>
+          <div style="border-radius:14px;background:var(--panel);padding:12px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:8px"><i data-lucide="image" style="width:15px;height:15px"></i><span style="flex:1;font-weight:700;font-size:13px">Logo / watermark</span><span style="width:36px;height:22px;border-radius:999px;background:var(--acc);position:relative"><span style="position:absolute;right:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff"></span></span></div>
+            <div style="display:flex;align-items:center;gap:10px"><span style="width:34px;height:34px;border-radius:8px;background:#fff;box-shadow:inset 0 0 0 1px var(--line);display:flex;align-items:center;justify-content:center;font-stretch:125%;font-weight:900;font-size:13px;color:#0D0D0D">st</span><div style="flex:1;display:flex;flex-direction:column"><span style="font-size:13px;font-weight:600">Logo image</span><span style="font-family:'DM Mono';font-size:11px;color:var(--ink3)">PNG/JPG · up to 5 MB</span></div><span style="display:flex;gap:2px;padding:3px;border-radius:999px;background:var(--bg)"><span title="Top left" style="width:26px;height:24px;display:flex;align-items:center;justify-content:center;color:var(--ink3)"><i data-lucide="arrow-up-left" style="width:13px;height:13px"></i></span><span title="Top right" style="width:26px;height:24px;display:flex;align-items:center;justify-content:center;color:var(--ink3)"><i data-lucide="arrow-up-right" style="width:13px;height:13px"></i></span><span title="Bottom left" style="width:26px;height:24px;display:flex;align-items:center;justify-content:center;color:var(--ink3)"><i data-lucide="arrow-down-left" style="width:13px;height:13px"></i></span><span title="Bottom right" style="width:26px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:var(--ink);color:var(--bg)"><i data-lucide="arrow-down-right" style="width:13px;height:13px"></i></span></span></div>
+          </div>
+        </div>
+      </sc-if>
+    </aside>
+  </div>
+
+  <section style="display:flex;flex-direction:column;padding:0 20px 14px;gap:8px;border-top:1px solid var(--line)">
+    <div style="height:52px;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:16px;flex:none">
+      <div style="display:flex;align-items:center;gap:8px">
+      <span style="height:34px;flex:none;white-space:nowrap;display:flex;align-items:center;gap:7px;padding:0 14px;border-radius:999px;background:var(--panel);font-weight:600;font-size:12.5px"><i data-lucide="split" style="width:13px;height:13px"></i>Split at playhead</span>
+      <span style="height:34px;flex:none;white-space:nowrap;display:flex;align-items:center;gap:8px;padding:0 6px 0 14px;border-radius:999px;background:var(--ink);color:var(--bg);font-weight:600;font-size:12.5px"><i data-lucide="scissors" style="width:13px;height:13px"></i>Trim<span style="font-family:'DM Mono';font-weight:400;opacity:.75">0:00.50 → 0:17.00</span><span title="Clear trim" style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center"><i data-lucide="x" style="width:12px;height:12px"></i></span></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="width:120px;text-align:right;font-family:'DM Mono';font-size:15px;font-weight:500;padding-right:8px">0:01.20</span>
+      <span title="Back ←" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:var(--ink2)"><i data-lucide="rewind" style="width:16px;height:16px"></i></span>
+      <span title="Play Space" style="width:42px;height:42px;border-radius:50%;background:var(--ink);color:var(--bg);display:flex;align-items:center;justify-content:center"><i data-lucide="play" style="width:16px;height:16px;fill:currentColor;margin-left:2px"></i></span>
+      <span title="Forward →" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:var(--ink2)"><i data-lucide="fast-forward" style="width:16px;height:16px"></i></span>
+        <span style="width:84px;font-family:'DM Mono';font-size:15px;font-weight:500;color:var(--ink3);padding-left:8px">0:16.50</span>
+        <span title="Mute" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:var(--ink2);"><i data-lucide="volume-2" style="width:16px;height:16px"></i></span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px">
+      
+      <span style="display:flex;align-items:center;gap:2px;height:34px;padding:0 4px;border-radius:999px;background:var(--panel);font-family:'DM Mono';font-size:12px"><span title="Zoom out" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center"><i data-lucide="minus" style="width:13px;height:13px"></i></span><span style="min-width:30px;text-align:center">Fit</span><span title="Zoom in" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center"><i data-lucide="plus" style="width:13px;height:13px"></i></span></span>
+      </div>
+    </div>
+
+    <div style="flex:1;display:grid;grid-template-columns:104px minmax(0,1fr);min-height:0">
+      <div style="display:flex;flex-direction:column;font-size:12px;font-weight:600;color:var(--ink2)">
+        <span style="height:22px"></span>
+        <span style="height:44px;flex:none;white-space:nowrap;display:flex;align-items:center;gap:7px"><i data-lucide="captions" style="width:14px;height:14px"></i>Subtitles</span>
+        <span style="height:26px;margin-top:6px;display:flex;align-items:center;gap:7px"><i data-lucide="layers" style="width:14px;height:14px"></i>Overlays</span>
+        <span style="height:50px;margin-top:6px;display:flex;align-items:center;gap:7px"><i data-lucide="film" style="width:14px;height:14px"></i>Video</span>
+      </div>
+      <div style="position:relative;min-width:0">
+        <div style="position:relative;height:22px;font-family:'DM Mono';font-size:10.5px;color:var(--ink3);background-image:linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:5.5556% 6px;background-repeat:repeat-x;background-position:0 100%">
+          <span style="position:absolute;left:0%;top:2px">0s</span><span style="position:absolute;left:11.11%;top:2px;transform:translateX(-50%)">2s</span><span style="position:absolute;left:22.22%;top:2px;transform:translateX(-50%)">4s</span><span style="position:absolute;left:33.33%;top:2px;transform:translateX(-50%)">6s</span><span style="position:absolute;left:44.44%;top:2px;transform:translateX(-50%)">8s</span><span style="position:absolute;left:55.55%;top:2px;transform:translateX(-50%)">10s</span><span style="position:absolute;left:66.66%;top:2px;transform:translateX(-50%)">12s</span><span style="position:absolute;left:77.77%;top:2px;transform:translateX(-50%)">14s</span><span style="position:absolute;left:88.88%;top:2px;transform:translateX(-50%)">16s</span><span style="position:absolute;right:0;top:2px">18s</span>
+        </div>
+
+        <div style="position:relative;height:44px">
+          <sc-if value="{{ showList }}" hint-placeholder-val="{{ true }}">
+            <span style="position:absolute;left:0;width:33.94%;top:4px;bottom:4px;border-radius:10px;background:var(--acc);color:#fff;font-size:12.5px;font-weight:700;display:flex;align-items:center;padding:0 14px;box-sizing:border-box;white-space:nowrap;overflow:hidden;background-image:linear-gradient(90deg,transparent 0 calc(100% - 1px),rgba(255,255,255,.28) 0);background-size:11.8% 100%">O assunto do momento são as tarifas…</span>
+            <span style="position:absolute;left:0;width:6px;top:10px;bottom:10px;border-radius:3px;background:#fff;margin-left:3px"></span>
+            <span style="position:absolute;left:33.94%;width:6px;top:10px;bottom:10px;border-radius:3px;background:#fff;margin-left:-9px"></span>
+            <span style="position:absolute;left:33.94%;width:2.67%;top:4px;bottom:4px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono';font-size:9.5px;color:var(--ink3)">.48</span>
+            <span style="position:absolute;left:36.61%;width:8.44%;top:4px;bottom:4px;border-radius:10px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);font-size:12.5px;font-weight:600;display:flex;align-items:center;padding:0 10px;box-sizing:border-box;white-space:nowrap;overflow:hidden">Só se fala…</span>
+            <span style="position:absolute;left:45.05%;width:4.12%;top:4px;bottom:4px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono';font-size:9.5px;color:var(--ink3)">.74</span>
+            <span style="position:absolute;left:49.17%;width:29.22%;top:4px;bottom:4px;border-radius:10px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);font-size:12.5px;font-weight:600;display:flex;align-items:center;padding:0 10px;box-sizing:border-box;white-space:nowrap;overflow:hidden">Esse tema é de extrema importância…</span>
+            <span style="position:absolute;left:78.39%;width:1.55%;top:4px;bottom:4px"></span>
+            <span style="position:absolute;left:79.94%;width:20.06%;top:4px;bottom:4px;border-radius:10px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);font-size:12.5px;font-weight:600;display:flex;align-items:center;padding:0 10px;box-sizing:border-box;white-space:nowrap;overflow:hidden">Mas não só, porque…</span>
+          </sc-if>
+          <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+            <span style="position:absolute;inset:4px 0;border-radius:10px;box-shadow:inset 0 0 0 1.5px var(--line);background:repeating-linear-gradient(-45deg,transparent 0 8px,var(--panel) 8px 10px);display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;color:var(--ink3)">Subtitles appear here after transcription</span>
+          </sc-if>
+          <sc-if value="{{ isTranscribing }}" hint-placeholder-val="{{ false }}">
+            <span style="position:absolute;inset:4px 62% 4px 0;border-radius:10px;background:var(--acctint);display:flex;align-items:center;padding:0 14px;font-size:12.5px;font-weight:700;color:var(--accink)">Transcribing… 38%</span>
+            <span style="position:absolute;inset:4px 0 4px 38.5%;border-radius:10px;box-shadow:inset 0 0 0 1.5px var(--line);background:repeating-linear-gradient(-45deg,transparent 0 8px,var(--panel) 8px 10px)"></span>
+          </sc-if>
+        </div>
+
+        <div style="position:relative;height:26px;margin-top:6px">
+          <sc-if value="{{ showList }}" hint-placeholder-val="{{ true }}">
+            <span style="position:absolute;left:2.78%;right:5.56%;top:0;height:12px;border-radius:6px;background:var(--raise);display:flex;align-items:center;padding:0 8px;font-size:10px;font-weight:700;color:var(--ink2);white-space:nowrap;overflow:hidden;box-sizing:border-box">Hook · Tarifas: o que muda pra você</span>
+            <span style="position:absolute;left:2.78%;right:5.56%;top:14px;height:12px;border-radius:6px;background:var(--raise);display:flex;align-items:center;padding:0 8px;font-size:10px;font-weight:700;color:var(--ink2);white-space:nowrap;overflow:hidden;box-sizing:border-box">Logo · bottom right</span>
+          </sc-if>
+        </div>
+
+        <div style="position:relative;height:50px;margin-top:6px;border-radius:10px;overflow:hidden">
+          <div style="position:absolute;inset:0;background-image:url(uploads/video-frame.png);background-size:auto 100%;background-repeat:repeat-x"></div>
+          <div style="position:absolute;left:0;width:2.78%;top:0;bottom:0;background:rgba(255,255,255,.78)"></div>
+          <div style="position:absolute;right:0;width:5.56%;top:0;bottom:0;background:rgba(255,255,255,.78)"></div>
+        </div>
+        <div style="position:absolute;left:2.78%;right:5.56%;bottom:0;height:50px;border:3px solid var(--ink);border-radius:10px;box-sizing:border-box;pointer-events:none"></div>
+        <span style="position:absolute;left:2.78%;bottom:0;height:50px;width:14px;margin-left:-7px;border-radius:7px;background:var(--ink);display:flex;align-items:center;justify-content:center;gap:2px"><span style="width:1.5px;height:16px;background:var(--bg)"></span><span style="width:1.5px;height:16px;background:var(--bg)"></span></span>
+        <span style="position:absolute;right:5.56%;bottom:0;height:50px;width:14px;margin-right:-7px;border-radius:7px;background:var(--ink);display:flex;align-items:center;justify-content:center;gap:2px"><span style="width:1.5px;height:16px;background:var(--bg)"></span><span style="width:1.5px;height:16px;background:var(--bg)"></span></span>
+
+        <div style="position:absolute;top:0;bottom:-4px;left:6.67%;width:2px;margin-left:-1px;background:var(--acc);pointer-events:none">
+          <span style="position:absolute;top:-1px;left:50%;transform:translateX(-50%);height:20px;display:flex;align-items:center;padding:0 7px;border-radius:999px;background:var(--acc);color:#fff;font-family:'DM Mono';font-size:10.5px;font-weight:500;white-space:nowrap">0:01.20</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <sc-if value="{{ isRendered }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:rgba(13,13,13,.55);display:flex;align-items:center;justify-content:center">
+      <div style="width:460px;background:var(--bg);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:18px;box-sizing:border-box">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start"><span style="font-stretch:125%;font-weight:800;font-size:34px;line-height:1;letter-spacing:-.03em">Rendered <span style="background:var(--acc);color:var(--onacc);padding:0 6px">video</span></span><span title="Close" style="width:36px;height:36px;border-radius:50%;background:var(--panel);display:flex;align-items:center;justify-content:center"><i data-lucide="x" style="width:16px;height:16px"></i></span></div>
+        <div style="position:relative;align-self:center;width:232px;height:412px;border-radius:14px;overflow:hidden;background:#000">
+          <img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
+          <div style="position:absolute;left:8%;right:8%;top:8%;background:#fff;color:#111;font-family:'Montserrat';font-weight:900;font-size:12.5px;line-height:1.15;text-align:center;padding:8px 10px;border-radius:5px">Tarifas: o que muda pra você</div>
+          <span style="position:absolute;left:0;right:0;top:50%;text-align:center;font-family:'Montserrat';font-weight:900;font-size:21px;color:#fff;-webkit-text-stroke:4px #000;paint-order:stroke fill">O <span style="color:#FFE14D">ASSUNTO</span> DO</span>
+          <span style="position:absolute;left:50%;top:72%;transform:translate(-50%,-50%);width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.92);color:#0D0D0D;display:flex;align-items:center;justify-content:center"><i data-lucide="play" style="width:20px;height:20px;fill:currentColor;margin-left:3px"></i></span>
+        </div>
+        <span style="text-align:center;font-family:'DM Mono';font-size:12px;color:var(--ink3)">tarifas-trump_subtitled.mp4 · 1080×1920 · 0:16</span>
+        <div style="display:flex;gap:8px"><span style="flex:1;height:46px;display:flex;align-items:center;justify-content:center;gap:7px;border-radius:999px;background:var(--panel);font-weight:600;font-size:14px"><i data-lucide="rotate-ccw" style="width:15px;height:15px"></i>Re-render</span><span style="flex:1.4;height:46px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700;font-size:14px"><i data-lucide="download" style="width:16px;height:16px"></i>Download video</span></div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showToast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;bottom:252px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;height:44px;padding:0 8px 0 10px;border-radius:999px;background:var(--ink);color:var(--bg);font-size:13.5px;font-weight:600;white-space:nowrap;box-shadow:0 12px 30px rgba(0,0,0,.2)">
+      <span style="width:24px;height:24px;border-radius:50%;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center"><i data-lucide="check" style="width:13px;height:13px"></i></span>Transcription complete<span style="height:30px;display:flex;align-items:center;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.14)">Review</span>
+    </div>
+  </sc-if>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;},&quot;panel&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;looks&quot;,&quot;text&quot;,&quot;overlays&quot;],&quot;default&quot;:&quot;looks&quot;,&quot;tsType&quot;:&quot;'looks'|'text'|'overlays'&quot;},&quot;state&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;idle&quot;,&quot;empty&quot;,&quot;transcribing&quot;,&quot;toast&quot;,&quot;rendering&quot;,&quot;error&quot;,&quot;rendered&quot;],&quot;default&quot;:&quot;idle&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  componentDidMount() { this.icons(); }
+  componentDidUpdate() { this.icons(); }
+  icons() {
+    const run = () => window.lucide ? window.lucide.createIcons({ attrs: { 'stroke-width': 2 } }) : setTimeout(run, 150);
+    run();
+  }
+  renderVals() {
+    const state = this.props.state ?? 'idle';
+    const panel = this.props.panel ?? 'looks';
+    const dark = (this.props.theme ?? 'light') === 'dark';
+    const tabOn = { flex: 1, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 999, background: 'var(--bg)', fontWeight: 700, fontSize: 13 };
+    const tabOff = { flex: 1, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 13, color: 'var(--ink3)' };
+    const isEmpty = state === 'empty', isTranscribing = state === 'transcribing', isRendering = state === 'rendering';
+    const isError = state === 'error', isRendered = state === 'rendered', isJob = isTranscribing || isRendering;
+    const showList = !isEmpty && !isTranscribing;
+    return {
+      themeVars: dark ? {
+        '--bg': '#0C0C0F', '--panel': '#18181D', '--raise': '#24242B', '--line': '#2A2A31',
+        '--ink': '#F4F4F1', '--ink2': '#C4C4BF', '--ink3': '#8E8E89', '--acc': '#4D5BFF', '--onacc': '#FFFFFF', '--accink': '#8C95FF',
+        '--acctint': 'rgba(77,91,255,.16)', '--stage': '#141418', '--dangertint': '#2A1514', '--danger': '#FF5A4E'
+      } : {},
+      isEmpty, isTranscribing, isRendering, isError, isRendered, isJob, showList,
+      headerNormal: state === 'idle' || isError || isTranscribing,
+      subOnVideo: showList,
+      showToast: state === 'toast',
+      scriptMeta: isEmpty ? 'no lines' : isTranscribing ? 'listening…' : '4 lines · 0:18',
+      pLooks: panel === 'looks', pText: panel === 'text', pOverlays: panel === 'overlays',
+      tabLooks: panel === 'looks' ? tabOn : tabOff, tabText: panel === 'text' ? tabOn : tabOff, tabOverlays: panel === 'overlays' ? tabOn : tabOff,
+      jobTitle: isRendering ? 'Rendering your video' : 'Transcribing audio',
+      jobCopy: isRendering ? 'Burning in subtitles and overlays — this can take a few minutes. You can keep editing other projects.' : 'Generating subtitles from speech — usually under a couple of minutes.',
+      jobBar: isRendering
+        ? { position: 'absolute', left: 0, top: 0, bottom: 0, width: '42%', borderRadius: 999, background: 'var(--acc)' }
+        : { position: 'absolute', left: '22%', top: 0, bottom: 0, width: '34%', borderRadius: 999, background: 'var(--acc)' },
+      jobLeft: isRendering ? '42%' : '0:18 of audio',
+      jobRight: isRendering ? '~1 min left' : 'step 1 of 2'
+    };
+  }
+}
+</script>
+</body>
+</html>

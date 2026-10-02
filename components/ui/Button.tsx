@@ -1,30 +1,36 @@
 import { forwardRef } from "react"
 import { cn } from "@/lib/utils"
 
-type Variant = "primary" | "ghost" | "outline-accent" | "danger"
-type Size = "lg" | "md" | "sm"
+type Variant = "primary" | "secondary" | "inverse" | "danger" | "outline-accent" | "tint"
+type Size = "xs" | "sm" | "md" | "lg" | "xl" | "2xl"
 
+// Every button is a pill. Text on accent is white (on-accent) in both themes.
 const VARIANTS: Record<Variant, string> = {
-  // Text on lime is always #0E0E0C (on-accent), in both themes.
   primary:
-    "bg-accent text-on-accent font-semibold hover:bg-accent-hover disabled:bg-track disabled:text-ink-4",
-  ghost:
-    "border border-line/14 text-paper font-medium hover:bg-elevated disabled:text-ink-4",
+    "bg-accent text-on-accent font-bold hover:bg-accent-hover disabled:bg-elevated disabled:text-ink-3",
+  secondary:
+    "bg-surface text-paper font-semibold hover:bg-hover disabled:bg-elevated disabled:text-ink-3",
+  inverse:
+    "bg-paper text-canvas font-bold hover:opacity-90 disabled:bg-elevated disabled:text-ink-3",
+  danger: "bg-danger text-white font-bold hover:opacity-90 disabled:opacity-45",
   "outline-accent":
-    "border border-accent/50 text-accent-ink font-medium hover:bg-accent/8",
-  danger: "bg-danger text-on-accent font-semibold hover:opacity-90",
+    "text-accent-ink font-bold shadow-[inset_0_0_0_1.5px_var(--c-accent)] hover:bg-accent-tint",
+  tint: "bg-accent-tint text-accent-ink font-semibold hover:bg-accent/15",
 }
 
 const SIZES: Record<Size, string> = {
-  lg: "h-11 px-[18px] rounded-lg text-[14px]",
-  md: "h-10 px-[18px] rounded-lg text-[13.5px]",
-  sm: "h-[34px] px-3 rounded-md text-[12.5px]",
+  xs: "h-[30px] px-3 text-[12.5px] gap-1.5",
+  sm: "h-9 px-3.5 text-[13px] gap-1.5",
+  md: "h-10 px-[18px] text-[13.5px] gap-2",
+  lg: "h-11 px-[22px] text-[14px] gap-2",
+  xl: "h-[46px] px-5 text-[14px] gap-2",
+  "2xl": "h-[52px] px-[26px] text-[15px] gap-2",
 }
 
 /** Class string for buttons and for <Link>s that should look like buttons. */
 export function buttonClass(variant: Variant = "primary", size: Size = "md", className?: string) {
   return cn(
-    "inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors duration-150 cursor-pointer disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center rounded-full whitespace-nowrap cursor-pointer disabled:cursor-not-allowed [&_svg]:flex-none",
     VARIANTS[variant],
     SIZES[size],
     className
@@ -46,13 +52,16 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 type IconButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   /** Required: icon-only buttons are labelled by their title (include the shortcut). */
   title: string
-  size?: 26 | 30 | 32
+  size?: number
+  /** "plain" = transparent until hover; "surface" = filled round (header back/undo, close). */
+  tone?: "plain" | "surface" | "inverse"
   destructive?: boolean
   active?: boolean
 }
 
+/** Round icon-only button. */
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
-  { size = 30, destructive, active, className, type = "button", ...props },
+  { size = 30, tone = "plain", destructive, active, className, type = "button", style, ...props },
   ref
 ) {
   return (
@@ -60,13 +69,17 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       ref={ref}
       type={type}
       aria-label={props.title}
+      style={{ width: size, height: size, ...style }}
       className={cn(
-        "inline-flex items-center justify-center flex-none transition-colors duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed",
-        size === 26 ? "size-[26px] rounded-sm" : size === 30 ? "size-[30px] rounded-[7px]" : "size-8 rounded-md",
-        active ? "bg-elevated text-accent-ink" : "text-ink-2",
-        destructive
-          ? "hover:bg-danger/14 hover:text-danger-ink"
-          : "hover:bg-elevated hover:text-paper",
+        "inline-flex items-center justify-center flex-none rounded-full cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed",
+        tone === "surface" && "bg-surface text-paper hover:bg-hover",
+        tone === "inverse" && "bg-paper text-canvas hover:opacity-90",
+        tone === "plain" &&
+          (active
+            ? "bg-paper text-canvas"
+            : destructive
+              ? "text-ink-3 hover:bg-danger-surface hover:text-danger-ink"
+              : "text-ink-2 hover:bg-surface hover:text-paper"),
         className
       )}
       {...props}

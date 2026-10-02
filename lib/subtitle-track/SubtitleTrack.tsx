@@ -34,16 +34,16 @@ export interface SubtitleTrackProps {
   onResizeStart?: (handle: "font" | "width", e: MouseEvent) => void;
 }
 
-// Editor-only selection chrome (never rendered by the worker). Lime accent.
-const HANDLE_COLOR = "#D6FF3D";
+// Editor-only selection chrome (never rendered by the worker). Theme accent.
+const HANDLE_COLOR = "var(--c-accent, #2B3BFF)";
 
 const handleBase: CSSProperties = {
   position: "absolute",
   width: 10,
   height: 10,
-  background: "#0E0E0C",
-  border: `1.5px solid ${HANDLE_COLOR}`,
-  borderRadius: 2,
+  background: "#FFFFFF",
+  border: `2px solid ${HANDLE_COLOR}`,
+  borderRadius: 3,
   pointerEvents: "auto",
   zIndex: 2,
 };
@@ -81,7 +81,9 @@ function SelectionHandles({
         style={{
           position: "absolute",
           inset: 0,
-          border: `1.5px solid ${HANDLE_COLOR}`,
+          outline: `2px solid ${HANDLE_COLOR}`,
+          outlineOffset: 2,
+          borderRadius: 4,
           pointerEvents: "none",
           zIndex: 1,
         }}

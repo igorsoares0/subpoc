@@ -1,38 +1,24 @@
 "use client"
 
-import { ArrowRight, ChevronDown } from "lucide-react"
-import { resolveFontFamily, type SubtitleStyle } from "@/lib/subtitle-track"
+import { ChevronDown, Move } from "lucide-react"
+import { type SubtitleStyle } from "@/lib/subtitle-track"
 
 const FONTS = ["Montserrat", "Arial", "Helvetica", "Inter", "Roboto", "Poppins"]
 
 /**
- * Quick text controls floating above the selected subtitle on the stage.
- * `left/top` are the anchor in stage-container px; `placement` flips it under
- * the subtitle when there's no room above.
+ * Quick text controls: inverse pill pinned to the bottom center of the stage.
+ * Font · size · color, plus the "Drag to move" hint for the subtitle on the video.
  */
 export function FloatingToolbar({
   style,
-  left,
-  top,
-  placement,
   onChange,
-  onOpenText,
 }: {
   style: SubtitleStyle
-  left: number
-  top: number
-  placement: "above" | "below"
   onChange: (partial: Partial<SubtitleStyle>) => void
-  onOpenText: () => void
 }) {
   return (
     <div
-      className="absolute z-20 flex items-center gap-1 h-10 pl-2 pr-1 rounded-lg bg-surface border border-line/10 shadow-[var(--shadow-menu)] whitespace-nowrap"
-      style={{
-        left,
-        top,
-        transform: placement === "above" ? "translate(-50%, -100%)" : "translate(-50%, 0)",
-      }}
+      className="absolute z-20 left-1/2 bottom-4 -translate-x-1/2 flex items-center gap-1 p-[5px] rounded-full bg-paper text-canvas text-[12.5px] font-semibold whitespace-nowrap"
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="relative">
@@ -41,8 +27,7 @@ export function FloatingToolbar({
           onChange={(e) => onChange({ fontFamily: e.target.value })}
           aria-label="Font"
           title="Font"
-          className="h-7 appearance-none bg-transparent pl-1.5 pr-6 rounded-[6px] text-[13px] font-bold text-paper outline-none hover:bg-elevated cursor-pointer"
-          style={{ fontFamily: resolveFontFamily(style.fontFamily) }}
+          className="h-[30px] appearance-none bg-transparent pl-3 pr-7 rounded-full text-canvas outline-none hover:bg-canvas/15 cursor-pointer"
         >
           {FONTS.map((f) => (
             <option key={f} value={f}>
@@ -50,9 +35,8 @@ export function FloatingToolbar({
             </option>
           ))}
         </select>
-        <ChevronDown className="size-3 text-ink-3 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <ChevronDown className="size-[13px] opacity-60 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
       </div>
-      <span className="w-px h-4 bg-line/10" />
       <input
         type="number"
         min={12}
@@ -64,17 +48,10 @@ export function FloatingToolbar({
         }}
         aria-label="Font size"
         title="Font size"
-        className="w-10 h-7 rounded-[6px] bg-transparent text-center font-mono tabular-nums text-[12.5px] text-paper outline-none hover:bg-elevated focus:bg-elevated [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+        className="w-11 h-[30px] rounded-full bg-transparent text-center font-mono tabular-nums text-canvas outline-none hover:bg-canvas/15 focus:bg-canvas/15 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
       />
-      <span className="w-px h-4 bg-line/10" />
-      <label
-        title="Text color"
-        className="relative size-7 rounded-[6px] flex items-center justify-center hover:bg-elevated cursor-pointer"
-      >
-        <span
-          className="size-[18px] rounded-full"
-          style={{ background: style.color, boxShadow: "0 0 0 1px rgba(var(--c-line),0.2)" }}
-        />
+      <label title="Text color" className="relative size-[30px] mx-0.5 rounded-full flex items-center justify-center hover:bg-canvas/15 cursor-pointer">
+        <span className="size-5 rounded-full" style={{ background: style.color, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.15)" }} />
         <input
           type="color"
           value={style.color}
@@ -83,15 +60,10 @@ export function FloatingToolbar({
           className="absolute inset-0 opacity-0 cursor-pointer"
         />
       </label>
-      <span className="w-px h-4 bg-line/10" />
-      <button
-        type="button"
-        onClick={onOpenText}
-        className="h-7 px-2 rounded-[6px] flex items-center gap-1 text-[12.5px] font-medium text-paper hover:bg-elevated"
-      >
-        Style
-        <ArrowRight className="size-3.5" />
-      </button>
+      <span className="h-[30px] px-3 rounded-full flex items-center gap-1.5 bg-accent text-white select-none">
+        <Move className="size-[13px]" />
+        Drag to move
+      </span>
     </div>
   )
 }

@@ -1,37 +1,6 @@
 import { cn } from "@/lib/utils"
 
-/** Serif panel title + meta line. */
-export function PanelHeader({
-  title,
-  em,
-  meta,
-  children,
-}: {
-  title: string
-  em?: string
-  meta?: React.ReactNode
-  children?: React.ReactNode
-}) {
-  return (
-    <div className="pt-[22px] px-5 pb-3.5 flex flex-col gap-3.5 flex-none">
-      <div className="flex flex-col gap-1.5">
-        <h2 className="font-serif text-[30px] leading-none text-paper">
-          {title}
-          {em && (
-            <>
-              {" "}
-              <em className="italic">{em}</em>
-            </>
-          )}
-        </h2>
-        {meta && <p className="text-[12px] text-ink-3">{meta}</p>}
-      </div>
-      {children}
-    </div>
-  )
-}
-
-/** Hairline-separated panel section with an optional label + right slot. */
+/** Panel section: bold 13px label + optional right-side note, then content. */
 export function PanelSection({
   label,
   aside,
@@ -44,11 +13,11 @@ export function PanelSection({
   className?: string
 }) {
   return (
-    <section className={cn("px-5 py-4 border-t border-line/8 flex flex-col gap-3.5", className)}>
+    <section className={cn("flex flex-col gap-2.5", className)}>
       {(label || aside) && (
-        <div className="flex items-center justify-between gap-3">
-          {label && <span className="text-[13px] font-medium text-paper">{label}</span>}
-          {aside}
+        <div className="flex items-baseline justify-between gap-3">
+          {label && <span className="text-[13px] font-bold text-paper">{label}</span>}
+          {aside && <span className="text-[12px] text-ink-3">{aside}</span>}
         </div>
       )}
       {children}
@@ -56,29 +25,46 @@ export function PanelSection({
   )
 }
 
-/** Row: fixed-width label + control. */
+/** 1px hairline between panel sections. */
+export function PanelDivider() {
+  return <div className="h-px bg-line/12 my-0.5 flex-none" />
+}
+
+/** Row: fixed-width label + control (+ optional mono value on the right). */
 export function Row({
   label,
   children,
-  labelWidth = 84,
+  value,
+  labelWidth = 76,
+  small,
 }: {
   label: string
   children: React.ReactNode
+  /** Mono readout (slider value). */
+  value?: React.ReactNode
   labelWidth?: number
+  /** Card rows (hook): 12.5px label, 12px value. */
+  small?: boolean
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-[13px] text-ink-2 flex-none" style={{ width: labelWidth }}>
-        {label}
-      </span>
-      <div className="flex-1 min-w-0 flex items-center gap-2">{children}</div>
+    <div
+      className="grid items-center gap-2.5"
+      style={{ gridTemplateColumns: value !== undefined ? `${labelWidth}px minmax(0,1fr) 44px` : `${labelWidth}px minmax(0,1fr)` }}
+    >
+      <span className={cn("font-semibold text-paper", small ? "text-[12.5px]" : "text-[13px]")}>{label}</span>
+      <div className="min-w-0 flex items-center gap-1.5">{children}</div>
+      {value !== undefined && (
+        <span className={cn("font-mono tabular-nums text-right text-paper", small ? "text-[12px]" : "text-[13px]")}>
+          {value}
+        </span>
+      )}
     </div>
   )
 }
 
 /** Small hint line under a control group. */
 export function Hint({ children }: { children: React.ReactNode }) {
-  return <p className="text-[12px] leading-relaxed text-ink-4">{children}</p>
+  return <p className="text-[12.5px] leading-[1.45] text-ink-3">{children}</p>
 }
 
 /** Parse "#RRGGBB" + opacity into rgba(). */

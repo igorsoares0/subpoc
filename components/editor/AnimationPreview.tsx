@@ -46,10 +46,8 @@ export function AnimationPreview({
   const cycle = dur + HOLD;
 
   useEffect(() => {
-    if (!enabled) {
-      setElapsed(0);
-      return;
-    }
+    // Disabled: nothing to loop (the render ignores `elapsed` when off).
+    if (!enabled) return;
     // Restart the loop from t=0 whenever mode/intensity changes.
     startRef.current = null;
 
@@ -72,14 +70,14 @@ export function AnimationPreview({
   const label = uppercase ? word.toUpperCase() : word;
 
   return (
-    <div className="flex h-16 items-center justify-center overflow-hidden rounded-lg border border-line/8 bg-[#1D1D1A]">
+    <div className="flex h-16 items-center justify-center overflow-hidden rounded-[10px] bg-[#18181D]">
       <span
         style={{
           display: "inline-block",
           fontFamily: resolveFontFamily(fontFamily),
           fontSize: 26,
           fontWeight: 800,
-          color: enabled ? color : "#75736B",
+          color: enabled ? color : "#8E8E89",
           transform: anim.transform,
           opacity: anim.opacity ?? 1,
           willChange: "transform, opacity",

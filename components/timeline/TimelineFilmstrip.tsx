@@ -65,7 +65,7 @@ export function TimelineFilmstrip({
     canvas.height = FRAME_HEIGHT
 
     // Limpar canvas
-    ctx.fillStyle = '#1D1D1A'
+    ctx.fillStyle = '#18181D'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     // Modo 1: Renderizar frames extraídos via Canvas API
@@ -123,9 +123,9 @@ export function TimelineFilmstrip({
     else if (filmstripState.status === 'loading') {
       // Skeleton com gradiente animado
       const gradient = ctx.createLinearGradient(0, 0, containerWidth, 0)
-      gradient.addColorStop(0, '#2A2A26')
-      gradient.addColorStop(0.5, '#4a4a44')
-      gradient.addColorStop(1, '#2A2A26')
+      gradient.addColorStop(0, '#24242B')
+      gradient.addColorStop(0.5, '#3A3A42')
+      gradient.addColorStop(1, '#24242B')
 
       ctx.fillStyle = gradient
       ctx.fillRect(0, 0, containerWidth, FRAME_HEIGHT)
@@ -133,7 +133,7 @@ export function TimelineFilmstrip({
 
     // Modo Error: Mostrar mensagem de erro
     else if (filmstripState.status === 'error') {
-      ctx.fillStyle = '#1D1D1A'
+      ctx.fillStyle = '#18181D'
       ctx.fillRect(0, 0, containerWidth, FRAME_HEIGHT)
 
       ctx.fillStyle = '#FF5A4E'
@@ -172,7 +172,7 @@ export function TimelineFilmstrip({
 
       {/* Indicador sutil e discreto quando filmstrip HD ainda está processando */}
       {filmstripState.status === 'canvas-ready' && (
-        <div className="absolute top-1 right-1 bg-black/60 text-[#C9C6BB] font-mono text-[9px] font-medium px-1.5 py-0.5 rounded-xs flex items-center gap-1 pointer-events-none">
+        <div className="absolute top-1 right-1 bg-black/60 text-[#C4C4BF] font-mono text-[9px] font-medium px-1.5 py-0.5 rounded-xs flex items-center gap-1 pointer-events-none">
           <div className="w-1 h-1 bg-accent rounded-full animate-pulse" />
           HD
         </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Mail, Loader2, ArrowRight, ArrowLeft, MailCheck } from "lucide-react"
+import { Loader2, ArrowRight, ArrowLeft, MailCheck } from "lucide-react"
 import { AuthShell, AuthHeading, AuthLink, AuthState } from "@/components/auth/AuthShell"
 import { Button, buttonClass } from "@/components/ui/Button"
 import { Field, Input } from "@/components/ui/Field"
@@ -37,9 +37,9 @@ export default function ForgotPasswordPage() {
         <AuthState
           icon={MailCheck}
           title="Check your"
-          em="email"
+          highlight="email"
           action={
-            <Link href="/login" className={buttonClass("ghost", "md")}>
+            <Link href="/login" className={buttonClass("secondary", "xl", "hover:text-paper")}>
               <ArrowLeft className="size-[15px]" />
               Back to sign in
             </Link>
@@ -56,14 +56,13 @@ export default function ForgotPasswordPage() {
     <AuthShell>
       <AuthHeading
         title="Reset your"
-        em="password"
+        highlight="password"
         subtitle="Enter your email and we'll send you a link to reset your password."
       />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-[22px]">
         <Field label="Email">
           <Input
-            icon={Mail}
             id="email"
             type="email"
             value={email}
@@ -74,7 +73,7 @@ export default function ForgotPasswordPage() {
           />
         </Field>
 
-        <Button type="submit" size="lg" disabled={isLoading} className="w-full">
+        <Button type="submit" size="2xl" disabled={isLoading} className="w-full">
           {isLoading ? (
             <>
               <Loader2 className="size-4 animate-spin" />
@@ -83,13 +82,13 @@ export default function ForgotPasswordPage() {
           ) : (
             <>
               Send reset link
-              <ArrowRight className="size-[15px]" />
+              <ArrowRight className="size-4" />
             </>
           )}
         </Button>
       </form>
 
-      <p className="text-[13px] text-ink-3 text-center">
+      <p className="text-[14px] text-ink-3 text-center">
         Remembered it? <AuthLink href="/login">Back to sign in</AuthLink>
       </p>
     </AuthShell>

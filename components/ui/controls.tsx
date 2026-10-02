@@ -2,10 +2,10 @@
 
 import { cn } from "@/lib/utils"
 
-/** Filled track for range inputs: paper up to the thumb, faint rail after. Theme-aware. */
+/** Filled track for range inputs: paper up to the thumb, elevated rail after. Theme-aware. */
 export function rangeFill(value: number, min: number, max: number): string {
   const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100))
-  return `linear-gradient(to right, var(--c-paper) 0%, var(--c-paper) ${pct}%, rgba(var(--c-line),0.14) ${pct}%, rgba(var(--c-line),0.14) 100%)`
+  return `linear-gradient(to right, var(--c-paper) 0%, var(--c-paper) ${pct}%, var(--c-elevated) ${pct}%, var(--c-elevated) 100%)`
 }
 
 export function Slider({
@@ -46,24 +46,31 @@ export function Slider({
   )
 }
 
+/**
+ * Pill segmented control. `variant="canvas"` (panel tabs, strength): active item
+ * is a canvas pill; `variant="inverse"` (aspect ratio, nav): active is paper/canvas.
+ */
 export function Segmented<T extends string | number | null>({
   options,
   value,
   onChange,
   className,
+  variant = "canvas",
   size = "md",
+  stretch = true,
 }: {
   options: { value: T; label: React.ReactNode; title?: string }[]
   value: T
   onChange: (v: T) => void
   className?: string
+  variant?: "canvas" | "inverse"
+  /** "md" = 32px items, "sm" = 28px items */
   size?: "sm" | "md"
+  /** Items share the width equally (tabs). Off = items hug their label. */
+  stretch?: boolean
 }) {
   return (
-    <div
-      role="radiogroup"
-      className={cn("flex p-[3px] rounded-md bg-surface border border-line/8", className)}
-    >
+    <div role="radiogroup" className={cn("flex gap-1 p-1 rounded-full bg-surface", className)}>
       {options.map((o) => {
         const active = o.value === value
         return (
@@ -75,9 +82,14 @@ export function Segmented<T extends string | number | null>({
             title={o.title}
             onClick={() => onChange(o.value)}
             className={cn(
-              "flex-1 inline-flex items-center justify-center gap-1.5 rounded-[6px] font-medium transition-colors duration-150 whitespace-nowrap",
-              size === "sm" ? "h-7 px-2 text-[12px]" : "h-[30px] px-2.5 text-[12.5px]",
-              active ? "bg-hover text-paper" : "text-ink-3 hover:text-paper"
+              "inline-flex items-center justify-center gap-1.5 rounded-full whitespace-nowrap cursor-pointer",
+              stretch && "flex-1",
+              size === "sm" ? "h-7 px-2.5 text-[12.5px]" : "h-8 px-3 text-[13px]",
+              active
+                ? variant === "inverse"
+                  ? "bg-paper text-canvas font-semibold"
+                  : "bg-canvas text-paper font-bold"
+                : "text-ink-3 font-semibold hover:text-paper"
             )}
           >
             {o.label}
@@ -109,14 +121,14 @@ export function Toggle({
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        "relative w-[34px] h-5 rounded-full flex-none transition-colors duration-150 disabled:opacity-40",
-        checked ? "bg-accent" : "bg-track"
+        "relative w-9 h-[22px] rounded-full flex-none disabled:opacity-40 cursor-pointer",
+        checked ? "bg-accent" : "bg-elevated"
       )}
     >
       <span
         className={cn(
-          "absolute top-0.5 size-4 rounded-full transition-all duration-150",
-          checked ? "left-4 bg-on-accent" : "left-0.5 bg-ink-4"
+          "absolute top-[3px] size-4 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.15)] transition-[left] duration-150",
+          checked ? "left-[17px]" : "left-[3px]"
         )}
       />
     </button>
@@ -128,7 +140,7 @@ export function Swatch({
   color,
   selected,
   onClick,
-  size = 22,
+  size = 24,
   title,
 }: {
   color: string | null
@@ -148,15 +160,19 @@ export function Swatch({
       style={{
         width: size,
         height: size,
-        background: color ?? "var(--c-surface)",
-        boxShadow: selected
-          ? "0 0 0 2px var(--c-canvas), 0 0 0 3.5px var(--c-ring)"
-          : "0 0 0 1px rgba(var(--c-line),0.15)",
+        background: color ?? "var(--c-canvas)",
+        boxShadow: [
+          selected ? "0 0 0 2px var(--c-canvas), 0 0 0 4px var(--c-paper)" : null,
+          // Hairline so white / canvas swatches don't vanish.
+          "inset 0 0 0 1px rgba(var(--c-line),0.18)",
+        ]
+          .filter(Boolean)
+          .join(", "),
       }}
     >
       {color === null && (
-        <span className="absolute inset-0 flex items-center justify-center">
-          <span className="block w-[70%] h-[1.5px] bg-danger-ink rotate-[-45deg]" />
+        <span className="absolute inset-0 rounded-full overflow-hidden">
+          <span className="absolute left-1/2 -top-0.5 -bottom-0.5 w-0.5 -ml-px bg-danger rotate-45" />
         </span>
       )}
     </button>
@@ -167,7 +183,7 @@ export function Swatch({
 export function CustomSwatch({
   value,
   onChange,
-  size = 22,
+  size = 24,
 }: {
   value: string
   onChange: (v: string) => void
@@ -176,7 +192,7 @@ export function CustomSwatch({
   return (
     <label
       title="Custom color"
-      className="relative rounded-full flex-none flex items-center justify-center border border-dashed border-line/30 text-ink-3 hover:text-paper cursor-pointer"
+      className="relative rounded-full flex-none flex items-center justify-center bg-surface text-ink-3 hover:text-paper cursor-pointer"
       style={{ width: size, height: size }}
     >
       <span className="text-[13px] leading-none">+</span>
@@ -192,18 +208,30 @@ export function CustomSwatch({
 
 export function Kbd({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="inline-flex items-center font-mono text-[10.5px] leading-none text-ink-2 border border-line/14 rounded-xs px-[5px] py-[3px]">
+    <kbd className="inline-flex items-center font-mono text-[10.5px] leading-none text-ink-2 bg-surface rounded-xs px-[5px] py-[3px]">
       {children}
     </kbd>
   )
 }
 
-/** Usage bar: paper fill, warn ≥80%, danger ≥100%. */
-export function UsageBar({ used, limit, height = 6 }: { used: number; limit: number; height?: number }) {
+/** Usage meter on the elevated rail. `danger` switches the fill to the danger color. */
+export function UsageBar({
+  used,
+  limit,
+  height = 6,
+  fill = "paper",
+  danger,
+}: {
+  used: number
+  limit: number
+  height?: number
+  fill?: "paper" | "accent"
+  danger?: boolean
+}) {
   const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0
-  const tone = pct >= 100 ? "bg-danger" : pct >= 80 ? "bg-[#E8A33D]" : "bg-paper"
+  const tone = danger ? "bg-danger" : fill === "accent" ? "bg-accent" : "bg-paper"
   return (
-    <div className="rounded-full bg-line/12 overflow-hidden" style={{ height }}>
+    <div className="rounded-full bg-elevated overflow-hidden" style={{ height }}>
       <div className={cn("h-full rounded-full transition-[width] duration-300", tone)} style={{ width: `${pct}%` }} />
     </div>
   )

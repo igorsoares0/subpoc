@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=DM+Mono:wght@400;500&family=Montserrat:wght@900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<style>body{margin:0;background:#E6E6E3}a{color:inherit}a:hover{color:#2B3BFF}</style>
+</helmet>
+<div style="--bg:#FFFFFF;--panel:#F2F2EF;--raise:#E7E7E3;--line:#E2E2DE;--ink:#0D0D0D;--ink2:#3F3F3C;--ink3:#6D6D68;--acc:#2B3BFF;--onacc:#FFFFFF;--accink:#2B3BFF;--acctint:rgba(43,59,255,.09);--stage:#F2F2EF;--board:#E6E6E3;font-family:'Archivo',system-ui,sans-serif;font-stretch:100%">
+<div style="{{ themeVars }}">
+<div style="display:flex;gap:80px;padding:80px;align-items:flex-start;background:var(--board);color:var(--ink)">
+
+<!-- ============ EDITOR ============ -->
+<div data-screen-label="B · Editor" style="width:1440px;height:900px;flex:none;display:grid;grid-template-rows:64px minmax(0,1fr) 168px;background:var(--bg);overflow:hidden;font-size:14px">
+  <header style="display:flex;align-items:center;gap:16px;padding:0 20px">
+    <span title="Back to projects" style="width:36px;height:36px;border-radius:50%;background:var(--panel);display:flex;align-items:center;justify-content:center"><i data-lucide="arrow-left" style="width:17px;height:17px"></i></span>
+    <span style="font-stretch:125%;font-weight:900;font-size:20px;letter-spacing:-.02em">super<span style="background:var(--acc);color:var(--onacc);padding:0 4px">title</span></span>
+    <span style="width:1px;height:22px;background:var(--line)"></span>
+    <span style="font-weight:600;font-size:15px">tarifas-trump.mp4</span>
+    <span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">saved</span>
+    <span style="flex:1"></span>
+    <div style="display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--panel)">
+      <span style="height:32px;display:flex;align-items:center;gap:6px;padding:0 14px;border-radius:999px;background:var(--ink);color:var(--bg);font-weight:600;font-size:13px">9:16</span>
+      <span style="height:32px;display:flex;align-items:center;padding:0 12px;border-radius:999px;font-weight:600;font-size:13px;color:var(--ink3)">16:9</span>
+      <span style="height:32px;display:flex;align-items:center;padding:0 12px;border-radius:999px;font-weight:600;font-size:13px;color:var(--ink3)">1:1</span>
+      <span style="height:32px;display:flex;align-items:center;padding:0 12px;border-radius:999px;font-weight:600;font-size:13px;color:var(--ink3)">4:3</span>
+      <span style="height:32px;display:flex;align-items:center;padding:0 12px;border-radius:999px;font-weight:600;font-size:13px;color:var(--ink3)">Original</span>
+    </div>
+    <span title="Undo ⌘Z" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:var(--ink2)"><i data-lucide="undo-2" style="width:17px;height:17px"></i></span>
+    <span title="Redo ⇧⌘Z" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:var(--ink3)"><i data-lucide="redo-2" style="width:17px;height:17px"></i></span>
+    <span style="flex:1"></span>
+    <span style="height:40px;display:flex;align-items:center;gap:8px;padding:0 18px;border-radius:999px;background:var(--panel);font-weight:600;font-size:13.5px">Export .srt / .vtt</span>
+    <span style="height:40px;display:flex;align-items:center;gap:8px;padding:0 20px;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700;font-size:13.5px">Render video<i data-lucide="arrow-right" style="width:15px;height:15px"></i></span>
+    <span style="width:36px;height:36px;border-radius:50%;background:var(--ink);color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">IS</span>
+  </header>
+
+  <div style="display:grid;grid-template-columns:440px minmax(0,1fr) 340px;min-height:0;gap:0">
+    <section style="display:flex;flex-direction:column;min-height:0;padding:8px 0 0">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:12px 28px 16px">
+        <span style="font-stretch:125%;font-weight:800;font-size:28px;letter-spacing:-.02em">Script</span>
+        <span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">4 lines · 0:18</span>
+      </div>
+      <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:4px;padding:0 16px">
+        <div style="padding:14px 12px;border-radius:10px;background:var(--panel);display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;gap:8px;font-family:'DM Mono';font-size:12px">
+            <span style="padding:3px 7px;border-radius:6px;background:var(--bg);box-shadow:inset 0 0 0 1.5px var(--acc)">0:00.00</span><span style="color:var(--ink3)">→</span><span style="padding:3px 7px;border-radius:6px;background:var(--bg)">0:06.11</span>
+            <span style="flex:1"></span><span style="color:var(--ink3)">6.1s</span>
+          </div>
+          <p style="margin:0;font-size:21px;line-height:1.35;font-weight:600;letter-spacing:-.01em;text-wrap:pretty">O <span style="background:var(--acc);color:var(--onacc);padding:0 3px;border-radius:3px">assunto</span> <span style="color:var(--ink3)">do momento são as <span style="background:#FFE14D;color:#0D0D0D;padding:0 2px">tarifas</span> impostas pelo <span style="background:#FFE14D;color:#0D0D0D;padding:0 2px">Trump</span> ao Brasil.</span></p>
+          <div style="display:flex;gap:6px;font-size:12.5px;font-weight:600">
+            <span style="height:30px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:999px;background:var(--bg)"><i data-lucide="scissors" style="width:13px;height:13px"></i>Split</span>
+            <span style="height:30px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:999px;background:var(--bg)"><i data-lucide="merge" style="width:13px;height:13px"></i>Merge</span>
+            <span style="height:30px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:999px;background:var(--bg)"><i data-lucide="pencil" style="width:13px;height:13px"></i>Edit</span>
+            <span style="flex:1"></span>
+            <span title="Delete" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:var(--ink3)"><i data-lucide="trash-2" style="width:14px;height:14px"></i></span>
+          </div>
+        </div>
+        <div style="padding:12px 12px;display:flex;flex-direction:column;gap:6px">
+          <span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">0:06.59 → 0:08.11</span>
+          <p style="margin:0;font-size:21px;line-height:1.35;font-weight:600;letter-spacing:-.01em;color:var(--ink2)">Só se fala nisso e com razão.</p>
+        </div>
+        <div style="padding:12px 12px;display:flex;flex-direction:column;gap:6px">
+          <span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">0:08.85 → 0:14.11</span>
+          <p style="margin:0;font-size:21px;line-height:1.35;font-weight:600;letter-spacing:-.01em;color:var(--ink2);text-wrap:pretty">Esse tema é de extrema importância e relevância e impacto para o Brasil.</p>
+        </div>
+        <div style="padding:12px 12px;display:flex;flex-direction:column;gap:6px">
+          <span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">0:14.39 → 0:18.00</span>
+          <p style="margin:0;font-size:21px;line-height:1.35;font-weight:600;letter-spacing:-.01em;color:var(--ink2);text-wrap:pretty">Mas não só, porque ele envolve uma série de outras questões.</p>
+        </div>
+        <span style="margin:4px 12px;height:36px;display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;color:var(--ink3)"><i data-lucide="plus" style="width:15px;height:15px"></i>Add a line at playhead</span>
+      </div>
+      <div style="display:flex;gap:8px;padding:12px 28px 14px">
+        <span style="height:34px;display:flex;align-items:center;gap:7px;padding:0 14px;border-radius:999px;background:var(--acctint);color:var(--accink);font-weight:700;font-size:12.5px"><i data-lucide="sparkles" style="width:14px;height:14px"></i>Auto-highlight keywords</span>
+        <span style="height:34px;display:flex;align-items:center;gap:7px;padding:0 14px;border-radius:999px;background:var(--panel);font-weight:600;font-size:12.5px">Clear</span>
+      </div>
+    </section>
+
+    <section style="position:relative;background:var(--stage);border-radius:16px;margin:0 0 12px;display:flex;align-items:center;justify-content:center;min-width:0">
+      <div style="position:relative;width:310px;height:551px;border-radius:14px;overflow:hidden;background:#000">
+        <img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
+        <div style="position:absolute;left:8%;right:8%;top:8%;background:#fff;color:#111;font-family:'Montserrat';font-weight:900;font-size:17px;line-height:1.15;text-align:center;padding:10px 12px;border-radius:6px">Tarifas: o que muda pra você</div>
+        <div style="position:absolute;left:6%;right:6%;top:70%;display:flex;justify-content:center;padding:6px 0;outline:2px solid var(--acc);outline-offset:2px;border-radius:4px">
+          <span style="font-family:'Montserrat';font-weight:900;font-size:28px;color:#fff;-webkit-text-stroke:5px #000;paint-order:stroke fill">O <span style="color:#FFE14D">ASSUNTO</span> DO</span>
+        </div>
+      </div>
+      <div style="position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:5px;border-radius:999px;background:var(--ink);color:var(--bg);font-size:12.5px;font-weight:600;white-space:nowrap">
+        <span style="height:30px;display:flex;align-items:center;gap:6px;padding:0 12px">Montserrat<i data-lucide="chevron-down" style="width:13px;height:13px;opacity:.6"></i></span>
+        <span style="height:30px;display:flex;align-items:center;padding:0 10px;font-family:'DM Mono'">42</span>
+        <span style="width:20px;height:20px;border-radius:50%;background:#FFE14D;margin:0 6px"></span>
+        <span style="height:30px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:999px;background:var(--acc);color:#fff"><i data-lucide="move" style="width:13px;height:13px"></i>Drag to move</span>
+      </div>
+    </section>
+
+    <aside style="display:flex;flex-direction:column;min-height:0;padding:8px 20px 12px">
+      <div style="display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--panel);margin-top:4px">
+        <span style="flex:1;height:32px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:var(--bg);font-weight:700;font-size:13px">Looks</span>
+        <span style="flex:1;height:32px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;color:var(--ink3)">Text</span>
+        <span style="flex:1;height:32px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;color:var(--ink3)">Overlays</span>
+      </div>
+      <span style="margin:20px 0 10px;font-weight:700;font-size:13px">Word by word</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="position:relative;height:96px;border-radius:10px;overflow:hidden;box-shadow:0 0 0 2.5px var(--acc)"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 30%;filter:brightness(.65)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Montserrat;font-weight:900;font-size:17px;color:#fff;-webkit-text-stroke:4px #000;paint-order:stroke fill">DO <span style="color:#FFE14D">&nbsp;IT</span></span><span style="position:absolute;left:8px;bottom:6px;font-size:11px;font-weight:700;color:#fff">Hormozi</span><span style="position:absolute;right:6px;top:6px;width:18px;height:18px;border-radius:50%;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center"><i data-lucide="check" style="width:11px;height:11px"></i></span></div>
+        <div style="position:relative;height:96px;border-radius:10px;overflow:hidden"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 30%;filter:brightness(.65)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Montserrat;font-weight:900;font-size:17px;color:#fff">DO&nbsp;<span style="background:#22C55E;padding:0 4px">IT</span></span><span style="position:absolute;left:8px;bottom:6px;font-size:11px;font-weight:700;color:#fff">Karaoke</span></div>
+        <div style="position:relative;height:96px;border-radius:10px;overflow:hidden"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 30%;filter:brightness(.65)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Montserrat;font-weight:900;font-size:17px;color:#fff;-webkit-text-stroke:4px #000;paint-order:stroke fill">DO <span style="color:#FF4FD8">&nbsp;IT</span></span><span style="position:absolute;left:8px;bottom:6px;font-size:11px;font-weight:700;color:#fff">Beast</span></div>
+        <div style="position:relative;height:96px;border-radius:10px;overflow:hidden"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 30%;filter:brightness(.65)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Montserrat;font-weight:900;font-size:17px;color:#39FF6A">DO IT</span><span style="position:absolute;left:8px;bottom:6px;font-size:11px;font-weight:700;color:#fff">Neon</span></div>
+      </div>
+      <span style="margin:18px 0 10px;font-weight:700;font-size:13px">Full sentence</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="position:relative;height:96px;border-radius:10px;overflow:hidden"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 70%;filter:brightness(.65)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="font-family:Inter,sans-serif;font-weight:700;font-size:13px;color:#fff;background:rgba(0,0,0,.75);padding:3px 7px">Aa Clean</span></span><span style="position:absolute;left:8px;bottom:6px;font-size:11px;font-weight:700;color:#fff">Cinema</span></div>
+        <div style="position:relative;height:96px;border-radius:10px;overflow:hidden"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 70%;filter:brightness(.65)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="font-family:Inter,sans-serif;font-weight:700;font-size:13px;color:#111;background:#fff;padding:3px 7px">Aa Light</span></span><span style="position:absolute;left:8px;bottom:6px;font-size:11px;font-weight:700;color:#fff">Light</span></div>
+      </div>
+      <span style="flex:1"></span>
+      <span style="font-size:12.5px;line-height:1.45;color:var(--ink3)">Looks set font, colors, outline and animation. Fine-tune in Text.</span>
+    </aside>
+  </div>
+
+  <section style="display:flex;flex-direction:column;padding:0 20px 16px;gap:10px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span title="Play Space" style="width:44px;height:44px;border-radius:50%;background:var(--ink);color:var(--bg);display:flex;align-items:center;justify-content:center"><i data-lucide="play" style="width:17px;height:17px;fill:currentColor;margin-left:2px"></i></span>
+      <span style="font-family:'DM Mono';font-size:15px;font-weight:500">0:01.20 <span style="color:var(--ink3)">/ 0:18.00</span></span>
+      <span style="flex:1"></span>
+      <span style="height:34px;display:flex;align-items:center;gap:7px;padding:0 14px;border-radius:999px;background:var(--ink);color:var(--bg);font-weight:600;font-size:12.5px"><i data-lucide="scissors" style="width:13px;height:13px"></i>Trimming</span>
+      <span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">0:00.50 → 0:17.00</span>
+      <span style="height:34px;display:flex;align-items:center;padding:0 14px;border-radius:999px;background:var(--panel);font-weight:600;font-size:12.5px">Clear trim</span>
+      <span style="height:34px;display:flex;align-items:center;gap:7px;padding:0 14px;border-radius:999px;background:var(--panel);font-weight:600;font-size:12.5px"><i data-lucide="split" style="width:13px;height:13px"></i>Split</span>
+    </div>
+    <div style="position:relative;flex:1;display:flex;flex-direction:column;gap:6px">
+      <div style="position:relative;height:30px">
+        <span style="position:absolute;left:0;width:33.6%;top:0;bottom:0;border-radius:8px;background:var(--acc);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;padding:0 10px;box-sizing:border-box;white-space:nowrap;overflow:hidden">O assunto do momento são as tarifas…</span>
+        <span style="position:absolute;left:36.6%;width:8.2%;top:0;bottom:0;border-radius:8px;background:var(--panel);font-size:12px;font-weight:600;display:flex;align-items:center;padding:0 9px;box-sizing:border-box;white-space:nowrap;overflow:hidden">Só se fala…</span>
+        <span style="position:absolute;left:49.2%;width:29%;top:0;bottom:0;border-radius:8px;background:var(--panel);font-size:12px;font-weight:600;display:flex;align-items:center;padding:0 9px;box-sizing:border-box;white-space:nowrap;overflow:hidden">Esse tema é de extrema importância…</span>
+        <span style="position:absolute;left:80%;width:20%;top:0;bottom:0;border-radius:8px;background:var(--panel);font-size:12px;font-weight:600;display:flex;align-items:center;padding:0 9px;box-sizing:border-box;white-space:nowrap;overflow:hidden">Mas não só, porque…</span>
+      </div>
+      <div style="position:relative;height:48px;border-radius:8px;overflow:hidden">
+        <div style="position:absolute;inset:0;background-image:url(uploads/video-frame.png);background-size:auto 100%;background-repeat:repeat-x"></div>
+        <div style="position:absolute;left:0;width:2.8%;top:0;bottom:0;background:rgba(255,255,255,.75)"></div>
+        <div style="position:absolute;right:0;width:5.6%;top:0;bottom:0;background:rgba(255,255,255,.75)"></div>
+        <div style="position:absolute;left:2.8%;right:5.6%;top:0;bottom:0;border:3px solid var(--ink);border-radius:8px;box-sizing:border-box"></div>
+      </div>
+      <div style="position:absolute;top:-4px;bottom:-4px;left:6.66%;width:2px;background:var(--acc)"><span style="position:absolute;top:-4px;left:-5px;width:12px;height:12px;border-radius:50%;background:var(--acc)"></span></div>
+    </div>
+  </section>
+</div>
+
+<!-- ============ DASHBOARD ============ -->
+<div data-screen-label="B · Dashboard" style="width:1440px;height:900px;flex:none;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;font-size:14px">
+  <header style="height:72px;display:flex;align-items:center;gap:28px;padding:0 40px;flex:none">
+    <span style="font-stretch:125%;font-weight:900;font-size:22px;letter-spacing:-.02em">super<span style="background:var(--acc);color:var(--onacc);padding:0 4px">title</span></span>
+    <nav style="display:flex;gap:4px;font-weight:600;font-size:14px">
+      <span style="height:36px;display:flex;align-items:center;padding:0 14px;border-radius:999px;background:var(--ink);color:var(--bg)">Projects</span>
+      <span style="height:36px;display:flex;align-items:center;padding:0 14px;color:var(--ink3)">Billing</span>
+    </nav>
+    <span style="flex:1"></span>
+    <span style="display:flex;align-items:center;gap:10px;height:36px;padding:0 6px 0 14px;border-radius:999px;background:var(--panel);font-size:12.5px;font-weight:600">
+      <span style="font-family:'DM Mono';font-weight:500">6/10 min</span>
+      <span style="width:64px;height:6px;border-radius:999px;background:var(--raise);position:relative;overflow:hidden"><span style="position:absolute;inset:0 40% 0 0;background:var(--ink);border-radius:999px"></span></span>
+      <span style="height:26px;display:flex;align-items:center;padding:0 10px;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700">Upgrade</span>
+    </span>
+    <span style="width:36px;height:36px;border-radius:50%;background:var(--ink);color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">IS</span>
+  </header>
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:28px 40px 24px">
+    <h1 style="margin:0;font-stretch:125%;font-weight:800;font-size:64px;line-height:.95;letter-spacing:-.035em">Your <span style="background:var(--acc);color:var(--onacc);padding:0 10px">videos</span> <span style="font-family:'DM Mono';font-stretch:100%;font-weight:400;font-size:18px;letter-spacing:0;color:var(--ink3);vertical-align:top">06</span></h1>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="width:240px;height:44px;display:flex;align-items:center;gap:10px;padding:0 16px;border-radius:999px;background:var(--panel);color:var(--ink3);font-size:14px;box-sizing:border-box"><i data-lucide="search" style="width:16px;height:16px"></i>Search</span>
+      <span style="height:44px;display:flex;align-items:center;gap:8px;padding:0 22px;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700;font-size:14px"><i data-lucide="plus" style="width:16px;height:16px"></i>New video</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:6px;padding:0 40px 20px;font-size:13px;font-weight:600">
+    <span style="height:32px;display:flex;align-items:center;padding:0 14px;border-radius:999px;background:var(--ink);color:var(--bg)">All 6</span>
+    <span style="height:32px;display:flex;align-items:center;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px var(--line)">Ready 1</span>
+    <span style="height:32px;display:flex;align-items:center;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px var(--line)">Rendered 1</span>
+    <span style="height:32px;display:flex;align-items:center;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px var(--line)">In progress 3</span>
+    <span style="height:32px;display:flex;align-items:center;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px var(--line)">Failed 1</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px;padding:0 40px">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="position:relative;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:#000"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"><span style="position:absolute;left:10px;top:10px;padding:4px 8px;background:var(--acc);color:#fff;font-size:11.5px;font-weight:700">RENDERED</span><span style="position:absolute;left:10px;right:10px;bottom:28px;text-align:center;font-family:Montserrat;font-weight:900;font-size:15px;color:#fff;-webkit-text-stroke:3px #000;paint-order:stroke fill">O <span style="color:#FFE14D">ASSUNTO</span> DO</span><span style="position:absolute;right:8px;bottom:8px;font-family:'DM Mono';font-size:11px;color:#fff;background:rgba(0,0,0,.6);padding:1px 5px">0:18</span></div>
+      <div style="display:flex;align-items:flex-start;gap:6px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">tarifas-trump.mp4</span><span style="font-size:12.5px;color:var(--ink3)">Sep 24</span></div><i data-lucide="more-horizontal" style="width:18px;height:18px;color:var(--ink3)"></i></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="position:relative;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:#000"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:30% 50%;display:block"><span style="position:absolute;left:10px;top:10px;padding:4px 8px;background:#fff;color:#0D0D0D;font-size:11.5px;font-weight:700">READY TO EDIT</span><span style="position:absolute;right:8px;bottom:8px;font-family:'DM Mono';font-size:11px;color:#fff;background:rgba(0,0,0,.6);padding:1px 5px">1:42</span></div>
+      <div style="display:flex;align-items:flex-start;gap:6px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">podcast-ep12-cut.mp4</span><span style="font-size:12.5px;color:var(--ink3)">Sep 23</span></div><i data-lucide="more-horizontal" style="width:18px;height:18px;color:var(--ink3)"></i></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="position:relative;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:#000"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:70% 50%;display:block;opacity:.55"><span style="position:absolute;left:10px;top:10px;padding:4px 8px;background:#0D0D0D;color:#fff;font-size:11.5px;font-weight:700">RENDERING 62%</span><span style="position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.25)"><span style="position:absolute;inset:0 38% 0 0;background:var(--acc)"></span></span></div>
+      <div style="display:flex;align-items:flex-start;gap:6px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">launch-reel-v3.mov</span><span style="font-size:12.5px;color:var(--ink3)">Sep 22</span></div><i data-lucide="more-horizontal" style="width:18px;height:18px;color:var(--ink3)"></i></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="position:relative;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:#000"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block;opacity:.55"><span style="position:absolute;left:10px;top:10px;padding:4px 8px;background:#0D0D0D;color:#fff;font-size:11.5px;font-weight:700">TRANSCRIBING…</span><span style="position:absolute;right:8px;bottom:8px;font-family:'DM Mono';font-size:11px;color:#fff;background:rgba(0,0,0,.6);padding:1px 5px">1:05</span></div>
+      <div style="display:flex;align-items:flex-start;gap:6px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">entrevista-joao.mp4</span><span style="font-size:12.5px;color:var(--ink3)">Sep 22</span></div><i data-lucide="more-horizontal" style="width:18px;height:18px;color:var(--ink3)"></i></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="position:relative;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px"><span style="font-stretch:125%;font-weight:800;font-size:34px;letter-spacing:-.03em">58%</span><span style="font-size:12px;font-weight:600;color:var(--ink3)">Uploading</span><span style="position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--raise)"><span style="position:absolute;inset:0 42% 0 0;background:var(--ink)"></span></span></div>
+      <div style="display:flex;align-items:flex-start;gap:6px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">promo-black-friday.mp4</span><span style="font-size:12.5px;color:var(--ink3)">Sep 21</span></div><i data-lucide="more-horizontal" style="width:18px;height:18px;color:var(--ink3)"></i></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="position:relative;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:#000"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.35;filter:grayscale(1)"><span style="position:absolute;left:10px;top:10px;padding:4px 8px;background:#E5322D;color:#fff;font-size:11.5px;font-weight:700">FAILED</span><span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:32px;display:flex;align-items:center;gap:6px;padding:0 14px;border-radius:999px;background:#fff;color:#0D0D0D;font-size:12.5px;font-weight:700"><i data-lucide="rotate-ccw" style="width:13px;height:13px"></i>Retry</span></div>
+      <div style="display:flex;align-items:flex-start;gap:6px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">teste-legenda-antigo.mp4</span><span style="font-size:12.5px;color:var(--ink3)">Sep 18</span></div><i data-lucide="more-horizontal" style="width:18px;height:18px;color:var(--ink3)"></i></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ UPLOAD MODAL ============ -->
+<div data-screen-label="B · Upload modal" style="width:1240px;height:900px;flex:none;position:relative;background:rgba(13,13,13,.55);overflow:hidden;display:flex;align-items:center;justify-content:center;gap:40px">
+  <div style="width:540px;background:var(--bg);border-radius:20px;padding:28px;display:flex;flex-direction:column;gap:20px;box-sizing:border-box">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between"><h2 style="margin:0;font-stretch:125%;font-weight:800;font-size:40px;line-height:1;letter-spacing:-.03em">Drop a <span style="background:var(--acc);color:var(--onacc);padding:0 6px">video</span></h2><span title="Close" style="width:36px;height:36px;border-radius:50%;background:var(--panel);display:flex;align-items:center;justify-content:center"><i data-lucide="x" style="width:16px;height:16px"></i></span></div>
+    <div style="height:300px;border-radius:14px;background:var(--acctint);box-shadow:inset 0 0 0 2px var(--acc);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center">
+      <span style="width:64px;height:64px;border-radius:50%;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center"><i data-lucide="arrow-down" style="width:28px;height:28px"></i></span>
+      <div style="display:flex;flex-direction:column;gap:4px"><span style="font-weight:700;font-size:18px">Drag your video in</span><span style="font-size:14px;color:var(--ink2)">or <span style="text-decoration:underline;text-underline-offset:3px;font-weight:600;color:var(--ink)">browse files</span></span></div>
+      <span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">mp4 · webm · mov — up to 500 MB</span>
+    </div>
+    <span style="font-size:13px;color:var(--ink3)">We'll transcribe it automatically once it's up.</span>
+  </div>
+  <div style="width:540px;background:var(--bg);border-radius:20px;padding:28px;display:flex;flex-direction:column;gap:20px;box-sizing:border-box">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between"><h2 style="margin:0;font-stretch:125%;font-weight:800;font-size:40px;line-height:1;letter-spacing:-.03em">Uploading</h2></div>
+    <div style="height:300px;border-radius:14px;background:var(--panel);display:flex;flex-direction:column;justify-content:space-between;padding:24px;box-sizing:border-box">
+      <div style="display:flex;align-items:center;gap:12px"><img src="uploads/video-frame.png" alt="" style="width:40px;height:64px;border-radius:6px;object-fit:cover"><div style="display:flex;flex-direction:column;gap:3px"><span style="font-weight:700;font-size:15px">promo-black-friday.mp4</span><span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">184 MB · 0:52</span></div></div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-stretch:125%;font-weight:800;font-size:96px;line-height:.85;letter-spacing:-.05em">58<span style="font-size:48px">%</span></span>
+        <span style="height:8px;border-radius:999px;background:var(--raise);position:relative;overflow:hidden"><span style="position:absolute;inset:0 42% 0 0;background:var(--acc);border-radius:999px"></span></span>
+      </div>
+    </div>
+    <span style="font-size:13px;color:var(--ink3)">You'll land in the editor when it's done.</span>
+  </div>
+</div>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;}}">
+class Component extends DCLogic {
+  componentDidMount() { this.icons(); }
+  componentDidUpdate() { this.icons(); }
+  icons() {
+    const run = () => window.lucide ? window.lucide.createIcons({ attrs: { 'stroke-width': 2 } }) : setTimeout(run, 150);
+    run();
+  }
+  renderVals() {
+    const dark = (this.props.theme ?? 'light') === 'dark';
+    return {
+      themeVars: dark ? {
+        '--bg': '#0C0C0F', '--panel': '#18181D', '--raise': '#24242B', '--line': '#2A2A31',
+        '--ink': '#F4F4F1', '--ink2': '#C4C4BF', '--ink3': '#8E8E89', '--acc': '#4D5BFF', '--onacc': '#FFFFFF', '--accink': '#8C95FF',
+        '--acctint': 'rgba(77,91,255,.14)', '--stage': '#141418', '--board': '#050506'
+      } : {}
+    };
+  }
+}
+</script>
+</body>
+</html>

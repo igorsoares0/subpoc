@@ -4,7 +4,7 @@ import { Suspense, useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Mail, Lock, Loader2, ArrowRight } from "lucide-react"
+import { Loader2, ArrowRight } from "lucide-react"
 import { GoogleButton } from "@/components/auth/GoogleButton"
 import { AuthShell, AuthHeading, AuthLink, OrDivider } from "@/components/auth/AuthShell"
 import { Button } from "@/components/ui/Button"
@@ -54,12 +54,18 @@ function LoginForm() {
     }
   }
 
+  const showError = !!(error || queryError)
+
   return (
     <>
-      {notice && <Banner>{notice}</Banner>}
+      {notice && (
+        <Banner variant="ok" compact>
+          {notice}
+        </Banner>
+      )}
 
-      {(error || queryError) && (
-        <Banner variant="danger">
+      {showError && (
+        <Banner variant="danger" compact>
           {error ||
             (queryError === "invalid_token"
               ? "That link is invalid or has expired."
@@ -67,10 +73,13 @@ function LoginForm() {
         </Banner>
       )}
 
+      <GoogleButton />
+
+      <OrDivider />
+
       <form onSubmit={handleSubmit} className="flex flex-col gap-[22px]">
         <Field label="Email">
           <Input
-            icon={Mail}
             id="email"
             type="email"
             value={email}
@@ -78,21 +87,23 @@ function LoginForm() {
             required
             autoComplete="email"
             placeholder="you@example.com"
+            invalid={!!error}
           />
         </Field>
 
         <div className="flex flex-col gap-2">
-          <div className="flex justify-between text-[12.5px] font-medium text-ink-2">
-            <label htmlFor="password">Password</label>
+          <div className="flex justify-between items-baseline text-[13px]">
+            <label htmlFor="password" className="font-semibold text-paper">
+              Password
+            </label>
             <Link
               href="/forgot-password"
-              className="font-normal text-paper underline underline-offset-[3px] hover:text-accent-ink"
+              className="text-ink-2 underline underline-offset-[3px] hover:text-accent-ink"
             >
               Forgot password?
             </Link>
           </div>
           <Input
-            icon={Lock}
             id="password"
             type="password"
             value={password}
@@ -100,10 +111,11 @@ function LoginForm() {
             required
             autoComplete="current-password"
             placeholder="Enter your password"
+            invalid={!!error}
           />
         </div>
 
-        <Button type="submit" size="lg" disabled={isLoading} className="w-full">
+        <Button type="submit" size="2xl" disabled={isLoading} className="w-full">
           {isLoading ? (
             <>
               <Loader2 className="size-4 animate-spin" />
@@ -112,18 +124,14 @@ function LoginForm() {
           ) : (
             <>
               Sign in
-              <ArrowRight className="size-[15px]" />
+              <ArrowRight className="size-4" />
             </>
           )}
         </Button>
       </form>
 
-      <OrDivider />
-
-      <GoogleButton />
-
-      <p className="text-[13px] text-ink-3 text-center">
-        Don&apos;t have an account? <AuthLink href="/register">Sign up</AuthLink>
+      <p className="text-[14px] text-ink-3 text-center">
+        New here? <AuthLink href="/register">Create an account</AuthLink>
       </p>
     </>
   )
@@ -132,8 +140,8 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <AuthShell>
-      <AuthHeading title="Sign in" subtitle="Welcome back to your projects." />
-      <Suspense fallback={<Loader2 className="size-5 animate-spin text-ink-4 mx-auto" />}>
+      <AuthHeading title="Sign in" subtitle="Your projects are waiting." />
+      <Suspense fallback={<Loader2 className="size-5 animate-spin text-ink-3 mx-auto" />}>
         <LoginForm />
       </Suspense>
     </AuthShell>

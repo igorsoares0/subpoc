@@ -9,14 +9,14 @@ import {
   type SubtitleStyle,
 } from "@/lib/subtitle-track"
 import { cn } from "@/lib/utils"
-import { PanelHeader, hexToRgba } from "./shared"
+import { hexToRgba } from "./shared"
 
+/** "Looks" tab — subtitle templates previewed on a still from the user's video. */
 export function StylePanel({
   style,
   frameUrl,
   sampleText,
   onApply,
-  onOpenText,
 }: {
   style: SubtitleStyle
   /** Still from the user's own video; null → neutral dark frame. */
@@ -24,46 +24,37 @@ export function StylePanel({
   /** First words of the transcript, used as the tile caption. */
   sampleText: string
   onApply: (preset: SubtitlePreset) => void
-  onOpenText: () => void
 }) {
   const wordGroup = SUBTITLE_PRESETS.filter((p) => p.style.displayMode === "word-group")
   const sentence = SUBTITLE_PRESETS.filter((p) => p.style.displayMode !== "word-group")
   const tokens = sampleText.split(/\s+/).filter(Boolean)
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      <PanelHeader title="Style" meta="Previewed on your own video" />
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 pb-5 flex flex-col gap-4">
-        {[
-          { label: "Word by word · animated", items: wordGroup },
-          { label: "Full sentence", items: sentence },
-        ].map((group) =>
-          group.items.length === 0 ? null : (
-            <div key={group.label} className="flex flex-col gap-2.5">
-              <span className="text-[12.5px] font-medium text-ink-2">{group.label}</span>
-              <div className="grid grid-cols-2 gap-2.5">
-                {group.items.map((preset) => (
-                  <TemplateTile
-                    key={preset.id}
-                    preset={preset}
-                    active={matchesPreset(style, preset)}
-                    frameUrl={frameUrl}
-                    tokens={tokens}
-                    onClick={() => onApply(preset)}
-                  />
-                ))}
-              </div>
+    <div className="flex flex-col">
+      {[
+        { label: "Word by word", items: wordGroup },
+        { label: "Full sentence", items: sentence },
+      ].map((group, gi) =>
+        group.items.length === 0 ? null : (
+          <div key={group.label} className="flex flex-col">
+            <span className={cn("mb-2.5 text-[13px] font-bold text-paper", gi === 0 ? "mt-5" : "mt-[18px]")}>
+              {group.label}
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              {group.items.map((preset) => (
+                <TemplateTile
+                  key={preset.id}
+                  preset={preset}
+                  active={matchesPreset(style, preset)}
+                  frameUrl={frameUrl}
+                  tokens={tokens}
+                  onClick={() => onApply(preset)}
+                />
+              ))}
             </div>
-          )
-        )}
-      </div>
-      <p className="px-5 py-3.5 border-t border-line/8 text-[12px] leading-relaxed text-ink-3 flex-none">
-        Templates set font, colors, outline and animation. Fine-tune in{" "}
-        <button type="button" onClick={onOpenText} className="text-paper underline underline-offset-[3px] hover:text-accent-ink">
-          Text &amp; animation
-        </button>
-        .
-      </p>
+          </div>
+        )
+      )}
     </div>
   )
 }
@@ -104,60 +95,57 @@ function TemplateTile({
       onClick={onClick}
       aria-pressed={active}
       title={preset.name}
-      className="flex flex-col gap-[7px] text-left group"
+      className={cn(
+        "relative h-24 w-full rounded-[10px] overflow-hidden flex items-center justify-center px-2 cursor-pointer",
+        !active && "hover:shadow-[0_0_0_2px_rgba(var(--c-line),0.2)]"
+      )}
+      style={{
+        // Video content never changes with theme.
+        background: frameUrl
+          ? `center 30% / cover no-repeat url(${frameUrl})`
+          : "radial-gradient(120% 90% at 50% 30%, #55554f 0%, #1c1c1f 70%)",
+        boxShadow: active ? "0 0 0 2.5px var(--c-accent)" : undefined,
+      }}
     >
+      {/* ≈ brightness(.65) on the frame */}
+      <span className="absolute inset-0 bg-black/35" />
       <span
-        className={cn(
-          "relative h-[104px] w-full rounded-lg overflow-hidden flex items-center justify-center px-2 transition-shadow duration-150",
-          !active && "group-hover:shadow-[0_0_0_1px_rgba(var(--c-line),0.25)]"
-        )}
+        className="relative text-center leading-[1.1]"
         style={{
-          // Video content never changes with theme.
-          background: frameUrl
-            ? `center / cover no-repeat url(${frameUrl})`
-            : "radial-gradient(120% 90% at 50% 30%, #4a4a44 0%, #1D1D1A 70%)",
-          boxShadow: active ? "0 0 0 2px var(--c-ring)" : undefined,
+          fontFamily: resolveFontFamily(s.fontFamily),
+          fontWeight: s.fontWeight ?? 700,
+          fontSize: isWordGroup ? 17 : 13,
+          color: s.color,
+          textShadow,
+          backgroundColor: isWordGroup && s.highlightBg ? undefined : bg,
+          padding: s.backgroundOpacity > 0 && !(isWordGroup && s.highlightBg) ? "3px 7px" : undefined,
         }}
       >
-        <span className="absolute inset-0 bg-black/35" />
-        <span
-          className="relative text-center leading-[1.1]"
-          style={{
-            fontFamily: resolveFontFamily(s.fontFamily),
-            fontWeight: s.fontWeight ?? 700,
-            fontSize: isWordGroup ? 17 : 12.5,
-            color: s.color,
-            textShadow,
-            backgroundColor: isWordGroup && s.highlightBg ? undefined : bg,
-            padding: s.backgroundOpacity > 0 && !(isWordGroup && s.highlightBg) ? "2px 6px" : undefined,
-            borderRadius: 4,
-          }}
-        >
-          {isWordGroup ? (
-            <>
-              {caseFn(first)}{" "}
-              <span
-                style={{
-                  color: s.highlightBg ? s.highlightColor || "#FFFFFF" : s.highlightColor || "#FFD700",
-                  backgroundColor: s.highlightBg || undefined,
-                  padding: s.highlightBg ? "1px 5px" : undefined,
-                  borderRadius: 4,
-                }}
-              >
-                {caseFn(second)}
-              </span>
-            </>
-          ) : (
-            caseFn(sentenceText)
-          )}
-        </span>
-        {active && (
-          <span className="absolute top-1.5 right-1.5 size-5 rounded-full bg-accent flex items-center justify-center">
-            <Check className="size-3 text-on-accent" strokeWidth={3} />
-          </span>
+        {isWordGroup ? (
+          <>
+            {caseFn(first)}{" "}
+            <span
+              style={{
+                color: s.highlightBg ? s.highlightColor || "#FFFFFF" : s.highlightColor || "#FFD700",
+                backgroundColor: s.highlightBg || undefined,
+                padding: s.highlightBg ? "0 4px" : undefined,
+              }}
+            >
+              {caseFn(second)}
+            </span>
+          </>
+        ) : (
+          caseFn(sentenceText)
         )}
       </span>
-      <span className={cn("text-[12.5px]", active ? "text-paper font-medium" : "text-ink-3")}>{preset.name}</span>
+      <span className="absolute left-2 bottom-1.5 text-[11px] font-bold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]">
+        {preset.name}
+      </span>
+      {active && (
+        <span className="absolute top-1.5 right-1.5 size-[18px] rounded-full bg-accent flex items-center justify-center">
+          <Check className="size-[11px] text-white" strokeWidth={3} />
+        </span>
+      )}
     </button>
   )
 }

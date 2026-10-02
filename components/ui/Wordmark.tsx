@@ -1,41 +1,31 @@
 import { cn } from "@/lib/utils"
 
-/** "Supertitle." — serif wordmark with the lime (accent-ink) period. */
-export function Wordmark({ size = 28, className }: { size?: number; className?: string }) {
-  return (
-    <span
-      className={cn("font-serif leading-none text-paper whitespace-nowrap", className)}
-      style={{ fontSize: size }}
-    >
-      Supertitle<span className="text-accent-ink">.</span>
-    </span>
-  )
-}
-
-/** Serif display heading; `em` renders as the italic second phrase. */
-export function Display({
-  children,
-  em,
-  after,
-  size = 52,
+/** "super" + "title" on an accent block. `inverse` = white block / accent text (auth panel). */
+export function Wordmark({
+  size = 22,
+  inverse,
   className,
-  as: Tag = "h1",
 }: {
-  children?: React.ReactNode
-  em?: React.ReactNode
-  after?: React.ReactNode
   size?: number
+  inverse?: boolean
   className?: string
-  as?: "h1" | "h2" | "h3" | "span"
 }) {
   return (
-    <Tag
-      className={cn("font-serif font-normal text-paper tracking-[-0.01em]", className)}
-      style={{ fontSize: size, lineHeight: size >= 44 ? 1.02 : 1.05 }}
+    <span
+      className={cn(
+        "font-black stretch-wide tracking-[-0.02em] leading-none whitespace-nowrap",
+        inverse ? "text-white" : "text-paper",
+        className
+      )}
+      style={{ fontSize: size }}
     >
-      {children}
-      {em && <em className="italic">{em}</em>}
-      {after}
-    </Tag>
+      super
+      <span
+        className={inverse ? "bg-white text-accent" : "bg-accent text-on-accent"}
+        style={{ padding: `0 ${size >= 26 ? 5 : 4}px` }}
+      >
+        title
+      </span>
+    </span>
   )
 }

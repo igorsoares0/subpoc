@@ -1,0 +1,141 @@
+/*
+ * Supertitle — "Caption" theme (direction 1b).
+ * Drop-in value swap for the :root / [data-theme="dark"] / @theme blocks in app/globals.css.
+ * Token NAMES are unchanged so existing classes (bg-canvas, bg-surface, text-paper, text-ink-3,
+ * bg-accent, text-accent-ink, border-ring…) keep working. What changes:
+ *   - accent is now themed (cobalt), not a constant lime; text on accent is WHITE
+ *   - new --c-highlight (keyword yellow) and --c-ok tokens
+ *   - fonts: Archivo (variable, wdth axis) replaces Instrument Serif + Geist; DM Mono replaces Geist Mono
+ * Keep the rest of globals.css (scrollbars, range input, keyframes) — only update colors noted below.
+ */
+
+:root {
+  --background: var(--c-canvas);
+  --foreground: var(--c-paper);
+  --c-canvas: #FFFFFF;        /* app background */
+  --c-stage: #F2F2EF;         /* video stage, empty states */
+  --c-surface: #F2F2EF;       /* "panel": filled controls, selected script line, plan cards, inputs */
+  --c-elevated: #E7E7E3;      /* "raise": slider rails, progress tracks */
+  --c-hover: #EAEAE6;
+  --c-track: #E7E7E3;
+  --c-paper: #0D0D0D;         /* primary text (inverts in dark) */
+  --c-ink-2: #3F3F3C;
+  --c-ink-3: #6D6D68;
+  --c-ink-4: #8E8E89;         /* disabled / decorative only — fails 4.5:1 on white */
+  --c-accent: #2B3BFF;
+  --c-accent-hover: #1F2EE6;
+  --c-on-accent: #FFFFFF;
+  --c-accent-ink: #2B3BFF;    /* accent as text/icon */
+  --c-accent-tint: rgba(43, 59, 255, 0.09);
+  --c-ring: #2B3BFF;
+  --c-highlight: #FFE14D;     /* keyword highlight in script + subtitle preview */
+  --c-danger: #E5322D;
+  --c-danger-ink: #C4231F;
+  --c-danger-surface: #FDECEB;
+  --c-danger-text: #C4231F;
+  --c-ok: #16A34A;
+  --c-ok-surface: #E8F6EC;
+  --c-line: 13, 13, 13;       /* hairlines: rgba(var(--c-line), .10) ≈ #E2E2DE on white */
+  --c-scrim: 255, 255, 255;
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.25);
+  --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.25);
+  --shadow-menu: 0 0 0 1px #E2E2DE, 0 18px 40px rgba(0, 0, 0, 0.16);
+  --shadow-toast: 0 12px 30px rgba(0, 0, 0, 0.2);
+  --backdrop: rgba(13, 13, 13, 0.55);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --c-canvas: #0C0C0F;
+  --c-stage: #141418;
+  --c-surface: #18181D;
+  --c-elevated: #24242B;
+  --c-hover: #2A2A31;
+  --c-track: #24242B;
+  --c-paper: #F4F4F1;
+  --c-ink-2: #C4C4BF;
+  --c-ink-3: #8E8E89;
+  --c-ink-4: #6A6A66;
+  --c-accent: #4D5BFF;
+  --c-accent-hover: #626FFF;
+  --c-on-accent: #FFFFFF;
+  --c-accent-ink: #8C95FF;
+  --c-accent-tint: rgba(77, 91, 255, 0.16);
+  --c-ring: #8C95FF;
+  --c-highlight: #FFE14D;
+  --c-danger: #FF5A4E;
+  --c-danger-ink: #FF7A70;
+  --c-danger-surface: #2A1514;
+  --c-danger-text: #FF7A70;
+  --c-ok: #4ADE80;
+  --c-ok-surface: #12261A;
+  --c-line: 244, 244, 241;    /* rgba(var(--c-line), .10) ≈ #2A2A31 */
+  --c-scrim: 12, 12, 15;
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.6);
+  --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.6);
+  --shadow-menu: 0 0 0 1px #2A2A31, 0 18px 40px rgba(0, 0, 0, 0.5);
+  --shadow-toast: 0 12px 30px rgba(0, 0, 0, 0.5);
+  --backdrop: rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  /* layout.tsx: Archivo({ subsets:["latin"], axes:["wdth"], variable:"--font-archivo" }),
+     DM_Mono({ subsets:["latin"], weight:["400","500"], variable:"--font-dm-mono" }) */
+  --font-sans: var(--font-archivo);
+  --font-display: var(--font-archivo);   /* use with font-stretch:125% (class: font-display stretch-wide) */
+  --font-mono: var(--font-dm-mono);
+  --font-serif: var(--font-archivo);     /* legacy alias — remove font-serif usages over time */
+
+  --color-canvas: var(--c-canvas);
+  --color-stage: var(--c-stage);
+  --color-surface: var(--c-surface);
+  --color-elevated: var(--c-elevated);
+  --color-hover: var(--c-hover);
+  --color-track: var(--c-track);
+
+  --color-paper: var(--c-paper);
+  --color-ink-2: var(--c-ink-2);
+  --color-ink-3: var(--c-ink-3);
+  --color-ink-4: var(--c-ink-4);
+
+  --color-accent: var(--c-accent);
+  --color-accent-hover: var(--c-accent-hover);
+  --color-on-accent: var(--c-on-accent);
+  --color-accent-ink: var(--c-accent-ink);
+  --color-accent-tint: var(--c-accent-tint);
+  --color-ring: var(--c-ring);
+  --color-highlight: var(--c-highlight);
+
+  --color-danger: var(--c-danger);
+  --color-danger-ink: var(--c-danger-ink);
+  --color-danger-surface: var(--c-danger-surface);
+  --color-danger-text: var(--c-danger-text);
+  --color-ok: var(--c-ok);
+  --color-ok-surface: var(--c-ok-surface);
+
+  --color-line: rgb(var(--c-line));
+  --color-scrim: rgb(var(--c-scrim));
+
+  --radius-xs: 3px;    /* inline word highlight */
+  --radius-sm: 6px;    /* timecode chips, tiny thumbs */
+  --radius-md: 8px;
+  --radius-lg: 10px;   /* script line, timeline blocks, look tiles, font tiles */
+  --radius-xl: 12px;   /* inputs, dashboard thumbnails */
+  --radius-2xl: 14px;  /* banners, drop zones, preview frame */
+  --radius-3xl: 18px;  /* plan cards, job dialog */
+  --radius-4xl: 20px;  /* modals */
+  /* pills/buttons/segmented/toasts: rounded-full */
+}
+
+.stretch-wide { font-stretch: 125%; }
+
+/* Replace in the rest of globals.css:
+ *   ::selection             → background: rgba(43, 59, 255, 0.22)
+ *   range thumb focus ring  → 0 0 0 3px rgba(43, 59, 255, 0.35)
+ *   range input             → 6px rail (--c-elevated), fill --c-paper, 18px thumb: bg --c-canvas + inset 0 0 0 2.5px --c-paper
+ *   .bg-dots                → no longer used (auth left panel is solid accent)
+ */

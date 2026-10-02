@@ -1,12 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Check, Loader2 } from "lucide-react"
+import { ArrowUpRight, Check, CreditCard, Loader2 } from "lucide-react"
 import { initializePaddle, type Paddle } from "@paddle/paddle-js"
 import { PLANS, type PlanId } from "@/lib/plans"
-import { AppShell, Sidebar } from "@/components/app-shell/Sidebar"
+import { AppShell, TopBar } from "@/components/app-shell/TopBar"
 import { Button } from "@/components/ui/Button"
-import { Banner } from "@/components/ui/Banner"
+import { Banner, BannerAction } from "@/components/ui/Banner"
+import { Highlight } from "@/components/ui/Highlight"
 import { UsageBar } from "@/components/ui/controls"
 import { cn } from "@/lib/utils"
 
@@ -114,10 +115,20 @@ export default function BillingClient({
     }
   }
 
+  const currentPlan = PLANS[subscription.plan as PlanId] ?? PLANS.free
+  const hasSub = subscription.hasPaddleSubscription
+  const periodLabel = !periodEnd
+    ? null
+    : subscription.cancelAtPeriodEnd
+      ? `Cancels ${periodEnd}`
+      : hasSub
+        ? `Renews ${periodEnd} · $${currentPlan.priceUsd}/mo`
+        : `Resets ${periodEnd}`
+
   return (
     <AppShell
-      sidebar={
-        <Sidebar
+      topBar={
+        <TopBar
           active="billing"
           user={user}
           plan={{
@@ -129,129 +140,169 @@ export default function BillingClient({
         />
       }
     >
-      <div className="max-w-[1040px] flex flex-col gap-7">
-        <div className="flex flex-col gap-2.5">
-          <h1 className="font-serif text-[52px] leading-none tracking-[-0.01em] text-paper">Billing</h1>
-          <p className="text-[13.5px] text-ink-3">Manage your plan and usage.</p>
-        </div>
-
-        {activating && (
-          <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-lg border bg-accent/12 border-accent-ink/25 text-[13px] text-paper">
-            <Loader2 className="size-4 animate-spin text-accent-ink" />
-            Updating your subscription…
-          </div>
+      <div className="flex items-end justify-between gap-6 flex-wrap pt-7 pb-[22px]">
+        <h1 className="display text-[64px] leading-[0.95] text-paper">
+          Your <Highlight className="px-2.5">plan</Highlight>
+        </h1>
+        {hasSub && (
+          <Button variant="secondary" size="lg" className="px-5" onClick={openPortal} disabled={busyPlan === "free"}>
+            {busyPlan === "free" && <Loader2 className="size-4 animate-spin" />}
+            Manage subscription
+            <ArrowUpRight className="size-[15px]" />
+          </Button>
         )}
-        {error && <Banner variant="danger">{error}</Banner>}
+      </div>
 
-        {/* Uso atual */}
-        <section className="rounded-2xl bg-surface border border-line/8 px-6 py-[22px] flex flex-col gap-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex flex-col gap-1">
-              <span className="text-[12.5px] text-ink-3">Current plan</span>
-              <span className="text-[17px] font-semibold text-paper">
-                {currentPlanName}
-                {subscription.cancelAtPeriodEnd && (
-                  <span className="ml-2 text-[12px] font-normal text-ink-3">
-                    cancels {periodEnd ? `on ${periodEnd}` : "at period end"}
+      <div className="flex flex-col gap-4 empty:hidden mb-4">
+        {activating && (
+          <Banner
+            variant="accent"
+            icon={<span className="block size-[18px] rounded-full border-[2.5px] border-accent/25 border-t-accent animate-spin" />}
+            detail="This takes a few seconds."
+          >
+            Updating your subscription…
+          </Banner>
+        )}
+        {subscription.status === "past_due" && (
+          <Banner
+            variant="danger"
+            icon={<CreditCard className="size-[18px]" />}
+            detail={`Update your card to keep ${currentPlanName}.`}
+            action={
+              hasSub ? (
+                <BannerAction tone="danger" onClick={openPortal} disabled={busyPlan === "free"}>
+                  Update payment
+                </BannerAction>
+              ) : undefined
+            }
+          >
+            Payment past due.
+          </Banner>
+        )}
+        {error && (
+          <Banner variant="danger" onDismiss={() => setError(null)}>
+            {error}
+          </Banner>
+        )}
+      </div>
+
+      {/* Uso atual */}
+      <section className="grid grid-cols-1 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)] items-end gap-y-6 rounded-[18px] bg-surface px-7 py-[26px]">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-semibold text-ink-3">Current plan</span>
+          <span className="display text-[40px] tracking-[-0.03em] text-paper">{currentPlanName}</span>
+          {periodLabel && <span className="text-[13px] text-ink-3">{periodLabel}</span>}
+        </div>
+        <Meter
+          label="Minutes"
+          used={subscription.minutesUsed}
+          limit={subscription.minutesLimit}
+          fill="accent"
+          danger={subscription.minutesLimit > 0 && subscription.minutesUsed / subscription.minutesLimit > 0.8}
+          className="md:px-7 md:border-l border-line/12"
+        />
+        <Meter
+          label="Videos in library"
+          used={subscription.videosStored}
+          limit={subscription.videosLimit}
+          danger={subscription.videosStored >= subscription.videosLimit}
+          className="md:pl-7 md:border-l border-line/12"
+        />
+      </section>
+
+      {/* Planos */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        {Object.values(PLANS).map((plan) => {
+          const isCurrent = subscription.plan === plan.id
+          const busy = busyPlan === plan.id
+          // Starter is the hero (accent CTA + badge) for free users.
+          const hero = plan.id === "starter" && !hasSub && !isCurrent
+          return (
+            <div
+              key={plan.id}
+              className={cn(
+                "rounded-[18px] p-6 flex flex-col gap-[18px]",
+                isCurrent ? "bg-canvas edge-paper" : "bg-surface"
+              )}
+            >
+              <div className="flex items-center justify-between h-[26px]">
+                <span className="text-[17px] font-bold text-paper">{plan.name}</span>
+                {isCurrent && (
+                  <span className="h-6 px-2.5 rounded-full bg-paper text-canvas flex items-center text-[11.5px] font-bold">
+                    Current
                   </span>
                 )}
-                {subscription.status === "past_due" && (
-                  <span className="ml-2 text-[12px] font-normal text-danger-ink">
-                    payment past due
+                {hero && (
+                  <span className="h-6 px-2.5 rounded-full bg-accent-tint text-accent-ink flex items-center text-[11.5px] font-bold whitespace-nowrap">
+                    Most picked
                   </span>
-                )}
-              </span>
-            </div>
-            {subscription.hasPaddleSubscription && (
-              <Button variant="ghost" size="sm" onClick={openPortal} disabled={busyPlan === "free"}>
-                {busyPlan === "free" && <Loader2 className="size-3.5 animate-spin" />}
-                Manage subscription
-              </Button>
-            )}
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Meter label="Minutes" used={subscription.minutesUsed} limit={subscription.minutesLimit} />
-            <Meter
-              label="Videos in library"
-              used={subscription.videosStored}
-              limit={subscription.videosLimit}
-            />
-          </div>
-          {periodEnd && <span className="text-[12px] text-ink-4">Resets {periodEnd}</span>}
-        </section>
-
-        {/* Planos */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {Object.values(PLANS).map((plan) => {
-            const isCurrent = subscription.plan === plan.id
-            const busy = busyPlan === plan.id
-            return (
-              <div
-                key={plan.id}
-                className={cn(
-                  "rounded-2xl bg-surface border p-6 flex flex-col gap-5",
-                  isCurrent ? "border-ring" : "border-line/8"
-                )}
-              >
-                <div className="flex items-center justify-between h-[22px]">
-                  <span className="text-[15px] font-semibold text-paper">{plan.name}</span>
-                  {isCurrent && (
-                    <span className="h-[22px] px-[9px] rounded-full bg-accent text-on-accent flex items-center text-[11px] font-semibold">
-                      Current
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="font-serif text-[64px] leading-none text-paper">${plan.priceUsd}</span>
-                  <span className="text-[13px] text-ink-3">/ month</span>
-                </div>
-                <ul className="flex flex-col gap-2.5 flex-1">
-                  {plan.features.map((feature) => (
-                    <li
-                      key={feature}
-                      className="flex items-start gap-2.5 text-[13.5px] leading-[1.4] text-ink-2"
-                    >
-                      <Check className="size-3.5 text-accent-ink mt-[3px] shrink-0" strokeWidth={2.25} />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                {plan.id !== "free" && !isCurrent && (
-                  <Button
-                    onClick={() => selectPlan(plan.id)}
-                    disabled={busy || activating || (!paddle && !subscription.hasPaddleSubscription)}
-                    className="w-full"
-                  >
-                    {busy && <Loader2 className="size-4 animate-spin" />}
-                    {subscription.hasPaddleSubscription
-                      ? "Switch to " + plan.name
-                      : "Upgrade to " + plan.name}
-                  </Button>
                 )}
               </div>
-            )
-          })}
-        </div>
-
-        <p className="text-[12px] text-ink-4">
-          Payments are processed securely by Paddle. Prices in USD; local taxes
-          may apply at checkout.
-        </p>
+              <div className="flex items-baseline gap-1.5">
+                <span className="display text-[64px] leading-[0.9] tracking-[-0.045em] text-paper">${plan.priceUsd}</span>
+                <span className="text-[14px] text-ink-3">/ month</span>
+              </div>
+              <ul className="flex flex-col gap-[9px] flex-1">
+                {plan.features.map((feature) => (
+                  <li key={feature} className="flex items-start gap-[9px] text-[14px] leading-[1.4] text-paper">
+                    <Check className="size-[15px] text-accent-ink mt-0.5 shrink-0" strokeWidth={2} />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              {plan.id !== "free" && !isCurrent && (
+                <Button
+                  variant={hero ? "primary" : "inverse"}
+                  size="xl"
+                  onClick={() => selectPlan(plan.id)}
+                  disabled={busy || (!paddle && !hasSub)}
+                  className={cn("w-full", activating && "opacity-45 pointer-events-none")}
+                >
+                  {busy && <Loader2 className="size-4 animate-spin" />}
+                  {hasSub ? "Switch to " + plan.name : "Upgrade to " + plan.name}
+                </Button>
+              )}
+              {isCurrent && plan.id === "free" && (
+                <span className="h-[46px] flex items-center justify-center text-[13px] text-ink-3">
+                  You&apos;re on this plan
+                </span>
+              )}
+            </div>
+          )
+        })}
       </div>
+
+      <p className="mt-3.5 text-[12.5px] text-ink-3">
+        Payments are processed securely by Paddle. Prices in USD; local taxes may apply at checkout.
+      </p>
     </AppShell>
   )
 }
 
-function Meter({ label, used, limit }: { label: string; used: number; limit: number }) {
+function Meter({
+  label,
+  used,
+  limit,
+  fill = "paper",
+  danger,
+  className,
+}: {
+  label: string
+  used: number
+  limit: number
+  fill?: "paper" | "accent"
+  danger?: boolean
+  className?: string
+}) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className={cn("flex flex-col gap-2.5", className)}>
       <div className="flex items-baseline justify-between">
-        <span className="text-[13px] text-ink-2">{label}</span>
-        <span className="font-mono tabular-nums text-[13px] font-medium text-paper">
-          {used} <span className="text-ink-4">/ {limit}</span>
+        <span className="text-[14px] font-semibold text-paper">{label}</span>
+        <span className="font-mono tabular-nums text-[15px] font-medium text-paper">
+          {used} <span className="text-ink-3">/ {limit}</span>
         </span>
       </div>
-      <UsageBar used={used} limit={limit} />
+      <UsageBar used={used} limit={limit} height={10} fill={fill} danger={danger} />
     </div>
   )
 }

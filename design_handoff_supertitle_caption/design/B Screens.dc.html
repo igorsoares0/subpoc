@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=DM+Mono:wght@400;500&family=Montserrat:wght@900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<style>body{margin:0}a{color:inherit}a:hover{color:#2B3BFF}</style>
+</helmet>
+<div style="--bg:#FFFFFF;--panel:#F2F2EF;--raise:#E7E7E3;--line:#E2E2DE;--ink:#0D0D0D;--ink2:#3F3F3C;--ink3:#6D6D68;--acc:#2B3BFF;--onacc:#FFFFFF;--accink:#2B3BFF;--acctint:rgba(43,59,255,.09);--stage:#F2F2EF;--danger:#E5322D;--dangerink:#C4231F;--dangertint:#FDECEB;--ok:#16A34A;--oktint:#E8F6EC;font-family:'Archivo',system-ui,sans-serif;font-stretch:100%">
+<div style="{{ themeVars }}">
+<div style="position:relative;width:1440px;height:900px;background:var(--bg);color:var(--ink);overflow:hidden;display:flex;flex-direction:column;font-size:14px">
+
+  <sc-if value="{{ appChrome }}" hint-placeholder-val="{{ true }}">
+    <header style="height:72px;display:flex;align-items:center;gap:28px;padding:0 40px;flex:none">
+      <span style="font-stretch:125%;font-weight:900;font-size:22px;letter-spacing:-.02em">super<span style="background:var(--acc);color:var(--onacc);padding:0 4px">title</span></span>
+      <nav style="display:flex;gap:4px;font-weight:600;font-size:14px">
+        <span style="{{ navProjects }}">Projects</span>
+        <span style="{{ navBilling }}">Billing</span>
+      </nav>
+      <span style="flex:1"></span>
+      <span style="flex:none;white-space:nowrap;display:flex;align-items:center;gap:10px;height:36px;padding:0 6px 0 14px;border-radius:999px;background:var(--panel);font-size:12.5px;font-weight:600">
+        <span style="font-family:'DM Mono';font-weight:500">{{ usageLabel }}</span>
+        <span style="width:64px;height:6px;border-radius:999px;background:var(--raise);position:relative;overflow:hidden"><span style="{{ usageBarSm }}"></span></span>
+        <span style="height:26px;display:flex;align-items:center;padding:0 10px;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700">Upgrade</span>
+      </span>
+      <span style="width:36px;height:36px;border-radius:50%;background:var(--ink);color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">IS</span>
+    </header>
+  </sc-if>
+
+  <!-- ================= DASHBOARD ================= -->
+  <sc-if value="{{ isDash }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:28px 40px 24px">
+      <h1 style="margin:0;font-stretch:125%;font-weight:800;font-size:64px;line-height:.95;letter-spacing:-.035em">Your <span style="background:var(--acc);color:var(--onacc);padding:0 10px">videos</span> <span style="font-family:'DM Mono';font-stretch:100%;font-weight:400;font-size:18px;letter-spacing:0;color:var(--ink3);vertical-align:top">{{ countLabel }}</span></h1>
+      <div style="display:flex;align-items:center;gap:8px">
+        <sc-if value="{{ dashHasItems }}" hint-placeholder-val="{{ true }}">
+          <span style="width:240px;height:44px;display:flex;align-items:center;gap:10px;padding:0 16px;border-radius:999px;background:var(--panel);color:var(--ink3);font-size:14px;box-sizing:border-box"><i data-lucide="search" style="width:16px;height:16px"></i>Search</span>
+        </sc-if>
+        <span style="height:44px;flex:none;white-space:nowrap;display:flex;align-items:center;gap:8px;padding:0 22px;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700;font-size:14px"><i data-lucide="plus" style="width:16px;height:16px"></i>New video</span>
+      </div>
+    </div>
+
+    <sc-if value="{{ dashError }}" hint-placeholder-val="{{ false }}">
+      <div style="margin:0 40px 18px;display:flex;align-items:center;gap:12px;padding:10px 10px 10px 16px;border-radius:14px;background:var(--dangertint);color:var(--dangerink)">
+        <i data-lucide="triangle-alert" style="width:18px;height:18px;flex:none"></i>
+        <span style="flex:1;font-weight:700;font-size:14px">podcast-full-ep13.mp4 is 14 minutes long. <span style="font-weight:500;color:var(--ink2)">Free plan videos can be up to 2 minutes.</span></span>
+        <span style="height:34px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:var(--ink);color:var(--bg);font-weight:700;font-size:13px">See plans</span>
+        <span title="Dismiss" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:var(--ink2)"><i data-lucide="x" style="width:16px;height:16px"></i></span>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ dashHasItems }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;gap:6px;padding:0 40px 20px;font-size:13px;font-weight:600">
+        <span style="height:32px;display:flex;align-items:center;padding:0 14px;border-radius:999px;background:var(--ink);color:var(--bg)">All 6</span>
+        <span style="height:32px;display:flex;align-items:center;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px var(--line)">Ready 1</span>
+        <span style="height:32px;display:flex;align-items:center;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px var(--line)">Rendered 1</span>
+        <span style="height:32px;display:flex;align-items:center;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px var(--line)">In progress 3</span>
+        <span style="height:32px;display:flex;align-items:center;padding:0 14px;border-radius:999px;box-shadow:inset 0 0 0 1.5px var(--line)">Failed 1</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px;padding:0 40px">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="position:relative;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:#000"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"><span style="position:absolute;left:10px;top:10px;padding:4px 8px;background:var(--acc);color:#fff;font-size:11.5px;font-weight:700">RENDERED</span><span style="position:absolute;left:10px;right:10px;bottom:28px;text-align:center;font-family:Montserrat;font-weight:900;font-size:15px;color:#fff;-webkit-text-stroke:3px #000;paint-order:stroke fill">O <span style="color:#FFE14D">ASSUNTO</span> DO</span><span style="position:absolute;right:8px;bottom:8px;font-family:'DM Mono';font-size:11px;color:#fff;background:rgba(0,0,0,.6);padding:1px 5px">0:18</span></div>
+          <div style="position:relative;display:flex;align-items:flex-start;gap:6px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">tarifas-trump.mp4</span><span style="font-size:12.5px;color:var(--ink3)">Sep 24</span></div><span style="{{ moreBtn }}"><i data-lucide="more-horizontal" style="width:18px;height:18px"></i></span>
+            <sc-if value="{{ dashMenu }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;right:-6px;bottom:calc(100% + 8px);width:200px;padding:6px;border-radius:14px;background:var(--bg);box-shadow:0 0 0 1px var(--line),0 18px 40px rgba(0,0,0,.16);display:flex;flex-direction:column;gap:2px;z-index:5">
+                <span style="height:38px;display:flex;align-items:center;gap:10px;padding:0 10px;border-radius:9px;background:var(--panel);font-weight:600;font-size:13.5px"><i data-lucide="pencil-line" style="width:15px;height:15px"></i>Open in editor</span>
+                <span style="height:1px;background:var(--line);margin:4px 6px"></span>
+                <span style="height:38px;display:flex;align-items:center;gap:10px;padding:0 10px;border-radius:9px;color:var(--dangerink);font-weight:600;font-size:13.5px"><i data-lucide="trash-2" style="width:15px;height:15px"></i>Delete</span>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="position:relative;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:#000"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:30% 50%;display:block"><span style="position:absolute;left:10px;top:10px;padding:4px 8px;background:#fff;color:#0D0D0D;font-size:11.5px;font-weight:700">READY TO EDIT</span><span style="position:absolute;right:8px;bottom:8px;font-family:'DM Mono';font-size:11px;color:#fff;background:rgba(0,0,0,.6);padding:1px 5px">1:42</span></div>
+          <div style="display:flex;align-items:flex-start;gap:6px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">podcast-ep12-cut.mp4</span><span style="font-size:12.5px;color:var(--ink3)">Sep 23</span></div><i data-lucide="more-horizontal" style="width:18px;height:18px;color:var(--ink3)"></i></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="position:relative;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:#000"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:70% 50%;display:block;opacity:.55"><span style="position:absolute;left:10px;top:10px;padding:4px 8px;background:#0D0D0D;color:#fff;font-size:11.5px;font-weight:700">RENDERING 62%</span><span style="position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.25)"><span style="position:absolute;inset:0 38% 0 0;background:var(--acc)"></span></span></div>
+          <div style="display:flex;align-items:flex-start;gap:6px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">launch-reel-v3.mov</span><span style="font-size:12.5px;color:var(--ink3)">Sep 22</span></div><i data-lucide="more-horizontal" style="width:18px;height:18px;color:var(--ink3)"></i></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="position:relative;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:#000"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.55"><span style="position:absolute;left:10px;top:10px;padding:4px 8px;background:#0D0D0D;color:#fff;font-size:11.5px;font-weight:700">TRANSCRIBING…</span><span style="position:absolute;right:8px;bottom:8px;font-family:'DM Mono';font-size:11px;color:#fff;background:rgba(0,0,0,.6);padding:1px 5px">1:05</span></div>
+          <div style="display:flex;align-items:flex-start;gap:6px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">entrevista-joao.mp4</span><span style="font-size:12.5px;color:var(--ink3)">Sep 22</span></div><i data-lucide="more-horizontal" style="width:18px;height:18px;color:var(--ink3)"></i></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="position:relative;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px"><span style="font-stretch:125%;font-weight:800;font-size:34px;letter-spacing:-.03em">58%</span><span style="font-size:12px;font-weight:600;color:var(--ink3)">Uploading</span><span style="position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--raise)"><span style="position:absolute;inset:0 42% 0 0;background:var(--ink)"></span></span></div>
+          <div style="display:flex;align-items:flex-start;gap:6px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">promo-black-friday.mp4</span><span style="font-size:12.5px;color:var(--ink3)">Sep 21</span></div><i data-lucide="more-horizontal" style="width:18px;height:18px;color:var(--ink3)"></i></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="position:relative;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:#000"><img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.35;filter:grayscale(1)"><span style="position:absolute;left:10px;top:10px;padding:4px 8px;background:var(--danger);color:#fff;font-size:11.5px;font-weight:700">FAILED</span><span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:32px;display:flex;align-items:center;gap:6px;padding:0 14px;border-radius:999px;background:#fff;color:#0D0D0D;font-size:12.5px;font-weight:700"><i data-lucide="rotate-ccw" style="width:13px;height:13px"></i>Retry</span></div>
+          <div style="display:flex;align-items:flex-start;gap:6px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">teste-legenda-antigo.mp4</span><span style="font-size:12.5px;color:var(--ink3)">Sep 18</span></div><i data-lucide="more-horizontal" style="width:18px;height:18px;color:var(--ink3)"></i></div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ dashEmpty }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;margin:0 40px 40px;border-radius:20px;background:var(--panel);display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:56px;padding:0 72px">
+        <div style="display:flex;flex-direction:column;gap:22px;max-width:560px">
+          <span style="font-stretch:125%;font-weight:800;font-size:56px;line-height:.98;letter-spacing:-.035em">Drop your first video. <span style="background:var(--acc);color:var(--onacc);padding:0 8px">We'll caption it.</span></span>
+          <p style="margin:0;font-size:17px;line-height:1.5;color:var(--ink2);text-wrap:pretty">Drag a file anywhere on this page. We transcribe it, split it into synced lines, and you style it in the editor.</p>
+          <div style="display:flex;align-items:center;gap:14px">
+            <span style="height:52px;display:flex;align-items:center;gap:9px;padding:0 26px;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700;font-size:16px"><i data-lucide="upload" style="width:18px;height:18px"></i>Upload video</span>
+            <span style="font-family:'DM Mono';font-size:12.5px;color:var(--ink3)">mp4 · webm · mov — up to 2 min on Free</span>
+          </div>
+        </div>
+        <div style="position:relative;width:260px;height:462px;border-radius:16px;overflow:hidden;background:#000;transform:rotate(3deg)">
+          <img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
+          <span style="position:absolute;left:0;right:0;top:56%;text-align:center;font-family:Montserrat;font-weight:900;font-size:24px;color:#fff;-webkit-text-stroke:5px #000;paint-order:stroke fill">O <span style="color:#FFE14D">ASSUNTO</span> DO</span>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ dashDelete }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;inset:0;background:rgba(13,13,13,.55);display:flex;align-items:center;justify-content:center">
+        <div style="width:440px;background:var(--bg);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:18px;box-sizing:border-box">
+          <div style="display:flex;gap:14px;align-items:center"><img src="uploads/video-frame.png" alt="" style="width:44px;height:78px;border-radius:7px;object-fit:cover;flex:none"><div style="display:flex;flex-direction:column;gap:3px;min-width:0"><span style="font-weight:700;font-size:15px">tarifas-trump.mp4</span><span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">0:18 · rendered Sep 24</span></div></div>
+          <span style="font-stretch:125%;font-weight:800;font-size:34px;line-height:1.02;letter-spacing:-.03em">Delete this <span style="background:var(--danger);color:#fff;padding:0 6px">project?</span></span>
+          <p style="margin:0;font-size:14.5px;line-height:1.5;color:var(--ink2)">The video, subtitles and rendered file are removed for good. This can't be undone.</p>
+          <div style="display:flex;gap:8px"><span style="flex:1;height:46px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:var(--panel);font-weight:600;font-size:14px">Cancel</span><span style="flex:1;height:46px;display:flex;align-items:center;justify-content:center;gap:7px;border-radius:999px;background:var(--danger);color:#fff;font-weight:700;font-size:14px"><i data-lucide="trash-2" style="width:15px;height:15px"></i>Delete project</span></div>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ dashDeleted }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;left:50%;bottom:32px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;height:44px;padding:0 18px 0 10px;border-radius:999px;background:var(--ink);color:var(--bg);font-size:13.5px;font-weight:600;white-space:nowrap;box-shadow:0 12px 30px rgba(0,0,0,.2)">
+        <span style="width:24px;height:24px;border-radius:50%;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center"><i data-lucide="check" style="width:13px;height:13px"></i></span>Project deleted
+      </div>
+    </sc-if>
+    <sc-if value="{{ dashDragging }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;inset:0;background:rgba(43,59,255,.88);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box">
+        <div style="position:absolute;inset:24px;border-radius:24px;border:3px dashed rgba(255,255,255,.7)"></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:20px;color:#fff;text-align:center">
+          <span style="width:84px;height:84px;border-radius:50%;background:#fff;color:#2B3BFF;display:flex;align-items:center;justify-content:center"><i data-lucide="arrow-down" style="width:38px;height:38px"></i></span>
+          <span style="font-stretch:125%;font-weight:900;font-size:88px;line-height:.9;letter-spacing:-.045em">Drop it.</span>
+          <span style="font-size:17px;font-weight:600;opacity:.9">launch-teaser.mp4 · 48 MB — release to start uploading</span>
+        </div>
+      </div>
+    </sc-if>
+  </sc-if>
+
+  <!-- ================= BILLING ================= -->
+  <sc-if value="{{ isBilling }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:28px 40px 22px">
+      <h1 style="margin:0;font-stretch:125%;font-weight:800;font-size:64px;line-height:.95;letter-spacing:-.035em">Your <span style="background:var(--acc);color:var(--onacc);padding:0 10px">plan</span></h1>
+      <sc-if value="{{ hasSub }}" hint-placeholder-val="{{ false }}">
+        <span style="height:44px;flex:none;white-space:nowrap;display:flex;align-items:center;gap:8px;padding:0 20px;border-radius:999px;background:var(--panel);font-weight:600;font-size:14px">Manage subscription<i data-lucide="arrow-up-right" style="width:15px;height:15px"></i></span>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{ billActivating }}" hint-placeholder-val="{{ false }}">
+      <div style="margin:0 40px 16px;display:flex;align-items:center;gap:12px;height:48px;padding:0 16px;border-radius:14px;background:var(--acctint);color:var(--accink);font-weight:700;font-size:14px">
+        <span style="width:18px;height:18px;border-radius:50%;border:2.5px solid rgba(43,59,255,.25);border-top-color:var(--acc);box-sizing:border-box;transform:rotate(40deg)"></span>Updating your subscription…<span style="font-weight:500;color:var(--ink2)">This takes a few seconds.</span>
+      </div>
+    </sc-if>
+    <sc-if value="{{ billPastDue }}" hint-placeholder-val="{{ false }}">
+      <div style="margin:0 40px 16px;display:flex;align-items:center;gap:12px;padding:8px 8px 8px 16px;border-radius:14px;background:var(--dangertint);color:var(--dangerink)">
+        <i data-lucide="credit-card" style="width:18px;height:18px"></i>
+        <span style="flex:1;font-weight:700;font-size:14px">Payment past due. <span style="font-weight:500;color:var(--ink2)">Update your card to keep Pro — renders pause after Oct 8.</span></span>
+        <span style="height:34px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:var(--danger);color:#fff;font-weight:700;font-size:13px">Update payment</span>
+      </div>
+    </sc-if>
+
+    <div style="margin:0 40px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr);gap:0;border-radius:18px;background:var(--panel);padding:26px 28px;align-items:end">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:13px;font-weight:600;color:var(--ink3)">Current plan</span>
+        <span style="font-stretch:125%;font-weight:800;font-size:40px;line-height:1;letter-spacing:-.03em">{{ planName }}</span>
+        <span style="font-size:13px;color:var(--ink3)">{{ resetsLabel }}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:0 28px;border-left:1px solid var(--line)">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600;font-size:14px">Minutes</span><span style="font-family:'DM Mono';font-size:15px;font-weight:500">{{ minUsed }} <span style="color:var(--ink3)">/ {{ minLimit }}</span></span></div>
+        <span style="height:10px;border-radius:999px;background:var(--raise);position:relative;overflow:hidden"><span style="{{ minBar }}"></span></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:0 0 0 28px;border-left:1px solid var(--line)">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600;font-size:14px">Videos in library</span><span style="font-family:'DM Mono';font-size:15px;font-weight:500">{{ vidUsed }} <span style="color:var(--ink3)">/ {{ vidLimit }}</span></span></div>
+        <span style="height:10px;border-radius:999px;background:var(--raise);position:relative;overflow:hidden"><span style="{{ vidBar }}"></span></span>
+      </div>
+    </div>
+
+    <div style="margin:16px 40px 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;flex:1;min-height:0">
+      <sc-for list="{{ plans }}" as="p" hint-placeholder-count="3">
+        <div style="{{ p.cardStyle }}">
+          <div style="display:flex;align-items:center;justify-content:space-between;height:26px">
+            <span style="font-weight:700;font-size:17px">{{ p.name }}</span>
+            <sc-if value="{{ p.isCurrent }}" hint-placeholder-val="{{ false }}"><span style="{{ p.badgeStyle }}">Current</span></sc-if>
+            <sc-if value="{{ p.isPopular }}" hint-placeholder-val="{{ false }}"><span style="height:24px;display:flex;align-items:center;padding:0 10px;border-radius:999px;white-space:nowrap;background:var(--acctint);color:var(--accink);font-size:11.5px;font-weight:700">Most picked</span></sc-if>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:6px"><span style="font-stretch:125%;font-weight:800;font-size:64px;line-height:.9;letter-spacing:-.045em">${{ p.price }}</span><span style="{{ p.perStyle }}">/ month</span></div>
+          <div style="display:flex;flex-direction:column;gap:9px;flex:1">
+            <sc-for list="{{ p.features }}" as="f" hint-placeholder-count="4">
+              <span style="display:flex;align-items:flex-start;gap:9px;font-size:14px;line-height:1.4"><i data-lucide="check" style="{{ p.checkStyle }}"></i>{{ f }}</span>
+            </sc-for>
+          </div>
+          <sc-if value="{{ p.hasCta }}" hint-placeholder-val="{{ true }}"><span style="{{ p.ctaStyle }}">{{ p.cta }}</span></sc-if>
+          <sc-if value="{{ p.isFreeCurrent }}" hint-placeholder-val="{{ false }}"><span style="height:46px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--ink3)">You're on this plan</span></sc-if>
+        </div>
+      </sc-for>
+    </div>
+    <p style="margin:14px 40px 22px;font-size:12.5px;color:var(--ink3)">Payments are processed securely by Paddle. Prices in USD; local taxes may apply at checkout.</p>
+  </sc-if>
+
+  <!-- ================= AUTH ================= -->
+  <sc-if value="{{ isAuth }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);min-height:0">
+      <aside style="position:relative;background:var(--acc);color:#fff;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;padding:40px 56px">
+        <span style="font-stretch:125%;font-weight:900;font-size:26px;letter-spacing:-.02em">super<span style="background:#fff;color:#2B3BFF;padding:0 5px">title</span></span>
+        <div style="display:flex;flex-direction:column;gap:18px;position:relative;z-index:1">
+          <span style="font-stretch:125%;font-weight:900;font-size:76px;line-height:.92;letter-spacing:-.045em">Subtitles<br>that keep<br>them <span style="background:#FFE14D;color:#0D0D0D;padding:0 8px">watching.</span></span>
+          <span style="font-size:17px;font-weight:500;opacity:.88">Auto-transcribe, style and render — in minutes.</span>
+        </div>
+        <div style="position:absolute;right:-30px;top:120px;width:250px;height:444px;border-radius:18px;overflow:hidden;background:#000;transform:rotate(6deg);box-shadow:0 30px 60px rgba(0,0,0,.25)">
+          <img src="uploads/video-frame.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
+          <span style="position:absolute;left:0;right:0;top:52%;text-align:center;font-family:Montserrat;font-weight:900;font-size:23px;color:#fff;-webkit-text-stroke:5px #000;paint-order:stroke fill">O <span style="color:#FFE14D">ASSUNTO</span></span>
+        </div>
+      </aside>
+
+      <main style="display:flex;align-items:center;justify-content:center;padding:48px">
+        <div style="width:100%;max-width:400px;display:flex;flex-direction:column;gap:22px">
+
+          <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:8px"><h1 style="margin:0;font-stretch:125%;font-weight:800;font-size:48px;line-height:1;letter-spacing:-.035em">Sign in</h1><p style="margin:0;font-size:15px;color:var(--ink3)">Your projects are waiting.</p></div>
+            <sc-if value="{{ loginError }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:12px;background:var(--dangertint);color:var(--dangerink);font-size:13.5px;font-weight:600;line-height:1.4"><i data-lucide="circle-alert" style="width:16px;height:16px;flex:none;margin-top:1px"></i>Invalid credentials, or your email isn't verified yet.</div>
+            </sc-if>
+            <sc-if value="{{ loginNotice }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:12px;background:var(--oktint);color:var(--ok);font-size:13.5px;font-weight:600;line-height:1.4"><i data-lucide="circle-check" style="width:16px;height:16px;flex:none;margin-top:1px"></i>Email verified! You can now sign in.</div>
+            </sc-if>
+            <span style="height:50px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:999px;box-shadow:inset 0 0 0 1.5px var(--line);font-weight:600;font-size:14.5px"><span style="font-weight:800;font-size:17px;color:#4285F4">G</span>Continue with Google</span>
+            <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:var(--ink3)"><span style="flex:1;height:1px;background:var(--line)"></span>or with email<span style="flex:1;height:1px;background:var(--line)"></span></div>
+            <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:600">Email</span><span style="{{ emailField }}">igor@gmail.com</span></div>
+            <div style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;justify-content:space-between;font-size:13px"><span style="font-weight:600">Password</span><span style="text-decoration:underline;text-underline-offset:3px;color:var(--ink2)">Forgot password?</span></div><span style="{{ pwField }}">••••••••••</span></div>
+            <span style="height:52px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700;font-size:15px">Sign in<i data-lucide="arrow-right" style="width:16px;height:16px"></i></span>
+            <p style="margin:0;font-size:14px;color:var(--ink3);text-align:center">New here? <span style="color:var(--ink);font-weight:600;text-decoration:underline;text-underline-offset:3px">Create an account</span></p>
+          </sc-if>
+
+          <sc-if value="{{ isRegister }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:8px"><h1 style="margin:0;font-stretch:125%;font-weight:800;font-size:48px;line-height:1;letter-spacing:-.035em">Create your <span style="background:var(--acc);color:var(--onacc);padding:0 6px">account</span></h1><p style="margin:0;font-size:15px;color:var(--ink3)">10 free minutes every month. No card needed.</p></div>
+            <span style="height:50px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:999px;box-shadow:inset 0 0 0 1.5px var(--line);font-weight:600;font-size:14.5px"><span style="font-weight:800;font-size:17px;color:#4285F4">G</span>Sign up with Google</span>
+            <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:var(--ink3)"><span style="flex:1;height:1px;background:var(--line)"></span>or with email<span style="flex:1;height:1px;background:var(--line)"></span></div>
+            <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:600">Name</span><span style="height:50px;display:flex;align-items:center;padding:0 16px;border-radius:12px;background:var(--panel);font-size:15px;color:var(--ink3)">Your name</span></div>
+            <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:600">Email</span><span style="height:50px;display:flex;align-items:center;padding:0 16px;border-radius:12px;background:var(--panel);font-size:15px;box-shadow:inset 0 0 0 2px var(--acc)">igor@gmail.com</span></div>
+            <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:600">Password</span><span style="height:50px;display:flex;align-items:center;padding:0 16px;border-radius:12px;background:var(--panel);font-size:15px;color:var(--ink3)">At least 8 characters</span></div>
+            <span style="height:52px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700;font-size:15px">Create account</span>
+            <p style="margin:0;font-size:14px;color:var(--ink3);text-align:center">Already have an account? <span style="color:var(--ink);font-weight:600;text-decoration:underline;text-underline-offset:3px">Sign in</span></p>
+          </sc-if>
+
+          <sc-if value="{{ isForgot }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:8px"><h1 style="margin:0;font-stretch:125%;font-weight:800;font-size:48px;line-height:1;letter-spacing:-.035em">Reset your <span style="background:var(--acc);color:var(--onacc);padding:0 6px">password</span></h1><p style="margin:0;font-size:15px;line-height:1.5;color:var(--ink3)">Enter your email and we'll send you a link to reset your password.</p></div>
+            <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:600">Email</span><span style="height:50px;display:flex;align-items:center;padding:0 16px;border-radius:12px;background:var(--panel);font-size:15px;box-shadow:inset 0 0 0 2px var(--acc)">igor@gmail.com</span></div>
+            <span style="height:52px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700;font-size:15px">Send reset link<i data-lucide="arrow-right" style="width:16px;height:16px"></i></span>
+            <p style="margin:0;font-size:14px;color:var(--ink3);text-align:center">Remembered it? <span style="color:var(--ink);font-weight:600;text-decoration:underline;text-underline-offset:3px">Back to sign in</span></p>
+          </sc-if>
+
+          <sc-if value="{{ isReset }}" hint-placeholder-val="{{ false }}">
+            <h1 style="margin:0;font-stretch:125%;font-weight:800;font-size:48px;line-height:1;letter-spacing:-.035em">Choose a new <span style="background:var(--acc);color:var(--onacc);padding:0 6px">password</span></h1>
+            <sc-if value="{{ resetMismatch }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:var(--dangertint);color:var(--dangerink);font-size:13.5px;font-weight:600"><i data-lucide="circle-alert" style="width:16px;height:16px;flex:none"></i>Passwords don't match</div>
+            </sc-if>
+            <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:600">New password</span><span style="height:50px;display:flex;align-items:center;padding:0 16px;border-radius:12px;background:var(--panel);font-size:15px;letter-spacing:.1em">••••••••••</span></div>
+            <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:600">Confirm password</span><span style="{{ confirmField }}">•••••••••</span></div>
+            <span style="height:52px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700;font-size:15px">Update password<i data-lucide="arrow-right" style="width:16px;height:16px"></i></span>
+          </sc-if>
+
+          <sc-if value="{{ isAuthState }}" hint-placeholder-val="{{ false }}">
+            <span style="{{ stBadge }}"><i data-lucide="{{ stIcon }}" style="width:28px;height:28px"></i></span>
+            <h1 style="margin:0;font-stretch:125%;font-weight:800;font-size:48px;line-height:1;letter-spacing:-.035em">{{ stTitle }} <span style="{{ stEmStyle }}">{{ stEm }}</span></h1>
+            <p style="margin:0;font-size:16px;line-height:1.5;color:var(--ink2);text-wrap:pretty">{{ stCopy }}</p>
+            <sc-if value="{{ stPrimary }}" hint-placeholder-val="{{ false }}">
+              <span style="height:52px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700;font-size:15px">{{ stAction }}<i data-lucide="arrow-right" style="width:16px;height:16px"></i></span>
+            </sc-if>
+            <sc-if value="{{ stGhost }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex"><span style="height:46px;display:flex;align-items:center;gap:8px;padding:0 20px;border-radius:999px;background:var(--panel);font-weight:600;font-size:14px"><i data-lucide="arrow-left" style="width:15px;height:15px"></i>{{ stAction }}</span></div>
+            </sc-if>
+          </sc-if>
+
+          <sc-if value="{{ isCheckEmail }}" hint-placeholder-val="{{ false }}">
+            <span style="width:64px;height:64px;border-radius:50%;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center"><i data-lucide="mail-check" style="width:28px;height:28px"></i></span>
+            <h1 style="margin:0;font-stretch:125%;font-weight:800;font-size:48px;line-height:1;letter-spacing:-.035em">Check your <span style="background:var(--acc);color:var(--onacc);padding:0 6px">email</span></h1>
+            <p style="margin:0;font-size:16px;line-height:1.5;color:var(--ink2)">We sent a verification link to <b style="color:var(--ink)">igor@gmail.com</b>. Click it, then sign in.</p>
+            <div style="display:flex;gap:8px"><span style="height:46px;display:flex;align-items:center;gap:8px;padding:0 20px;border-radius:999px;background:var(--panel);font-weight:600;font-size:14px"><i data-lucide="arrow-left" style="width:15px;height:15px"></i>Back to sign in</span></div>
+          </sc-if>
+        </div>
+      </main>
+    </div>
+  </sc-if>
+
+  <!-- ================= UPLOAD MODAL ================= -->
+  <sc-if value="{{ isUpload }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:72px 0 0;padding:28px 40px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px;align-content:start">
+      <span style="aspect-ratio:9/16;border-radius:12px;background:var(--panel)"></span><span style="aspect-ratio:9/16;border-radius:12px;background:var(--panel)"></span><span style="aspect-ratio:9/16;border-radius:12px;background:var(--panel)"></span><span style="aspect-ratio:9/16;border-radius:12px;background:var(--panel)"></span><span style="aspect-ratio:9/16;border-radius:12px;background:var(--panel)"></span><span style="aspect-ratio:9/16;border-radius:12px;background:var(--panel)"></span>
+    </div>
+    <div style="position:absolute;inset:0;background:rgba(13,13,13,.55);display:flex;align-items:center;justify-content:center">
+      <div style="width:560px;background:var(--bg);border-radius:20px;padding:28px;display:flex;flex-direction:column;gap:20px;box-sizing:border-box">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between"><h2 style="margin:0;font-stretch:125%;font-weight:800;font-size:40px;line-height:1;letter-spacing:-.03em">{{ upTitle }}</h2><span title="Close" style="width:36px;height:36px;border-radius:50%;background:var(--panel);display:flex;align-items:center;justify-content:center"><i data-lucide="x" style="width:16px;height:16px"></i></span></div>
+
+        <sc-if value="{{ upIdle }}" hint-placeholder-val="{{ true }}">
+          <div style="height:300px;border-radius:14px;background:var(--panel);box-shadow:inset 0 0 0 2px var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center">
+            <span style="width:64px;height:64px;border-radius:50%;background:var(--ink);color:var(--bg);display:flex;align-items:center;justify-content:center"><i data-lucide="arrow-down" style="width:28px;height:28px"></i></span>
+            <div style="display:flex;flex-direction:column;gap:4px"><span style="font-weight:700;font-size:18px">Drag your video in</span><span style="font-size:14px;color:var(--ink2)">or <span style="text-decoration:underline;text-underline-offset:3px;font-weight:600;color:var(--ink)">browse files</span></span></div>
+            <span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">mp4 · webm · mov — up to 2 min on Free</span>
+          </div>
+          <span style="font-size:13px;color:var(--ink3)">We'll transcribe it automatically once it's up.</span>
+        </sc-if>
+
+        <sc-if value="{{ upDrag }}" hint-placeholder-val="{{ false }}">
+          <div style="height:300px;border-radius:14px;background:var(--acc);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;transform:scale(1.02)">
+            <span style="width:72px;height:72px;border-radius:50%;background:#fff;color:#2B3BFF;display:flex;align-items:center;justify-content:center"><i data-lucide="arrow-down" style="width:32px;height:32px"></i></span>
+            <span style="font-stretch:125%;font-weight:900;font-size:44px;letter-spacing:-.035em;line-height:1">Release to upload</span>
+            <span style="font-size:14px;font-weight:600;opacity:.9">launch-teaser.mp4 · 48 MB</span>
+          </div>
+          <span style="font-size:13px;color:var(--ink3)">We'll transcribe it automatically once it's up.</span>
+        </sc-if>
+
+        <sc-if value="{{ upProgress }}" hint-placeholder-val="{{ false }}">
+          <div style="height:300px;border-radius:14px;background:var(--panel);display:flex;flex-direction:column;justify-content:space-between;padding:24px;box-sizing:border-box">
+            <div style="display:flex;align-items:center;gap:12px"><img src="uploads/video-frame.png" alt="" style="width:40px;height:64px;border-radius:6px;object-fit:cover"><div style="display:flex;flex-direction:column;gap:3px"><span style="font-weight:700;font-size:15px">promo-black-friday.mp4</span><span style="font-family:'DM Mono';font-size:12px;color:var(--ink3)">184 MB · 0:52</span></div></div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <span style="font-stretch:125%;font-weight:800;font-size:96px;line-height:.85;letter-spacing:-.05em">58<span style="font-size:48px">%</span></span>
+              <span style="height:8px;border-radius:999px;background:var(--raise);position:relative;overflow:hidden"><span style="position:absolute;inset:0 42% 0 0;background:var(--acc);border-radius:999px"></span></span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;color:var(--ink3)">You'll land in the editor when it's done.</span><span style="font-size:13px;font-weight:600;text-decoration:underline;text-underline-offset:3px">Cancel upload</span></div>
+        </sc-if>
+
+        <sc-if value="{{ upError }}" hint-placeholder-val="{{ false }}">
+          <div style="height:300px;border-radius:14px;background:var(--dangertint);display:flex;flex-direction:column;justify-content:space-between;padding:24px;box-sizing:border-box">
+            <div style="display:flex;align-items:center;gap:12px"><span style="width:40px;height:64px;border-radius:6px;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--dangerink)"><i data-lucide="file-x-2" style="width:18px;height:18px"></i></span><div style="display:flex;flex-direction:column;gap:3px"><span style="font-weight:700;font-size:15px">podcast-full-ep13.mp4</span><span style="font-family:'DM Mono';font-size:12px;color:var(--dangerink)">14:06 — over the 2:00 limit</span></div></div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-stretch:125%;font-weight:800;font-size:34px;line-height:1.02;letter-spacing:-.03em;color:var(--dangerink)">This video is too long for Free.</span>
+              <span style="font-size:14px;line-height:1.5;color:var(--ink2)">Trim it to 2 minutes, or upgrade — Starter takes videos up to 5 min, Pro up to 15.</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px"><span style="flex:1;height:46px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:var(--panel);font-weight:600;font-size:14px">Choose another file</span><span style="flex:1;height:46px;display:flex;align-items:center;justify-content:center;gap:7px;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700;font-size:14px">See plans<i data-lucide="arrow-right" style="width:15px;height:15px"></i></span></div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;},&quot;screen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dashboard&quot;,&quot;upload&quot;,&quot;billing&quot;,&quot;login&quot;,&quot;register&quot;,&quot;check-email&quot;],&quot;default&quot;:&quot;dashboard&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;state&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;default&quot;,&quot;empty&quot;,&quot;dragging&quot;,&quot;error&quot;,&quot;uploading&quot;,&quot;activating&quot;,&quot;pastdue&quot;,&quot;verified&quot;],&quot;default&quot;:&quot;default&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  componentDidMount() { this.icons(); }
+  componentDidUpdate() { this.icons(); }
+  icons() {
+    const run = () => window.lucide ? window.lucide.createIcons({ attrs: { 'stroke-width': 2 } }) : setTimeout(run, 150);
+    run();
+  }
+  renderVals() {
+    const screen = this.props.screen ?? 'dashboard';
+    const st = this.props.state ?? 'default';
+    const dark = (this.props.theme ?? 'light') === 'dark';
+    const isDash = screen === 'dashboard', isBilling = screen === 'billing', isUpload = screen === 'upload';
+    const isAuth = ['login', 'register', 'check-email', 'forgot', 'forgot-sent', 'reset', 'reset-done', 'invalid-link', 'verify', 'verified'].includes(screen);
+    const STATES = {
+      'forgot-sent': { icon: 'mail-check', title: 'Check your', em: 'email', copy: "If an account exists for that email, we've sent a reset link. The link expires in 1 hour.", action: 'Back to sign in', ghost: true },
+      'reset-done': { icon: 'circle-check', title: 'Password', em: 'updated', copy: 'Redirecting to sign in…' },
+      'invalid-link': { icon: 'link-2-off', title: 'Invalid', em: 'link', copy: 'This reset link is invalid or has expired.', action: 'Request a new link', ghost: true, danger: true },
+      'verify': { icon: 'mail-check', title: 'Confirm your', em: 'email', copy: 'Click below to confirm your email address and activate your account.', action: 'Verify email', primary: true },
+      'verified': { icon: 'circle-check', title: 'Email', em: 'verified', copy: 'Your account is active. You can sign in now.', action: 'Go to sign in', primary: true }
+    };
+    const S = STATES[screen];
+    const navOn = { height: 36, display: 'flex', alignItems: 'center', padding: '0 14px', borderRadius: 999, background: 'var(--ink)', color: 'var(--bg)' };
+    const navOff = { height: 36, display: 'flex', alignItems: 'center', padding: '0 14px', color: 'var(--ink3)' };
+    const pro = isBilling && (st === 'pastdue');
+    const sub = pro ? { plan: 'pro', minUsed: 84, minLimit: 120, vidUsed: 41, vidLimit: 200 } : { plan: 'free', minUsed: 6, minLimit: 10, vidUsed: 6, vidLimit: 10 };
+    const bar = (u, l, c) => ({ position: 'absolute', left: 0, top: 0, bottom: 0, width: Math.min(100, u / l * 100) + '%', borderRadius: 999, background: c || 'var(--ink)' });
+    const PLANS = [
+      { id: 'free', name: 'Free', price: 0, features: ['10 minutes of video / month', 'Videos up to 2 minutes', 'Up to 10 videos in your library', 'Auto subtitles + editor'] },
+      { id: 'starter', name: 'Starter', price: 12, features: ['30 minutes of video / month', 'Videos up to 5 minutes', 'Up to 50 videos in your library', 'Auto subtitles + editor', 'SRT / VTT export'] },
+      { id: 'pro', name: 'Pro', price: 29, features: ['120 minutes of video / month', 'Videos up to 15 minutes', 'Up to 200 videos in your library', 'Auto subtitles + editor', 'SRT / VTT export', 'Custom logo / watermark', 'Priority queue'] }
+    ];
+    const hasSub = sub.plan !== 'free';
+    const plans = PLANS.map(p => {
+      const isCurrent = p.id === sub.plan;
+      const hero = p.id === 'starter' && !hasSub;
+      return {
+        ...p,
+        isCurrent, isPopular: hero,
+        isFreeCurrent: isCurrent && p.id === 'free',
+        hasCta: !isCurrent && p.id !== 'free',
+        cta: (hasSub ? 'Switch to ' : 'Upgrade to ') + p.name,
+        cardStyle: { borderRadius: 18, padding: 24, display: 'flex', flexDirection: 'column', gap: 18, boxSizing: 'border-box', minHeight: 0,
+          background: isCurrent ? 'var(--bg)' : 'var(--panel)', boxShadow: isCurrent ? 'inset 0 0 0 2px var(--ink)' : 'none' },
+        badgeStyle: { height: 24, display: 'flex', alignItems: 'center', padding: '0 10px', borderRadius: 999, background: 'var(--ink)', color: 'var(--bg)', fontSize: 11.5, fontWeight: 700 },
+        perStyle: { fontSize: 14, color: 'var(--ink3)' },
+        checkStyle: { width: 15, height: 15, flex: 'none', marginTop: 2, color: 'var(--accink)' },
+        ctaStyle: { height: 46, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 999, fontWeight: 700, fontSize: 14,
+          background: hero ? 'var(--acc)' : 'var(--ink)', color: hero ? 'var(--onacc)' : 'var(--bg)', opacity: st === 'activating' ? .45 : 1 }
+      };
+    });
+    const field = { height: 50, display: 'flex', alignItems: 'center', padding: '0 16px', borderRadius: 12, background: 'var(--panel)', fontSize: 15 };
+    const loginError = screen === 'login' && st === 'error';
+    return {
+      themeVars: dark ? {
+        '--bg': '#0C0C0F', '--panel': '#18181D', '--raise': '#24242B', '--line': '#2A2A31',
+        '--ink': '#F4F4F1', '--ink2': '#C4C4BF', '--ink3': '#8E8E89', '--acc': '#4D5BFF', '--onacc': '#FFFFFF', '--accink': '#8C95FF',
+        '--acctint': 'rgba(77,91,255,.16)', '--stage': '#141418', '--danger': '#FF5A4E', '--dangerink': '#FF7A70', '--dangertint': '#2A1514', '--ok': '#4ADE80', '--oktint': '#12261A'
+      } : {},
+      appChrome: isDash || isBilling || isUpload,
+      isDash, isBilling, isUpload, isAuth,
+      navProjects: isBilling ? navOff : navOn, navBilling: isBilling ? navOn : navOff,
+      usageLabel: sub.minUsed + '/' + sub.minLimit + ' min', usageBarSm: bar(sub.minUsed, sub.minLimit),
+      dashEmpty: isDash && st === 'empty', dashHasItems: isDash && st !== 'empty',
+      dashError: isDash && st === 'error', dashDragging: isDash && st === 'dragging',
+      countLabel: st === 'empty' ? '00' : '06',
+      hasSub, billActivating: isBilling && st === 'activating', billPastDue: pro,
+      planName: hasSub ? 'Pro' : 'Free', resetsLabel: hasSub ? 'Renews Oct 15, 2026 · $29/mo' : 'Resets Oct 15, 2026',
+      minUsed: sub.minUsed, minLimit: sub.minLimit, vidUsed: sub.vidUsed, vidLimit: sub.vidLimit,
+      minBar: bar(sub.minUsed, sub.minLimit, sub.minUsed / sub.minLimit > .8 ? 'var(--danger)' : 'var(--acc)'),
+      vidBar: bar(sub.vidUsed, sub.vidLimit, sub.vidUsed / sub.vidLimit >= 1 ? 'var(--danger)' : 'var(--ink)'),
+      plans,
+      isForgot: screen === 'forgot', isReset: screen === 'reset', resetMismatch: screen === 'reset' && st === 'error',
+      confirmField: { height: 50, display: 'flex', alignItems: 'center', padding: '0 16px', borderRadius: 12, background: 'var(--panel)', fontSize: 15, letterSpacing: '.1em', boxShadow: st === 'error' ? 'inset 0 0 0 2px var(--danger)' : 'inset 0 0 0 2px var(--acc)' },
+      isAuthState: !!S, stIcon: S ? S.icon : 'circle', stTitle: S ? S.title : '', stEm: S ? S.em : '', stCopy: S ? S.copy : '', stAction: S ? (S.action || '') : '',
+      stPrimary: !!(S && S.primary), stGhost: !!(S && S.ghost),
+      stBadge: { width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', background: S && S.danger ? 'var(--danger)' : 'var(--acc)' },
+      stEmStyle: { background: S && S.danger ? 'var(--danger)' : 'var(--acc)', color: '#fff', padding: '0 6px' },
+      dashMenu: isDash && st === 'menu', dashDelete: isDash && st === 'delete', dashDeleted: isDash && st === 'deleted',
+      moreBtn: isDash && st === 'menu' ? { width: 28, height: 28, marginTop: -4, marginRight: -5, borderRadius: '50%', background: 'var(--ink)', color: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' } : { width: 28, height: 28, marginTop: -4, marginRight: -5, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink3)' },
+      isLogin: screen === 'login', isRegister: screen === 'register', isCheckEmail: screen === 'check-email',
+      loginError, loginNotice: screen === 'login' && st === 'verified',
+      emailField: loginError ? { ...field, boxShadow: 'inset 0 0 0 2px var(--danger)' } : field,
+      pwField: loginError ? { ...field, boxShadow: 'inset 0 0 0 2px var(--danger)', letterSpacing: '.1em' } : { ...field, boxShadow: 'inset 0 0 0 2px var(--acc)', letterSpacing: '.1em' },
+      upIdle: isUpload && st === 'default', upDrag: isUpload && st === 'dragging', upProgress: isUpload && st === 'uploading', upError: isUpload && st === 'error',
+      upTitle: st === 'uploading' ? 'Uploading' : st === 'error' ? "Can't upload" : 'Drop a video'
+    };
+  }
+}
+</script>
+</body>
+</html>

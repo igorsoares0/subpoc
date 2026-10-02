@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#E6E6E3}a{color:#2B3BFF}a:hover{color:#0D0D0D}</style>
+</helmet>
+<section style="display:flex;flex-direction:column;gap:48px;padding:100px;background:#E6E6E3;font-family:'Archivo',sans-serif;color:#0D0D0D">
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <span style="font-stretch:125%;font-weight:800;font-size:56px;letter-spacing:-.03em">Turn 4 — Password flow, verify email, project menu</span>
+    <span style="font-size:22px;color:#3F3F3C">Menu keeps the real actions (Open, Delete); window.confirm becomes a proper dialog.</span>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:60px">
+    <div id="4a" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">4a · Project menu open</span><dc-import name="B Screens" screen="dashboard" state="menu" hint-size="1440px,900px"></dc-import></div>
+    <div id="4b" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">4b · Delete — confirm</span><dc-import name="B Screens" screen="dashboard" state="delete" hint-size="1440px,900px"></dc-import></div>
+    <div id="4c" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">4c · Deleted — toast</span><dc-import name="B Screens" screen="dashboard" state="deleted" hint-size="1440px,900px"></dc-import></div>
+    <div id="4d" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">4d · Forgot password</span><dc-import name="B Screens" screen="forgot" state="default" hint-size="1440px,900px"></dc-import></div>
+    <div id="4e" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">4e · Reset link sent</span><dc-import name="B Screens" screen="forgot-sent" state="default" hint-size="1440px,900px"></dc-import></div>
+    <div id="4f" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">4f · New password</span><dc-import name="B Screens" screen="reset" state="default" hint-size="1440px,900px"></dc-import></div>
+    <div id="4g" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">4g · New password — mismatch</span><dc-import name="B Screens" screen="reset" state="error" hint-size="1440px,900px"></dc-import></div>
+    <div id="4h" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">4h · Password updated</span><dc-import name="B Screens" screen="reset-done" state="default" hint-size="1440px,900px"></dc-import></div>
+    <div id="4i" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">4i · Invalid / expired link</span><dc-import name="B Screens" screen="invalid-link" state="default" hint-size="1440px,900px"></dc-import></div>
+    <div id="4j" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">4j · Confirm your email</span><dc-import name="B Screens" screen="verify" state="default" hint-size="1440px,900px"></dc-import></div>
+    <div id="4k" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">4k · Email verified</span><dc-import name="B Screens" screen="verified" state="default" hint-size="1440px,900px"></dc-import></div>
+    <div id="4l" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">4l · Sign in — after verifying</span><dc-import name="B Screens" screen="login" state="verified" hint-size="1440px,900px"></dc-import></div>
+  </div>
+</section>
+<section style="display:flex;flex-direction:column;gap:48px;padding:100px;background:#E6E6E3;font-family:'Archivo',sans-serif;color:#0D0D0D">
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <span style="font-stretch:125%;font-weight:800;font-size:56px;letter-spacing:-.03em">Turn 3 — Dashboard, Upload, Billing, Auth</span>
+    <span style="font-size:22px;color:#3F3F3C">Same 1b system. Copy and plan data from the real code (lib/plans.ts, login/register pages).</span>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:60px">
+    <div id="3a" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3a · Dashboard — empty</span><dc-import name="B Screens" screen="dashboard" state="empty" hint-size="1440px,900px"></dc-import></div>
+    <div id="3b" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3b · Dashboard — dragging a file</span><dc-import name="B Screens" screen="dashboard" state="dragging" hint-size="1440px,900px"></dc-import></div>
+    <div id="3c" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3c · Dashboard — upload rejected</span><dc-import name="B Screens" screen="dashboard" state="error" hint-size="1440px,900px"></dc-import></div>
+    <div id="3d" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3d · Upload — idle</span><dc-import name="B Screens" screen="upload" state="default" hint-size="1440px,900px"></dc-import></div>
+    <div id="3e" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3e · Upload — dragging</span><dc-import name="B Screens" screen="upload" state="dragging" hint-size="1440px,900px"></dc-import></div>
+    <div id="3f" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3f · Upload — uploading</span><dc-import name="B Screens" screen="upload" state="uploading" hint-size="1440px,900px"></dc-import></div>
+    <div id="3g" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3g · Upload — error</span><dc-import name="B Screens" screen="upload" state="error" hint-size="1440px,900px"></dc-import></div>
+    <div id="3h" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3h · Billing — Free</span><dc-import name="B Screens" screen="billing" state="default" hint-size="1440px,900px"></dc-import></div>
+    <div id="3i" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3i · Billing — activating</span><dc-import name="B Screens" screen="billing" state="activating" hint-size="1440px,900px"></dc-import></div>
+    <div id="3j" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3j · Billing — Pro, past due</span><dc-import name="B Screens" screen="billing" state="pastdue" hint-size="1440px,900px"></dc-import></div>
+    <div id="3k" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3k · Sign in</span><dc-import name="B Screens" screen="login" state="default" hint-size="1440px,900px"></dc-import></div>
+    <div id="3l" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3l · Sign in — error</span><dc-import name="B Screens" screen="login" state="error" hint-size="1440px,900px"></dc-import></div>
+    <div id="3m" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3m · Create account</span><dc-import name="B Screens" screen="register" state="default" hint-size="1440px,900px"></dc-import></div>
+    <div id="3n" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3n · Check your email</span><dc-import name="B Screens" screen="check-email" state="default" hint-size="1440px,900px"></dc-import></div>
+    <div id="3o" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3o · Dark — Billing</span><dc-import name="B Screens" screen="billing" state="default" theme="dark" hint-size="1440px,900px"></dc-import></div>
+    <div id="3p" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">3p · Dark — Sign in</span><dc-import name="B Screens" screen="login" state="default" theme="dark" hint-size="1440px,900px"></dc-import></div>
+  </div>
+</section>
+<section style="display:flex;flex-direction:column;gap:48px;padding:100px;background:#E6E6E3;font-family:'Archivo',sans-serif;color:#0D0D0D">
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <span style="font-stretch:125%;font-weight:800;font-size:56px;letter-spacing:-.03em">Turn 2 — 1b editor: panels, states, new timeline</span>
+    <span style="font-size:22px;color:#3F3F3C">Timeline: playhead timecode flag, word ticks on the selected block, gap durations, Overlays lane (Hook / Logo), pill trim handles, trim + clear in one control, zoom “Fit”.</span>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:60px">
+    <div id="2a" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">2a · Text panel</span><dc-import name="B Editor" panel="text" state="idle" hint-size="1440px,900px"></dc-import></div>
+    <div id="2b" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">2b · Overlays panel</span><dc-import name="B Editor" panel="overlays" state="idle" hint-size="1440px,900px"></dc-import></div>
+    <div id="2c" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">2c · Empty — no subtitles yet</span><dc-import name="B Editor" panel="looks" state="empty" hint-size="1440px,900px"></dc-import></div>
+    <div id="2d" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">2d · Transcribing</span><dc-import name="B Editor" panel="looks" state="transcribing" hint-size="1440px,900px"></dc-import></div>
+    <div id="2e" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">2e · Transcription complete (toast)</span><dc-import name="B Editor" panel="looks" state="toast" hint-size="1440px,900px"></dc-import></div>
+    <div id="2f" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">2f · Rendering</span><dc-import name="B Editor" panel="text" state="rendering" hint-size="1440px,900px"></dc-import></div>
+    <div id="2g" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">2g · Render failed</span><dc-import name="B Editor" panel="looks" state="error" hint-size="1440px,900px"></dc-import></div>
+    <div id="2h" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">2h · Rendered video</span><dc-import name="B Editor" panel="looks" state="rendered" hint-size="1440px,900px"></dc-import></div>
+    <div id="2i" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">2i · Dark — Overlays</span><dc-import name="B Editor" panel="overlays" state="idle" theme="dark" hint-size="1440px,900px"></dc-import></div>
+    <div id="2j" style="display:flex;flex-direction:column;gap:14px"><span style="align-self:flex-start;font-weight:800;font-size:26px;padding:6px 14px;background:#0D0D0D;color:#fff">2j · Dark — Rendering</span><dc-import name="B Editor" panel="text" state="rendering" theme="dark" hint-size="1440px,900px"></dc-import></div>
+  </div>
+</section>
+<section style="display:flex;flex-direction:column;gap:20px;padding:100px;background:#E6E6E3;font-family:'Archivo',sans-serif;color:#0D0D0D">
+  <span id="1b" style="font-stretch:125%;font-weight:800;font-size:56px;letter-spacing:-.03em">Turn 1 — 1b Caption (picked)</span>
+  <dc-import name="Direction B - Caption" theme="light" hint-size="4440px,1060px"></dc-import>
+</section>
+</x-dc>
+</body>
+</html>

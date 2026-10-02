@@ -104,12 +104,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       // Google already verified the email; mirror that so the account is fully
       // set up (and consistent if a password is later added via reset).
-      if (!user.emailVerified) {
-        await prisma.user.updateMany({
-          where: { id: user.id, emailVerified: null },
-          data: { emailVerified: new Date() },
-        })
-      }
+      // (The `emailVerified: null` filter makes this a no-op if it's already set.)
+      await prisma.user.updateMany({
+        where: { id: user.id, emailVerified: null },
+        data: { emailVerified: new Date() },
+      })
     },
   },
 })

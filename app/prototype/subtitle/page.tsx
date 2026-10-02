@@ -23,9 +23,9 @@ export default function PrototypeSubtitlePage() {
     const sp = new URLSearchParams(window.location.search);
     const w = parseInt(sp.get("w") || "1080", 10);
     const h = parseInt(sp.get("h") || "1920", 10);
-    setDims({ w, h });
 
     document.fonts.ready.then(() => {
+      setDims({ w, h });
       window.__setTime = (t: number) =>
         new Promise<void>((resolve) => {
           flushSync(() => setCurrentTime(t));

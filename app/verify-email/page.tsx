@@ -3,13 +3,13 @@
 import { Suspense, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Loader2, ArrowRight, ArrowLeft, CheckCircle2, MailCheck, AlertCircle } from "lucide-react"
+import { Loader2, ArrowRight, ArrowLeft, CheckCircle2, MailCheck, AlertCircle, Link2Off } from "lucide-react"
 import { AuthShell, AuthState } from "@/components/auth/AuthShell"
 import { Button, buttonClass } from "@/components/ui/Button"
 
 function BackToSignIn({ href = "/login" }: { href?: string }) {
   return (
-    <Link href={href} className={buttonClass("ghost", "md")}>
+    <Link href={href} className={buttonClass("secondary", "xl", "hover:text-paper")}>
       <ArrowLeft className="size-[15px]" />
       Back to sign in
     </Link>
@@ -46,8 +46,8 @@ function VerifyEmailForm() {
 
   if (!token) {
     return (
-      <AuthState icon={AlertCircle} tone="danger" title="Invalid" em="link" action={<BackToSignIn />}>
-        This verification link is invalid.
+      <AuthState icon={Link2Off} tone="danger" title="Invalid" highlight="link" action={<BackToSignIn />}>
+        This verification link is invalid or has expired.
       </AuthState>
     )
   }
@@ -57,11 +57,11 @@ function VerifyEmailForm() {
       <AuthState
         icon={CheckCircle2}
         title="Email"
-        em="verified"
+        highlight="verified"
         action={
-          <Link href="/login?verified=1" className={buttonClass("primary", "md")}>
+          <Link href="/login?verified=1" className={buttonClass("primary", "2xl", "w-full hover:text-on-accent")}>
             Go to sign in
-            <ArrowRight className="size-[15px]" />
+            <ArrowRight className="size-4" />
           </Link>
         }
       >
@@ -72,7 +72,7 @@ function VerifyEmailForm() {
 
   if (status === "error") {
     return (
-      <AuthState icon={AlertCircle} tone="danger" title="Couldn't" em="verify" action={<BackToSignIn />}>
+      <AuthState icon={AlertCircle} tone="danger" title="Couldn't" highlight="verify" action={<BackToSignIn />}>
         {error}
       </AuthState>
     )
@@ -82,9 +82,9 @@ function VerifyEmailForm() {
     <AuthState
       icon={MailCheck}
       title="Confirm your"
-      em="email"
+      highlight="email"
       action={
-        <Button size="lg" onClick={verify} disabled={status === "loading"} className="w-full">
+        <Button size="2xl" onClick={verify} disabled={status === "loading"} className="w-full">
           {status === "loading" ? (
             <>
               <Loader2 className="size-4 animate-spin" />
@@ -93,7 +93,7 @@ function VerifyEmailForm() {
           ) : (
             <>
               Verify email
-              <ArrowRight className="size-[15px]" />
+              <ArrowRight className="size-4" />
             </>
           )}
         </Button>
@@ -107,7 +107,7 @@ function VerifyEmailForm() {
 export default function VerifyEmailPage() {
   return (
     <AuthShell>
-      <Suspense fallback={<Loader2 className="size-5 animate-spin text-ink-4 mx-auto" />}>
+      <Suspense fallback={<Loader2 className="size-5 animate-spin text-ink-3 mx-auto" />}>
         <VerifyEmailForm />
       </Suspense>
     </AuthShell>

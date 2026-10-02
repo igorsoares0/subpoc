@@ -46,8 +46,13 @@ export const toast = {
       action,
       duration: action ? 0 : 6000,
     }),
-  success: (message: string) =>
-    useToastStore.getState().push({ message, variant: "success", duration: 3000 }),
+  success: (message: string, action?: ToastAction) =>
+    useToastStore.getState().push({
+      message,
+      variant: "success",
+      action,
+      duration: action ? 6000 : 3000,
+    }),
   info: (message: string) =>
     useToastStore.getState().push({ message, variant: "info", duration: 4000 }),
 }

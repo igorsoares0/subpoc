@@ -1,12 +1,11 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { AudioLines, Eraser, Loader2, Merge, Pencil, Plus, Scissors, Sparkles, Trash2, WandSparkles, Check } from "lucide-react"
+import { Check, Eraser, Loader2, Merge, Pencil, Plus, Scissors, Sparkles, Trash2, WandSparkles } from "lucide-react"
 import type { Subtitle } from "@/lib/subtitle-track"
 import { Button, IconButton } from "@/components/ui/Button"
-import { Kbd } from "@/components/ui/controls"
+import { Highlight } from "@/components/ui/Highlight"
 import { cn } from "@/lib/utils"
-import { PanelHeader } from "./shared"
 import { formatShort, formatTimecode } from "../types"
 
 // Accepts "m:ss.cc", "ss.cc" or plain seconds.
@@ -20,6 +19,7 @@ function parseTimecode(input: string): number {
   return Number(t)
 }
 
+/** "Script" — the transcript, always in the editor's left column. */
 export function TranscriptPanel({
   subtitles,
   durationSeconds,
@@ -29,7 +29,6 @@ export function TranscriptPanel({
   displayTime,
   keywordsActive,
   isTranscribing,
-  emphasisColor,
   onTranscribe,
   onSelect,
   onEdit,
@@ -53,7 +52,6 @@ export function TranscriptPanel({
   displayTime: number
   keywordsActive: boolean
   isTranscribing: boolean
-  emphasisColor: string
   onTranscribe: () => void
   onSelect: (sub: Subtitle) => void
   onEdit: (sub: Subtitle) => void
@@ -75,136 +73,128 @@ export function TranscriptPanel({
     focusRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })
   }, [focusId])
 
-  if (subtitles.length === 0) {
-    return (
-      <div className="flex flex-col h-full min-h-0">
-        <PanelHeader title="Transcript" meta="No blocks yet" />
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8 pb-16 text-center">
-          <div className="size-14 rounded-[14px] bg-surface border border-line/8 flex items-center justify-center">
-            <AudioLines className="size-6 text-accent-ink" strokeWidth={1.75} />
+  const empty = subtitles.length === 0
+  const meta = empty
+    ? isTranscribing
+      ? "listening…"
+      : "no lines"
+    : `${subtitles.length} ${subtitles.length === 1 ? "line" : "lines"} · ${formatShort(durationSeconds)}`
+
+  return (
+    <section className="flex flex-col h-full min-h-0 pt-2">
+      <div className="flex items-baseline justify-between gap-3 pt-3 px-7 pb-4 flex-none">
+        <h2 className="display text-[28px] tracking-[-0.02em] text-paper">Script</h2>
+        <span className="font-mono text-[12px] text-ink-3">{meta}</span>
+      </div>
+
+      {empty && isTranscribing ? (
+        <>
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-[18px] px-7 pt-1" aria-hidden>
+            {[
+              { opacity: 1, lines: ["100%", "72%"] },
+              { opacity: 0.7, lines: ["84%"] },
+              { opacity: 0.45, lines: ["100%", "58%"] },
+              { opacity: 0.25, lines: ["90%"] },
+            ].map((block, i) => (
+              <div key={i} className="flex flex-col gap-2" style={{ opacity: block.opacity }}>
+                <span className="w-[110px] h-2.5 rounded-full bg-surface" />
+                {block.lines.map((w, j) => (
+                  <span key={j} className="h-[18px] rounded-md bg-surface" style={{ width: w }} />
+                ))}
+              </div>
+            ))}
           </div>
-          <h3 className="font-serif text-[30px] leading-[1.05] text-paper">
-            Your video has <em className="italic">no subtitles yet</em>
+          <p className="px-7 pt-3 pb-[18px] text-[13px] text-ink-3 flex-none">
+            Lines appear here as soon as the transcript is ready.
+          </p>
+        </>
+      ) : empty ? (
+        <div className="flex-1 flex flex-col justify-center gap-[18px] px-7 pb-[60px]">
+          <h3 className="display text-[40px] tracking-[-0.03em] text-paper">
+            No subtitles <Highlight className="px-1.5">yet</Highlight>
           </h3>
-          <p className="text-[13.5px] leading-normal text-ink-3">
+          <p className="text-[15px] leading-normal text-ink-2">
             We transcribe the audio and split it into synced blocks. Then just review the text.
           </p>
-          <Button onClick={onTranscribe} disabled={isTranscribing} className="w-full">
+          <Button size="xl" className="self-start h-12 px-6 text-[15px]" onClick={onTranscribe} disabled={isTranscribing}>
             {isTranscribing ? (
               <>
-                <Loader2 className="size-4 animate-spin" />
+                <Loader2 className="size-[17px] animate-spin" />
                 Transcribing…
               </>
             ) : (
               <>
-                <WandSparkles className="size-[15px]" />
+                <WandSparkles className="size-[17px]" />
                 Auto transcribe
               </>
             )}
           </Button>
         </div>
-      </div>
-    )
-  }
+      ) : (
+        <>
+          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 flex flex-col gap-1">
+            {subtitles.map((sub, idx) => {
+              const isSelected = sub.id === selectedId
+              const isActive = sub.id === activeId
+              const isFocus = sub.id === focusId
+              const isEditing = sub.id === editingId
+              const isLast = idx === subtitles.length - 1
 
-  return (
-    <div className="flex flex-col h-full min-h-0">
-      <PanelHeader
-        title="Transcript"
-        meta={`${subtitles.length} ${subtitles.length === 1 ? "block" : "blocks"} · ${formatShort(durationSeconds)}`}
-      >
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onAutoHighlight}
-            className={cn("flex-1 gap-1.5", keywordsActive && "bg-elevated")}
-            title="Highlight keywords in a fixed color"
-          >
-            <Sparkles className="size-3.5 text-accent-ink" />
-            Auto-highlight keywords
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClearHighlights}
-            title="Clear highlights"
-            aria-label="Clear highlights"
-            className="w-[34px] px-0 text-ink-2"
-          >
-            <Eraser className="size-3.5" />
-          </Button>
-        </div>
-      </PanelHeader>
+              return (
+                <div
+                  key={sub.id}
+                  ref={isFocus ? focusRef : undefined}
+                  onClick={() => onSelect(sub)}
+                  className={cn(
+                    "rounded-[10px] cursor-pointer flex flex-col",
+                    isFocus ? "bg-surface px-3 py-3.5 gap-2.5" : "p-3 gap-1.5 hover:bg-surface/60"
+                  )}
+                >
+                  {/* Timecodes */}
+                  {isFocus ? (
+                    <div className="flex items-center gap-2 font-mono tabular-nums text-[12px]" onClick={(e) => isSelected && e.stopPropagation()}>
+                      {isSelected ? (
+                        (["start", "end"] as const).map((field, i) => (
+                          <span key={field} className="contents">
+                            {i === 1 && <span className="text-ink-3">→</span>}
+                            <input
+                              key={`${field}-${sub[field]}`}
+                              defaultValue={formatTimecode(sub[field])}
+                              onBlur={(e) => {
+                                const v = parseTimecode(e.target.value)
+                                if (Number.isNaN(v)) e.target.value = formatTimecode(sub[field])
+                                else onTimingChange(sub.id, field, v)
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+                                if (e.key === "Escape") {
+                                  ;(e.target as HTMLInputElement).value = formatTimecode(sub[field])
+                                  ;(e.target as HTMLInputElement).blur()
+                                }
+                              }}
+                              title={field === "start" ? "Start time" : "End time"}
+                              aria-label={field === "start" ? "Start time" : "End time"}
+                              className="w-[66px] px-[7px] py-[3px] rounded-sm bg-canvas text-center text-paper outline-none focus:shadow-[inset_0_0_0_1.5px_var(--c-accent)]"
+                            />
+                          </span>
+                        ))
+                      ) : (
+                        <>
+                          <span className="px-[7px] py-[3px] rounded-sm bg-canvas text-paper">{formatTimecode(sub.start)}</span>
+                          <span className="text-ink-3">→</span>
+                          <span className="px-[7px] py-[3px] rounded-sm bg-canvas text-paper">{formatTimecode(sub.end)}</span>
+                        </>
+                      )}
+                      <span className="flex-1" />
+                      <span className="text-ink-3">{Math.max(0, sub.end - sub.start).toFixed(1)}s</span>
+                    </div>
+                  ) : (
+                    <span className="font-mono tabular-nums text-[12px] text-ink-3">
+                      {formatTimecode(sub.start)} → {formatTimecode(sub.end)}
+                    </span>
+                  )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-3 py-1 flex flex-col">
-        {subtitles.map((sub, idx) => {
-          const prev = subtitles[idx - 1]
-          const gap = prev ? sub.start - prev.end : 0
-          const isSelected = sub.id === selectedId
-          const isActive = sub.id === activeId
-          const isEditing = sub.id === editingId
-          const isLast = idx === subtitles.length - 1
-
-          return (
-            <div key={sub.id}>
-              {gap > 0.05 && (
-                <div className="flex items-center gap-2 py-1.5 pr-3 pl-[82px] font-mono text-[10.5px] text-ink-4">
-                  <span className="flex-1 h-px bg-line/6" />
-                  pause {gap.toFixed(2)}s
-                  <span className="flex-1 h-px bg-line/6" />
-                </div>
-              )}
-              <div
-                ref={sub.id === focusId ? focusRef : undefined}
-                onClick={() => onSelect(sub)}
-                className={cn(
-                  "grid grid-cols-[58px_1fr] gap-3 p-3 rounded-xl cursor-pointer transition-colors duration-150",
-                  isSelected ? "bg-elevated" : "hover:bg-surface"
-                )}
-              >
-                {/* Timecodes */}
-                {isSelected ? (
-                  <div className="flex flex-col gap-1.5 pt-0.5" onClick={(e) => e.stopPropagation()}>
-                    {(["start", "end"] as const).map((field) => (
-                      <input
-                        key={`${field}-${sub[field]}`}
-                        defaultValue={formatTimecode(sub[field])}
-                        onBlur={(e) => {
-                          const v = parseTimecode(e.target.value)
-                          if (Number.isNaN(v)) e.target.value = formatTimecode(sub[field])
-                          else onTimingChange(sub.id, field, v)
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-                          if (e.key === "Escape") {
-                            ;(e.target as HTMLInputElement).value = formatTimecode(sub[field])
-                            ;(e.target as HTMLInputElement).blur()
-                          }
-                        }}
-                        title={field === "start" ? "Start time" : "End time"}
-                        aria-label={field === "start" ? "Start time" : "End time"}
-                        className={cn(
-                          "w-[62px] h-6 px-1 -ml-1 rounded-xs bg-surface font-mono tabular-nums text-[11px] text-paper outline-none border focus:border-accent-ink/60",
-                          field === "start" ? "border-accent-ink/50" : "border-line/12"
-                        )}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div
-                    className={cn(
-                      "flex flex-col gap-[3px] pt-[3px] font-mono tabular-nums text-[11px] leading-[1.3]",
-                      isActive ? "text-accent-ink" : "text-ink-3"
-                    )}
-                  >
-                    <span>{formatTimecode(sub.start)}</span>
-                    <span>{formatTimecode(sub.end)}</span>
-                  </div>
-                )}
-
-                {/* Text + actions */}
-                <div className="flex flex-col gap-2.5 min-w-0">
+                  {/* Text */}
                   {isEditing ? (
                     <textarea
                       value={sub.text}
@@ -215,7 +205,7 @@ export function TranscriptPanel({
                       }}
                       rows={3}
                       autoFocus
-                      className="w-full resize-none rounded-md bg-canvas border border-accent/40 px-2.5 py-2 text-[15px] leading-[1.5] text-paper outline-none focus:border-accent-ink/50"
+                      className="w-full resize-none rounded-[10px] bg-canvas px-3 py-2 text-[20px] font-semibold leading-[1.35] tracking-[-0.01em] text-paper outline-none edge-accent"
                     />
                   ) : (
                     <p
@@ -224,68 +214,74 @@ export function TranscriptPanel({
                         onEdit(sub)
                       }}
                       className={cn(
-                        "text-[15.5px] leading-[1.55] [text-wrap:pretty]",
-                        isActive || isSelected ? "text-paper" : "text-ink-2"
+                        "text-[20px] font-semibold leading-[1.35] tracking-[-0.01em] text-pretty",
+                        isFocus ? "text-paper" : "text-ink-2"
                       )}
                     >
-                      <BlockText sub={sub} isActive={isActive} displayTime={displayTime} emphasisColor={emphasisColor} />
+                      <BlockText sub={sub} isActive={isActive && isFocus} displayTime={displayTime} />
                     </p>
                   )}
 
+                  {/* Actions */}
                   {isSelected && (
-                    <div className="flex items-center gap-1 -ml-1.5" onClick={(e) => e.stopPropagation()}>
-                      <ActionButton title="Split at playhead" onClick={() => onSplit(sub)}>
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <ActionPill title="Split at playhead" onClick={() => onSplit(sub)}>
                         <Scissors className="size-[13px]" />
                         Split
-                      </ActionButton>
-                      <ActionButton title="Merge with next" onClick={() => onMerge(sub)} disabled={isLast}>
+                      </ActionPill>
+                      <ActionPill title="Merge with next" onClick={() => onMerge(sub)} disabled={isLast}>
                         <Merge className="size-[13px]" />
                         Merge
-                      </ActionButton>
+                      </ActionPill>
                       {isEditing ? (
-                        <ActionButton title="Done editing  ⌘↵" onClick={onStopEdit}>
+                        <ActionPill title="Done editing  ⌘↵" onClick={onStopEdit}>
                           <Check className="size-[13px]" />
                           Done
-                        </ActionButton>
+                        </ActionPill>
                       ) : (
-                        <ActionButton title="Edit text (double-click)" onClick={() => onEdit(sub)}>
+                        <ActionPill title="Edit text (double-click)" onClick={() => onEdit(sub)}>
                           <Pencil className="size-[13px]" />
                           Edit
-                        </ActionButton>
+                        </ActionPill>
                       )}
                       <span className="flex-1" />
-                      <IconButton size={26} destructive title="Delete subtitle" onClick={() => onDelete(sub.id)} className="text-ink-3">
-                        <Trash2 className="size-[13px]" />
+                      <IconButton destructive title="Delete subtitle" onClick={() => onDelete(sub.id)}>
+                        <Trash2 className="size-3.5" />
                       </IconButton>
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
-          )
-        })}
+              )
+            })}
+          </div>
 
-        <button
-          type="button"
-          onClick={onAdd}
-          className="mt-2 mb-3 mx-3 h-9 flex-none flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-line/14 text-[12.5px] text-ink-3 hover:text-paper hover:bg-surface transition-colors duration-150"
-        >
-          <Plus className="size-3.5" />
-          Add subtitle at playhead
-        </button>
-      </div>
-
-      <div className="px-5 pt-3 pb-4 border-t border-line/8 flex flex-wrap gap-x-3.5 gap-y-2 text-[11.5px] text-ink-3 flex-none">
-        <span className="flex items-center gap-1.5 whitespace-nowrap"><Kbd>Space</Kbd>Play</span>
-        <span className="flex items-center gap-1.5 whitespace-nowrap"><Kbd>←</Kbd><Kbd>→</Kbd>Seek</span>
-        <span className="flex items-center gap-1.5 whitespace-nowrap"><Kbd>I</Kbd><Kbd>O</Kbd>Trim in/out</span>
-        <span className="flex items-center gap-1.5 whitespace-nowrap"><Kbd>⌘Z</Kbd>Undo</span>
-      </div>
-    </div>
+          <div className="flex items-center gap-2 px-7 pt-2.5 pb-3.5 flex-none">
+            <Button
+              variant="tint"
+              size="sm"
+              className={cn("h-[34px] text-[12.5px] font-bold", keywordsActive && "shadow-[inset_0_0_0_1.5px_var(--c-accent)]")}
+              onClick={onAutoHighlight}
+              title="Highlight keywords in a fixed color"
+            >
+              <Sparkles className="size-3.5" />
+              Auto-highlight keywords
+            </Button>
+            <Button variant="secondary" size="sm" className="h-[34px] text-[12.5px]" onClick={onClearHighlights} title="Clear highlights">
+              <Eraser className="size-3.5" />
+              Clear
+            </Button>
+            <span className="flex-1" />
+            <IconButton title="Add subtitle at playhead" tone="surface" size={34} onClick={onAdd}>
+              <Plus className="size-[15px]" />
+            </IconButton>
+          </div>
+        </>
+      )}
+    </section>
   )
 }
 
-function ActionButton({
+function ActionPill({
   children,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { title: string }) {
@@ -293,45 +289,41 @@ function ActionButton({
     <button
       type="button"
       {...props}
-      className="h-[26px] px-2 rounded-sm flex items-center gap-[5px] text-[11.5px] font-medium text-ink-2 hover:bg-hover hover:text-paper transition-colors duration-150 disabled:opacity-40 disabled:pointer-events-none"
+      className="h-[30px] px-3 rounded-full bg-canvas flex items-center gap-1.5 text-[12.5px] font-semibold text-paper hover:bg-hover disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
     >
       {children}
     </button>
   )
 }
 
-// Word-level rendering: spoken words read as paper, the current word gets a
-// lime wash, keyword-emphasis words are underlined in the emphasis color.
+// Word-level rendering on the active line: the spoken word sits on the accent
+// highlight block, upcoming words read as ink-3. Keyword-emphasis words get the
+// yellow highlight on every line.
 function BlockText({
   sub,
   isActive,
   displayTime,
-  emphasisColor,
 }: {
   sub: Subtitle
   isActive: boolean
   displayTime: number
-  emphasisColor: string
 }) {
   if (!sub.words || sub.words.length === 0) return <>{sub.text}</>
   return (
     <>
       {sub.words.map((w, i) => {
-        const spoken = isActive && w.start <= displayTime
         const current = isActive && displayTime >= w.start && displayTime < w.end
+        const upcoming = isActive && w.start > displayTime
         return (
           <span key={i}>
             <span
               className={cn(
-                "rounded-[3px] transition-colors duration-100",
-                isActive && !spoken && "text-ink-3",
-                current && "bg-accent/35 text-paper"
+                current
+                  ? "bg-accent text-on-accent px-[3px] rounded-xs"
+                  : w.emphasis
+                    ? "bg-highlight text-[#0D0D0D] px-0.5"
+                    : upcoming && "text-ink-3"
               )}
-              style={
-                w.emphasis
-                  ? { textDecoration: "underline", textDecorationColor: emphasisColor, textDecorationThickness: 2, textUnderlineOffset: 4 }
-                  : undefined
-              }
             >
               {w.word}
             </span>{" "}

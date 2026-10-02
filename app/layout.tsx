@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import {
-  Geist,
-  Geist_Mono,
-  Instrument_Serif,
+  Archivo,
+  DM_Mono,
   Inter,
   Montserrat,
   Poppins,
@@ -11,22 +10,19 @@ import {
 import "./globals.css";
 import { Providers } from "./providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// UI face ("Caption" identity). Variable with the width axis so display
+// headings can use font-stretch: 125% (.display / .stretch-wide).
+const archivo = Archivo({
+  variable: "--font-archivo",
   subsets: ["latin"],
+  axes: ["wdth"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Timecodes and metadata.
+const dmMono = DM_Mono({
+  variable: "--font-dm-mono",
   subsets: ["latin"],
-});
-
-// Display face for page/panel titles ("Editorial studio" identity).
-const instrumentSerif = Instrument_Serif({
-  variable: "--font-instrument-serif",
-  subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
+  weight: ["400", "500"],
 });
 
 // Subtitle template fonts. Loaded here so the editor preview uses the SAME
@@ -77,7 +73,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} ${inter.variable} ${montserrat.variable} ${poppins.variable} ${roboto.variable} antialiased`}
+        className={`${archivo.variable} ${dmMono.variable} ${inter.variable} ${montserrat.variable} ${poppins.variable} ${roboto.variable} antialiased`}
         suppressHydrationWarning
       >
         <Providers>{children}</Providers>

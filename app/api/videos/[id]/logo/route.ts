@@ -42,7 +42,7 @@ export async function DELETE(
 
     // Delete logo file if exists
     if (video.logoOverlay && typeof video.logoOverlay === 'object' && 'logoUrl' in video.logoOverlay) {
-      const logoUrl = (video.logoOverlay as any).logoUrl
+      const logoUrl = (video.logoOverlay as { logoUrl?: unknown }).logoUrl
       if (logoUrl && typeof logoUrl === 'string') {
         if (isR2Key(logoUrl)) {
           await deleteObject(logoUrl).catch((e) =>
@@ -133,7 +133,7 @@ export async function PATCH(
     const updatedVideo = await prisma.videoProject.update({
       where: { id: videoId },
       data: {
-        logoOverlay: nextOverlay as any
+        logoOverlay: nextOverlay as Prisma.InputJsonValue
       }
     })
 

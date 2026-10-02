@@ -5,7 +5,8 @@ export interface LogoOverlay {
   opacity: number  // 0-1
 }
 
-export type EditorPanel = "subtitles" | "style" | "text" | "overlays"
+/** Right-column tab. The script (transcript) is always on the left. */
+export type EditorPanel = "looks" | "text" | "overlays"
 
 // Mapeamento de formatos para exibição e backend
 export const FORMAT_OPTIONS = [

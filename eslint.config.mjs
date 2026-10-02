@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     // .d.ts files (Playwright) that ESLint must not lint. Flat config does not
     // read .gitignore, so ignore it explicitly here.
     "worker/**",
+    // Design handoff: HTML/JS references, not app code.
+    "design_handoff_supertitle_caption/**",
   ]),
 ]);
 

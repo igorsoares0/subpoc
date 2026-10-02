@@ -2,12 +2,13 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Mail, Lock, User, Loader2, ArrowLeft, MailCheck } from "lucide-react"
+import { Loader2, ArrowLeft, MailCheck } from "lucide-react"
 import { GoogleButton } from "@/components/auth/GoogleButton"
 import { AuthShell, AuthHeading, AuthLink, AuthState, OrDivider } from "@/components/auth/AuthShell"
 import { Button, buttonClass } from "@/components/ui/Button"
 import { Field, Input } from "@/components/ui/Field"
 import { Banner } from "@/components/ui/Banner"
+import { PLANS } from "@/lib/plans"
 
 export default function RegisterPage() {
   const [name, setName] = useState("")
@@ -55,15 +56,15 @@ export default function RegisterPage() {
         <AuthState
           icon={MailCheck}
           title="Check your"
-          em="email"
+          highlight="email"
           action={
-            <Link href="/login" className={buttonClass("ghost", "md")}>
+            <Link href="/login" className={buttonClass("secondary", "xl", "hover:text-paper")}>
               <ArrowLeft className="size-[15px]" />
               Back to sign in
             </Link>
           }
         >
-          We sent a verification link to <span className="text-paper">{email}</span>. Click it, then
+          We sent a verification link to <b className="font-bold text-paper">{email}</b>. Click it, then
           sign in.
         </AuthState>
       </AuthShell>
@@ -72,14 +73,25 @@ export default function RegisterPage() {
 
   return (
     <AuthShell>
-      <AuthHeading title="Create your" em="account" />
+      <AuthHeading
+        title="Create your"
+        highlight="account"
+        subtitle={`${PLANS.free.minutesLimit} free minutes every month. No card needed.`}
+      />
 
-      {error && <Banner variant="danger">{error}</Banner>}
+      {error && (
+        <Banner variant="danger" compact>
+          {error}
+        </Banner>
+      )}
+
+      <GoogleButton label="Sign up with Google" />
+
+      <OrDivider />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-[22px]">
         <Field label="Name">
           <Input
-            icon={User}
             id="name"
             type="text"
             value={name}
@@ -91,7 +103,6 @@ export default function RegisterPage() {
 
         <Field label="Email">
           <Input
-            icon={Mail}
             id="email"
             type="email"
             value={email}
@@ -104,7 +115,6 @@ export default function RegisterPage() {
 
         <Field label="Password">
           <Input
-            icon={Lock}
             id="password"
             type="password"
             value={password}
@@ -116,7 +126,7 @@ export default function RegisterPage() {
           />
         </Field>
 
-        <Button type="submit" size="lg" disabled={isLoading} className="w-full">
+        <Button type="submit" size="2xl" disabled={isLoading} className="w-full">
           {isLoading ? (
             <>
               <Loader2 className="size-4 animate-spin" />
@@ -128,11 +138,7 @@ export default function RegisterPage() {
         </Button>
       </form>
 
-      <OrDivider />
-
-      <GoogleButton label="Sign up with Google" />
-
-      <p className="text-[13px] text-ink-3 text-center">
+      <p className="text-[14px] text-ink-3 text-center">
         Already have an account? <AuthLink href="/login">Sign in</AuthLink>
       </p>
     </AuthShell>

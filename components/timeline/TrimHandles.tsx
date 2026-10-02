@@ -5,6 +5,10 @@ interface TrimHandlesProps {
   onDragStart: (handle: 'start' | 'end') => void
 }
 
+/**
+ * Trim overlay for the video lane: washes over the cut-out areas, a 3px paper
+ * frame around the kept range and 14px paper pill handles on its edges.
+ */
 export function TrimHandles({
   trim,
   videoDuration,
@@ -20,41 +24,40 @@ export function TrimHandles({
   const handle = (which: 'start' | 'end', percent: number) => (
     <div
       className="absolute top-0 h-full z-20 cursor-ew-resize group"
-      style={{ left: `${percent}%`, width: '20px', transform: 'translateX(-10px)' }}
+      style={{ left: `${percent}%`, width: '22px', transform: 'translateX(-11px)' }}
       title={which === 'start' ? 'Trim in  (I)' : 'Trim out  (O)'}
       onMouseDown={(e) => {
         e.stopPropagation()
         onDragStart(which)
       }}
     >
-      {/* Visible 10px accent handle, 20px hit area */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2.5 h-full bg-accent rounded-[3px] flex flex-col items-center justify-center gap-[3px] group-hover:bg-accent-hover transition-colors">
-        <span className="w-[2px] h-[2px] rounded-full bg-on-accent/60" />
-        <span className="w-[2px] h-[2px] rounded-full bg-on-accent/60" />
-        <span className="w-[2px] h-[2px] rounded-full bg-on-accent/60" />
+      {/* Visible 14px paper pill with two grip lines, 22px hit area */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3.5 h-full rounded-[7px] bg-paper flex items-center justify-center gap-0.5 group-hover:scale-x-110 transition-transform">
+        <span className="w-[1.5px] h-4 bg-canvas" />
+        <span className="w-[1.5px] h-4 bg-canvas" />
       </div>
     </div>
   )
 
   return (
     <>
-      {/* Discarded regions */}
+      {/* Cut-out regions: light wash (scrim in dark) */}
       {startPercent > 0 && (
         <div
-          className="absolute top-0 h-full bg-scrim/80 z-10 pointer-events-none"
+          className="absolute top-0 h-full bg-canvas/80 rounded-l-[10px] z-10 pointer-events-none"
           style={{ left: 0, width: `${startPercent}%` }}
         />
       )}
       {endPercent < 100 && (
         <div
-          className="absolute top-0 h-full bg-scrim/80 z-10 pointer-events-none"
+          className="absolute top-0 h-full bg-canvas/80 rounded-r-[10px] z-10 pointer-events-none"
           style={{ left: `${endPercent}%`, right: 0 }}
         />
       )}
 
-      {/* 2px accent frame around the kept region */}
+      {/* 3px paper frame around the kept range */}
       <div
-        className="absolute top-0 h-full border-y-2 border-accent z-10 pointer-events-none"
+        className="absolute top-0 h-full border-[3px] border-paper rounded-[10px] z-10 pointer-events-none"
         style={{ left: `${startPercent}%`, width: `${widthPercent}%` }}
       />
 

@@ -2,36 +2,16 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import {
-  ArrowLeft,
-  Check,
-  ChevronDown,
-  CloudCheck,
-  FileText,
-  Film,
-  Loader2,
-  Monitor,
-  Play,
-  Redo2,
-  RectangleHorizontal,
-  RectangleVertical,
-  Square,
-  Undo2,
-} from "lucide-react"
+import { ArrowLeft, ArrowRight, Play, Redo2, Undo2 } from "lucide-react"
 import { Wordmark } from "@/components/ui/Wordmark"
 import { Button, IconButton } from "@/components/ui/Button"
+import { Segmented } from "@/components/ui/controls"
 import { Avatar, UserMenu } from "@/components/ui/ThemeMenu"
 import { cn } from "@/lib/utils"
-import { FORMAT_OPTIONS, getFormatLabel } from "./types"
+import { FORMAT_OPTIONS } from "./types"
 
-const FORMAT_ICONS: Record<string, typeof Monitor> = {
-  Original: Monitor,
-  "16:9": RectangleHorizontal,
-  "9:16": RectangleVertical,
-  "1:1": Square,
-  "4:3": RectangleHorizontal,
-}
-
+// Header order: vertical first (most projects are Reels/TikTok/Shorts).
+const FORMAT_ORDER = ["9:16", "16:9", "1:1", "4:3", "Original"] as const
 const FORMAT_HINTS: Record<string, string> = {
   Original: "Keep source size",
   "16:9": "YouTube · horizontal",
@@ -39,6 +19,7 @@ const FORMAT_HINTS: Record<string, string> = {
   "1:1": "Instagram feed",
   "4:3": "Classic",
 }
+const HEADER_FORMATS = FORMAT_ORDER.map((label) => FORMAT_OPTIONS.find((f) => f.label === label)!)
 
 function useClickOutside(open: boolean, close: () => void) {
   const ref = useRef<HTMLDivElement>(null)
@@ -93,108 +74,53 @@ export function EditorHeader({
   onPreviewRender: () => void
   user?: { name?: string | null; email?: string | null }
 }) {
-  const [formatOpen, setFormatOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
-  const formatRef = useClickOutside(formatOpen, () => setFormatOpen(false))
   const exportRef = useClickOutside(exportOpen, () => setExportOpen(false))
 
-  const formatLabel = getFormatLabel(format)
-  const FormatIcon = FORMAT_ICONS[formatLabel] ?? Monitor
-
-  const menu =
-    "absolute z-50 top-full mt-2 p-1.5 rounded-lg bg-elevated border border-line/12 shadow-[var(--shadow-menu)] flex flex-col"
   const menuItem =
-    "w-full text-left px-2.5 py-2 rounded-[7px] hover:bg-hover transition-colors duration-150 flex items-center gap-2.5"
+    "w-full text-left h-auto px-2.5 py-2 rounded-[9px] hover:bg-surface flex flex-col items-start gap-0.5 cursor-pointer"
 
   return (
-    <header className="col-span-full h-14 flex items-center justify-between gap-4 border-b border-line/8 pr-3.5">
-      {/* Left — back · wordmark · breadcrumb · save state */}
+    <header className="col-span-full h-16 flex items-center gap-4 px-5">
+      {/* Left — back · wordmark · filename · save state */}
       <div className="flex items-center gap-4 min-w-0 flex-1">
-        <div className="w-16 flex justify-center flex-none">
-          <Link
-            href="/dashboard"
-            title="Back to dashboard"
-            aria-label="Back to dashboard"
-            className="size-8 rounded-md flex items-center justify-center text-ink-3 hover:bg-elevated hover:text-paper transition-colors duration-150"
-          >
-            <ArrowLeft className="size-4" />
-          </Link>
-        </div>
-        <Wordmark size={24} />
-        <span className="w-px h-5 bg-line/10 flex-none" />
-        <div className="flex items-center gap-1.5 text-[13.5px] min-w-0">
-          <Link href="/dashboard" className="text-ink-3 hover:text-paper whitespace-nowrap">
-            Projects /
-          </Link>
-          <span className="font-medium text-paper truncate">{title}</span>
-        </div>
-        <span className="flex items-center gap-1.5 text-[12px] text-ink-3 whitespace-nowrap">
-          {isSaving ? (
-            <>
-              <Loader2 className="size-3.5 animate-spin" />
-              Saving…
-            </>
-          ) : (
-            <>
-              <CloudCheck className="size-3.5" strokeWidth={1.75} />
-              Saved
-            </>
-          )}
+        <Link
+          href="/dashboard"
+          title="Back to projects"
+          aria-label="Back to projects"
+          className="size-9 flex-none rounded-full bg-surface flex items-center justify-center text-paper hover:bg-hover hover:text-paper"
+        >
+          <ArrowLeft className="size-[17px]" />
+        </Link>
+        <Wordmark size={20} />
+        <span className="w-px h-[22px] bg-line/12 flex-none" />
+        <span className="text-[15px] font-semibold text-paper truncate" title={title}>
+          {title}
+        </span>
+        <span className="font-mono text-[12px] text-ink-3 whitespace-nowrap" aria-live="polite">
+          {isSaving ? "saving…" : "saved"}
         </span>
       </div>
 
-      {/* Center — format + undo/redo */}
-      <div className="flex items-center gap-1 p-[3px] rounded-lg bg-surface border border-line/8 flex-none">
-        <div ref={formatRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setFormatOpen((o) => !o)}
-            title={`Format: ${formatLabel}`}
-            aria-haspopup="menu"
-            aria-expanded={formatOpen}
-            className={cn(
-              "h-[30px] px-2.5 rounded-[7px] flex items-center gap-2 text-[12.5px] font-medium whitespace-nowrap transition-colors duration-150",
-              formatOpen ? "bg-hover text-paper" : "bg-elevated text-paper hover:bg-hover"
-            )}
-          >
-            <FormatIcon className="size-3.5" strokeWidth={1.75} />
-            {formatLabel === "Original" ? "Original" : `${formatLabel}`}
-            <ChevronDown className="size-3 text-ink-3" />
-          </button>
-          {formatOpen && (
-            <div role="menu" className={cn(menu, "left-0 w-56")}>
-              {FORMAT_OPTIONS.map((f) => {
-                const Icon = FORMAT_ICONS[f.label] ?? Monitor
-                const active = format === f.value
-                return (
-                  <button
-                    key={f.label}
-                    role="menuitemradio"
-                    aria-checked={active}
-                    onClick={() => {
-                      onFormatChange(f.value)
-                      setFormatOpen(false)
-                    }}
-                    className={menuItem}
-                  >
-                    <Icon className="size-4 text-ink-3" strokeWidth={1.75} />
-                    <span className="flex-1 flex flex-col gap-0.5">
-                      <span className="text-[13px] font-medium text-paper">{f.label}</span>
-                      <span className="text-[11.5px] text-ink-3">{FORMAT_HINTS[f.label]}</span>
-                    </span>
-                    {active && <Check className="size-4 text-accent-ink" />}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
-        <span className="w-px h-4 bg-line/10 mx-1" />
-        <IconButton title="Undo  ⌘Z" onClick={onUndo} disabled={!canUndo}>
-          <Undo2 className="size-[15px]" />
+      {/* Center — aspect ratio + undo/redo */}
+      <div className="flex items-center gap-1 flex-none">
+        <Segmented
+          variant="inverse"
+          stretch={false}
+          value={format}
+          onChange={onFormatChange}
+          options={HEADER_FORMATS.map((f) => ({
+            value: f.value as string | null,
+            label: f.label,
+            title: `${f.label} — ${FORMAT_HINTS[f.label]}`,
+          }))}
+          className="mr-1"
+        />
+        <IconButton title="Undo  ⌘Z" size={36} onClick={onUndo} disabled={!canUndo}>
+          <Undo2 className="size-[17px]" />
         </IconButton>
-        <IconButton title="Redo  ⇧⌘Z" onClick={onRedo} disabled={!canRedo}>
-          <Redo2 className="size-[15px]" />
+        <IconButton title="Redo  ⇧⌘Z" size={36} onClick={onRedo} disabled={!canRedo}>
+          <Redo2 className="size-[17px]" />
         </IconButton>
       </div>
 
@@ -202,23 +128,23 @@ export function EditorHeader({
       <div className="flex items-center justify-end gap-2 flex-1">
         <div ref={exportRef} className="relative">
           <Button
-            variant="ghost"
-            size="sm"
+            variant="secondary"
+            size="md"
             onClick={() => setExportOpen((o) => !o)}
             disabled={!hasSubtitles}
             aria-haspopup="menu"
             aria-expanded={exportOpen}
-            className="text-[13px] gap-2"
           >
-            <FileText className="size-[15px]" strokeWidth={1.75} />
-            Export subtitles
-            <ChevronDown className="size-3.5 text-ink-3" />
+            Export .srt / .vtt
           </Button>
           {exportOpen && (
-            <div role="menu" className={cn(menu, "right-0 w-60")}>
+            <div
+              role="menu"
+              className="absolute z-50 right-0 top-full mt-2 w-60 p-1.5 rounded-2xl bg-canvas shadow-[var(--shadow-menu)] flex flex-col gap-0.5"
+            >
               {[
-                { label: "Export SRT", hint: "Universal subtitle format", onClick: onExportSRT },
-                { label: "Export VTT", hint: "Web video text tracks", onClick: onExportVTT },
+                { label: "Export .srt", hint: "Universal subtitle format", onClick: onExportSRT },
+                { label: "Export .vtt", hint: "Web video text tracks", onClick: onExportVTT },
               ].map((item) => (
                 <button
                   key={item.label}
@@ -227,10 +153,10 @@ export function EditorHeader({
                     item.onClick()
                     setExportOpen(false)
                   }}
-                  className={cn(menuItem, "flex-col items-start gap-0.5")}
+                  className={menuItem}
                 >
-                  <span className="text-[13px] font-medium text-paper">{item.label}</span>
-                  <span className="text-[11.5px] text-ink-3">{item.hint}</span>
+                  <span className="text-[13.5px] font-semibold text-paper">{item.label}</span>
+                  <span className="text-[12px] text-ink-3">{item.hint}</span>
                 </button>
               ))}
             </div>
@@ -238,30 +164,32 @@ export function EditorHeader({
         </div>
 
         {isRendering ? (
-          <Button size="sm" disabled className="text-[13px] px-3.5">
-            <Loader2 className="size-[15px] animate-spin" />
-            Rendering…
-          </Button>
+          // Indeterminate progress inside the button while the render job runs.
+          <span
+            role="status"
+            className="relative h-10 px-5 flex-none flex items-center rounded-full bg-elevated text-ink-2 text-[13.5px] font-bold whitespace-nowrap overflow-hidden"
+          >
+            <span className="absolute inset-y-0 left-0 w-1/3 bg-accent-tint animate-[indeterminate_1.6s_ease-in-out_infinite]" />
+            <span className="relative">Rendering…</span>
+          </span>
         ) : hasRender ? (
-          <Button variant="outline-accent" size="sm" onClick={onPreviewRender} className="text-[13px] px-3.5 font-semibold">
-            <Play className="size-3.5" />
+          <Button variant="outline-accent" size="md" className="px-5 shadow-[inset_0_0_0_2px_var(--c-accent)]" onClick={onPreviewRender}>
+            <Play className="size-3.5 fill-current" />
             Preview render
           </Button>
         ) : (
-          <Button size="sm" onClick={onRender} disabled={!hasSubtitles} className="text-[13px] px-3.5">
-            <Film className="size-[15px]" />
+          <Button size="md" className="px-5" onClick={onRender} disabled={!hasSubtitles}>
             Render video
+            <ArrowRight className="size-[15px]" />
           </Button>
         )}
 
-        <div className="ml-1.5">
-          <UserMenu
-            email={user?.email}
-            triggerTitle="Account & theme"
-            triggerClassName="rounded-full hover:ring-2 hover:ring-line/14 transition-shadow"
-            trigger={<Avatar name={user?.name} email={user?.email} />}
-          />
-        </div>
+        <UserMenu
+          email={user?.email}
+          triggerTitle="Account & theme"
+          triggerClassName={cn("rounded-full cursor-pointer")}
+          trigger={<Avatar name={user?.name} email={user?.email} />}
+        />
       </div>
     </header>
   )

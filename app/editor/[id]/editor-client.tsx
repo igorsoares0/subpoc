@@ -9,23 +9,25 @@ import {
   HookOverlay,
   annotateSubtitleKeywords,
   clearSubtitleKeywords,
-  normalizePosition,
   DEFAULT_SUBTITLE_STYLE,
   type Subtitle,
   type SubtitleStyle,
   type SubtitleWord,
   type HookOverlayData,
 } from "@/lib/subtitle-track"
-import { AlertTriangle, Download, Loader2, Move, RefreshCw, RotateCcw, X } from "lucide-react"
+import { Download, Play, RotateCcw } from "lucide-react"
 import { EditorHeader } from "@/components/editor/EditorHeader"
-import { EditorRail } from "@/components/editor/EditorRail"
 import { FloatingToolbar } from "@/components/editor/FloatingToolbar"
 import { TranscriptPanel } from "@/components/editor/panels/TranscriptPanel"
 import { StylePanel } from "@/components/editor/panels/StylePanel"
 import { TextPanel } from "@/components/editor/panels/TextPanel"
 import { OverlaysPanel } from "@/components/editor/panels/OverlaysPanel"
 import { useVideoFrame } from "@/components/editor/useVideoFrame"
-import { Button, IconButton } from "@/components/ui/Button"
+import { Button } from "@/components/ui/Button"
+import { Banner, BannerAction } from "@/components/ui/Banner"
+import { Dialog, DialogHeader } from "@/components/ui/Dialog"
+import { Highlight } from "@/components/ui/Highlight"
+import { Segmented } from "@/components/ui/controls"
 import {
   formatShort,
   getFormatAspectRatio,
@@ -83,7 +85,8 @@ const DEFAULT_HOOK: HookOverlayData = {
 export default function EditorClient({ video: initialVideo, user }: EditorClientProps) {
   const router = useRouter()
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [activePanel, setActivePanel] = useState<EditorPanel>("subtitles")
+  // Right-column tab; the script (transcript) is always on the left.
+  const [rightTab, setRightTab] = useState<EditorPanel>("looks")
   const [video, setVideo] = useState(initialVideo)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(initialVideo.duration) // stored in seconds
@@ -138,36 +141,13 @@ export default function EditorClient({ video: initialVideo, user }: EditorClient
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
 
-  // Resizable left sidebar (persisted). Clamped so it can't crowd out the preview.
-  const [sidebarWidth, setSidebarWidth] = useState(340)
+  // Lift the global toast stack above the timeline while the editor is open.
   useEffect(() => {
-    const saved = localStorage.getItem('editor:sidebarWidth')
-    if (saved) {
-      const n = parseInt(saved, 10)
-      if (!Number.isNaN(n)) setSidebarWidth(Math.min(520, Math.max(280, n)))
+    document.documentElement.style.setProperty("--toast-bottom", "252px")
+    return () => {
+      document.documentElement.style.removeProperty("--toast-bottom")
     }
   }, [])
-  const handleSidebarResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault()
-    const startX = e.clientX
-    const startWidth = sidebarWidth
-    let latest = startWidth
-    const onMove = (ev: MouseEvent) => {
-      latest = Math.min(520, Math.max(280, startWidth + (ev.clientX - startX)))
-      setSidebarWidth(latest)
-    }
-    const onUp = () => {
-      localStorage.setItem('editor:sidebarWidth', String(latest))
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
-    document.body.style.cursor = 'ew-resize'
-    document.body.style.userSelect = 'none'
-  }
 
   // Current subtitle based on video time (adjusted for trim)
   const displayTime = trim ? currentTime + trim.start : currentTime
@@ -220,11 +200,14 @@ export default function EditorClient({ video: initialVideo, user }: EditorClient
 
             if (data.video.status === 'ready') {
               console.log('[Polling] Transcription complete! Subtitles loaded.')
-              toast.success('Transcription complete')
+              const first: Subtitle | undefined = data.video.subtitles?.[0]
+              toast.success(
+                'Transcription complete',
+                first ? { label: 'Review', onClick: () => seekToSubtitle(first.start, first.id) } : undefined
+              )
             } else if (data.video.status === 'completed') {
               console.log('[Polling] Rendering complete! Video ready for download.')
               setShowRenderPreview(true)
-              toast.success('Video rendered — ready to download')
             } else if (data.video.status === 'failed') {
               console.error('[Polling] Processing failed.')
               setFailedJob(activeJobRef.current)
@@ -434,7 +417,7 @@ export default function EditorClient({ video: initialVideo, user }: EditorClient
   }, [])
 
   // Still from the user's own video for the Style panel's template tiles.
-  const templateFrame = useVideoFrame(video.videoUrl, activePanel === "style")
+  const templateFrame = useVideoFrame(video.videoUrl, rightTab === "looks")
 
   // Initialize video at trim.start when trim changes
   useEffect(() => {
@@ -1463,20 +1446,6 @@ export default function EditorClient({ video: initialVideo, user }: EditorClient
         })()
       : { width: "100%", height: "100%" }
 
-  // Floating text toolbar sits above the selected subtitle (below if no room).
-  const toolbarAnchor = (() => {
-    if (!frame || selectedSubtitleId === null || !displayedSubtitle) return null
-    if (isPlaying || isDraggingSubtitle || resize) return null
-    const pos = normalizePosition(style.position)
-    const scale = frame.width / nativeVideoWidth
-    const halfH = Math.max(style.fontSize * scale, 12) * 0.75 + 10
-    const left = frame.offsetX + (pos.x / 100) * frame.width
-    const cy = frame.offsetY + (pos.y / 100) * frame.height
-    return cy - halfH - 8 > 48
-      ? { left, top: cy - halfH - 8, placement: "above" as const }
-      : { left, top: cy + halfH + 8, placement: "below" as const }
-  })()
-
   // Timeline "Split": the selected block, else the one under the playhead.
   const splitAtPlayhead = () => {
     const target = subtitles.find((s) => s.id === selectedSubtitleId) ?? currentSubtitle
@@ -1494,12 +1463,14 @@ export default function EditorClient({ video: initialVideo, user }: EditorClient
     else v.pause()
   }
 
+  const isJobRunning = isTranscribing || isRendering
+
   return (
     <div
       className="h-screen min-w-[1180px] bg-canvas text-paper grid overflow-hidden"
       style={{
-        gridTemplateColumns: `64px ${sidebarWidth}px minmax(0, 1fr)`,
-        gridTemplateRows: "56px minmax(0, 1fr)",
+        gridTemplateColumns: "420px minmax(0, 1fr) 360px",
+        gridTemplateRows: "64px minmax(0, 1fr) 236px",
       }}
     >
       <EditorHeader
@@ -1521,115 +1492,44 @@ export default function EditorClient({ video: initialVideo, user }: EditorClient
         user={user}
       />
 
-      <EditorRail active={activePanel} onChange={setActivePanel} />
-
-      {/* Task panel (resizable) */}
-      <aside className="relative border-r border-line/8 min-h-0 flex flex-col">
-        {activePanel === "subtitles" && (
-          <TranscriptPanel
-            subtitles={subtitles}
-            durationSeconds={duration}
-            selectedId={selectedSubtitleId}
-            activeId={currentSubtitle?.id ?? null}
-            editingId={editingSubtitle}
-            displayTime={displayTime}
-            keywordsActive={keywordsActive}
-            isTranscribing={isTranscribing}
-            emphasisColor={style.emphasisColor || "#FFD700"}
-            onTranscribe={transcribeVideo}
-            onSelect={(sub) => seekToSubtitle(sub.start, sub.id)}
-            onEdit={(sub) => {
-              seekToSubtitle(sub.start, sub.id)
-              setEditingSubtitle(sub.id)
-            }}
-            onStopEdit={() => setEditingSubtitle(null)}
-            onTextChange={updateSubtitleText}
-            onTimingChange={updateSubtitleTiming}
-            onSplit={splitSubtitleAtPlayhead}
-            onMerge={mergeWithNext}
-            onDelete={deleteSubtitle}
-            onAdd={addSubtitleAtPlayhead}
-            onAutoHighlight={autoHighlightKeywords}
-            onClearHighlights={clearKeywordHighlights}
-          />
-        )}
-        {activePanel === "style" && (
-          <StylePanel
-            style={style}
-            frameUrl={templateFrame}
-            sampleText={subtitles[0]?.text ?? ""}
-            onApply={(preset) => updateStyle(preset.style, true)}
-            onOpenText={() => setActivePanel("text")}
-          />
-        )}
-        {activePanel === "text" && (
-          <TextPanel style={style} onChange={commitStyle} onOpenStyle={() => setActivePanel("style")} />
-        )}
-        {activePanel === "overlays" && (
-          <OverlaysPanel
-            style={style}
-            onPosition={updateSubtitlePosition}
-            onStyle={commitStyle}
-            keywordColor={style.emphasisColor || "#FFD700"}
-            onAutoHighlight={autoHighlightKeywords}
-            onClearHighlights={clearKeywordHighlights}
-            hook={video.hookOverlay}
-            onHookChange={updateHook}
-            onHookEnable={() => updateHook({})}
-            onHookRemove={removeHook}
-            logo={video.logoOverlay}
-            isUploadingLogo={isUploadingLogo}
-            onLogoFile={uploadLogo}
-            onLogoRemove={removeLogo}
-            onLogoChange={updateLogoSettings}
-          />
-        )}
-
-        {/* Drag handle to resize the panel */}
-        <div
-          onMouseDown={handleSidebarResizeStart}
-          className="group absolute top-0 bottom-0 -right-[5px] w-2.5 z-20 cursor-ew-resize flex items-center justify-center"
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize panel"
-        >
-          <div className="w-1 h-12 rounded-full bg-line/12 group-hover:bg-accent-ink/60 transition-colors duration-150" />
-        </div>
+      {/* Left — Script */}
+      <aside className="min-h-0 flex flex-col">
+        <TranscriptPanel
+          subtitles={subtitles}
+          durationSeconds={duration}
+          selectedId={selectedSubtitleId}
+          activeId={currentSubtitle?.id ?? null}
+          editingId={editingSubtitle}
+          displayTime={displayTime}
+          keywordsActive={keywordsActive}
+          isTranscribing={isTranscribing}
+          onTranscribe={transcribeVideo}
+          onSelect={(sub) => seekToSubtitle(sub.start, sub.id)}
+          onEdit={(sub) => {
+            seekToSubtitle(sub.start, sub.id)
+            setEditingSubtitle(sub.id)
+          }}
+          onStopEdit={() => setEditingSubtitle(null)}
+          onTextChange={updateSubtitleText}
+          onTimingChange={updateSubtitleTiming}
+          onSplit={splitSubtitleAtPlayhead}
+          onMerge={mergeWithNext}
+          onDelete={deleteSubtitle}
+          onAdd={addSubtitleAtPlayhead}
+          onAutoHighlight={autoHighlightKeywords}
+          onClearHighlights={clearKeywordHighlights}
+        />
       </aside>
 
-      {/* Stage + timeline */}
-      <main className="flex flex-col min-w-0 min-h-0">
+      {/* Center — stage */}
+      <main className="relative min-w-0 min-h-0 mb-3 rounded-[16px] bg-stage overflow-hidden">
         <div
           ref={stageRef}
-          className="flex-1 min-h-0 relative bg-stage bg-dots flex items-center justify-center p-5 overflow-hidden"
+          className={`absolute inset-0 flex items-center justify-center px-6 pt-6 ${hasSubtitles && !isJobRunning ? "pb-[68px]" : "pb-6"}`}
         >
-          {/* Failed-job banner with retry, pinned to the top of the stage */}
-          {failedJob && (
-            <div
-              role="alert"
-              className="absolute top-4 left-4 right-4 mx-auto max-w-[560px] z-40 flex items-center gap-3 pl-4 pr-2 py-2 rounded-lg bg-danger-surface border border-danger/40 shadow-[var(--shadow-menu)]"
-            >
-              <AlertTriangle className="size-4 text-danger-ink flex-none" />
-              <span className="flex-1 text-[13px] text-paper">
-                {failedJob === "transcribe" ? "Transcription failed." : "Rendering failed."}
-              </span>
-              <button
-                type="button"
-                onClick={failedJob === "transcribe" ? transcribeVideo : renderVideo}
-                className="h-7 px-2.5 rounded-[7px] bg-danger text-on-accent text-[12px] font-semibold flex items-center gap-1.5 hover:opacity-90 flex-none"
-              >
-                <RotateCcw className="size-3.5" />
-                Try again
-              </button>
-              <IconButton title="Dismiss" size={26} onClick={() => setFailedJob(null)}>
-                <X className="size-3.5" />
-              </IconButton>
-            </div>
-          )}
-
           {/* Preview frame — video content never changes with theme */}
           <div
-            className="relative bg-black shadow-[var(--shadow-lg)] rounded-xs"
+            className="relative bg-black rounded-2xl overflow-hidden"
             style={{ width: frameBox.width, height: frameBox.height, maxWidth: "100%", maxHeight: "100%" }}
           >
             <video
@@ -1728,53 +1628,108 @@ export default function EditorClient({ video: initialVideo, user }: EditorClient
               })()
             )}
 
-            {/* Quick text controls above the selected subtitle */}
-            {toolbarAnchor && (
-              <FloatingToolbar
-                style={style}
-                left={toolbarAnchor.left}
-                top={toolbarAnchor.top}
-                placement={toolbarAnchor.placement}
-                onChange={commitStyle}
-                onOpenText={() => setActivePanel("text")}
-              />
-            )}
-
-            {/* Long-running job overlay — render/transcription take minutes,
-                so make the in-flight state impossible to miss over the preview. */}
-            {(isTranscribing || isRendering) && (
-              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3.5 px-[10%] text-center bg-canvas/[0.82]">
-                <Loader2 className="size-[34px] text-accent-ink animate-spin" strokeWidth={1.75} />
-                <p className="font-serif text-[26px] leading-[1.05] text-paper">
-                  {isRendering ? (
-                    <>
-                      Rendering your <em className="italic">video</em>
-                    </>
-                  ) : (
-                    <>
-                      Transcribing <em className="italic">audio</em>
-                    </>
-                  )}
-                </p>
-                <p className="text-[12.5px] leading-normal text-ink-2 max-w-[320px]">
-                  {isRendering
-                    ? 'Burning in subtitles and overlays — this can take a few minutes. You can keep editing other projects.'
-                    : 'Generating subtitles from speech — usually under a couple of minutes.'}
-                </p>
-                <div className="w-full max-w-[260px] h-1 rounded-full bg-line/14 overflow-hidden">
-                  <div className="h-full w-1/3 rounded-full bg-accent animate-[indeterminate_1.4s_ease-in-out_infinite]" />
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="absolute bottom-3.5 left-4 flex items-center gap-1.5 text-[12px] text-ink-4 pointer-events-none">
-            <Move className="size-[13px]" />
-            Drag subtitle to reposition
+            {/* Scrim while a long-running job is in flight */}
+            {isJobRunning && <div className="absolute inset-0 z-30 bg-[rgba(13,13,13,0.62)]" />}
           </div>
         </div>
 
-        {/* Timeline */}
+        {/* Quick text controls, pinned to the bottom of the stage */}
+        {hasSubtitles && !isJobRunning && <FloatingToolbar style={style} onChange={commitStyle} />}
+
+        {/* Long-running job dialog — render/transcription take minutes,
+            so make the in-flight state impossible to miss. */}
+        {isJobRunning && (
+          <div
+            role="status"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-40 w-[340px] rounded-[18px] bg-canvas p-6 flex flex-col gap-3.5 shadow-[var(--shadow-modal)] animate-[dialog-in_150ms_ease-out]"
+          >
+            <span className="size-9 rounded-full border-[3.5px] border-elevated border-t-accent animate-spin" />
+            <span className="display text-[26px] leading-[1.05] tracking-[-0.025em] text-paper">
+              {isRendering ? "Rendering your video" : "Transcribing audio"}
+            </span>
+            <p className="text-[13.5px] leading-normal text-ink-2">
+              {isRendering
+                ? "Burning in subtitles and overlays — this can take a few minutes. You can keep editing other projects."
+                : "Generating subtitles from speech — usually under a couple of minutes."}
+            </p>
+            <div className="relative h-2 rounded-full bg-elevated overflow-hidden">
+              <div className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-accent animate-[indeterminate_1.4s_ease-in-out_infinite]" />
+            </div>
+            <div className="flex justify-between font-mono text-[12px] text-ink-3">
+              <span>{isRendering ? `${getFormatLabel(video.format)} · ${formatShort(duration)}` : `${formatShort(duration)} of audio`}</span>
+              <span>{isRendering ? "a few minutes" : "usually < 2 min"}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Failed-job banner with retry, pinned to the top of the stage */}
+        {failedJob && (
+          <Banner
+            variant="danger"
+            className="absolute top-4 left-4 right-4 z-40"
+            detail={failedJob === "render" ? "Your edits are saved." : "Your video is safe — try again."}
+            action={
+              <BannerAction tone="danger" onClick={failedJob === "transcribe" ? transcribeVideo : renderVideo} className="flex items-center gap-[7px]">
+                <RotateCcw className="size-3.5" />
+                Try again
+              </BannerAction>
+            }
+            onDismiss={() => setFailedJob(null)}
+          >
+            {failedJob === "transcribe" ? "Transcription failed." : "Rendering failed."}
+          </Banner>
+        )}
+      </main>
+
+      {/* Right — Looks / Text / Overlays */}
+      <aside className="min-h-0 flex flex-col pt-2 pb-3">
+        <div className="px-5 pt-1 flex-none">
+          <Segmented<EditorPanel>
+            value={rightTab}
+            onChange={setRightTab}
+            options={[
+              { value: "looks", label: "Looks" },
+              { value: "text", label: "Text" },
+              { value: "overlays", label: "Overlays" },
+            ]}
+          />
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 pb-2">
+          {rightTab === "looks" && (
+            <StylePanel
+              style={style}
+              frameUrl={templateFrame}
+              sampleText={subtitles[0]?.text ?? ""}
+              onApply={(preset) => updateStyle(preset.style, true)}
+            />
+          )}
+          {rightTab === "text" && (
+            <TextPanel style={style} onChange={commitStyle} onOpenStyle={() => setRightTab("looks")} />
+          )}
+          {rightTab === "overlays" && (
+            <OverlaysPanel
+              style={style}
+              onPosition={updateSubtitlePosition}
+              onStyle={commitStyle}
+              keywordColor={style.emphasisColor || "#FFD700"}
+              onAutoHighlight={autoHighlightKeywords}
+              onClearHighlights={clearKeywordHighlights}
+              hook={video.hookOverlay}
+              onHookChange={updateHook}
+              onHookEnable={() => updateHook({})}
+              onHookRemove={removeHook}
+              logo={video.logoOverlay}
+              isUploadingLogo={isUploadingLogo}
+              onLogoFile={uploadLogo}
+              onLogoRemove={removeLogo}
+              onLogoChange={updateLogoSettings}
+            />
+          )}
+        </div>
+      </aside>
+
+      {/* Timeline */}
+      <div className="col-span-full min-h-0">
         <VideoTimeline
           videoId={video.id}
           videoUrl={video.videoUrl}
@@ -1787,6 +1742,11 @@ export default function EditorClient({ video: initialVideo, user }: EditorClient
           subtitles={subtitles}
           selectedSubtitleId={selectedSubtitleId}
           activeSubtitleId={currentSubtitle?.id ?? null}
+          isTranscribing={isTranscribing}
+          overlays={{
+            hook: video.hookOverlay?.text || null,
+            logo: video.logoOverlay?.logoUrl ? video.logoOverlay.position.replace("-", " ") : null,
+          }}
           onSelectSubtitle={(sub) => seekToSubtitle(sub.start, sub.id)}
           onPlayPause={togglePlay}
           onToggleMute={() => {
@@ -1805,63 +1765,82 @@ export default function EditorClient({ video: initialVideo, user }: EditorClient
           onSplit={splitAtPlayhead}
           onTrimHandleDragStart={handleTrimHandleDragStart}
         />
-      </main>
+      </div>
 
-      {/* Render Preview Modal — shows the finished render with download/re-render */}
-      {showRenderPreview && video.outputUrl && (
-        <div
-          className="fixed inset-0 bg-[var(--backdrop)] flex items-center justify-center z-50 p-4"
-          onClick={() => setShowRenderPreview(false)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="render-title"
-            className="min-w-[380px] max-w-[min(92vw,760px)] rounded-2xl bg-surface border border-line/10 shadow-[var(--shadow-modal)] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
+      {/* Rendered video — preview with download / re-render */}
+      <Dialog
+        open={showRenderPreview && !!video.outputUrl}
+        onClose={() => setShowRenderPreview(false)}
+        width={460}
+        label="Rendered video"
+        className="gap-[18px]"
+      >
+        <DialogHeader onClose={() => setShowRenderPreview(false)}>
+          <h2 className="display text-[34px] tracking-[-0.03em] text-paper">
+            Rendered <Highlight className="px-1.5">video</Highlight>
+          </h2>
+        </DialogHeader>
+        {video.outputUrl && <RenderedPreview src={video.outputUrl} aspect={getFormatAspectRatio(video.format) ?? nativeAspect ?? 9 / 16} />}
+        <p className="text-center font-mono tabular-nums text-[12px] text-ink-3 truncate">
+          {video.title} · {getFormatLabel(video.format)} · {formatShort(duration)}
+        </p>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            size="xl"
+            className="flex-1"
+            onClick={() => {
+              setShowRenderPreview(false)
+              renderVideo()
+            }}
+            disabled={isRendering}
           >
-            <div className="flex items-center justify-between pt-4 pr-4 pb-3 pl-5">
-              <h2 id="render-title" className="font-serif text-[26px] leading-none text-paper">
-                Rendered <em className="italic">video</em>
-              </h2>
-              <IconButton title="Close" onClick={() => setShowRenderPreview(false)}>
-                <X className="size-4" />
-              </IconButton>
-            </div>
-
-            <div className="px-5 flex justify-center">
-              <video
-                src={video.outputUrl}
-                controls
-                autoPlay
-                className="max-h-[60vh] max-w-full rounded-sm bg-black"
-              />
-            </div>
-
-            <p className="px-5 pt-3 pb-1 text-center font-mono tabular-nums text-[11.5px] text-ink-3 truncate">
-              {video.title} · {getFormatLabel(video.format)} · {formatShort(duration)}
-            </p>
-
-            <div className="flex gap-2 px-4 pt-3 pb-4">
-              <Button
-                variant="ghost"
-                className="flex-1 h-[38px] text-[12.5px]"
-                onClick={() => {
-                  setShowRenderPreview(false)
-                  renderVideo()
-                }}
-                disabled={isRendering}
-              >
-                <RefreshCw className="size-3.5" />
-                Re-render
-              </Button>
-              <Button className="flex-1 h-[38px] text-[13px]" onClick={downloadRenderedVideo}>
-                <Download className="size-[15px]" />
-                Download video
-              </Button>
-            </div>
-          </div>
+            <RotateCcw className="size-[15px]" />
+            Re-render
+          </Button>
+          <Button size="xl" className="flex-[1.4]" onClick={downloadRenderedVideo}>
+            <Download className="size-4" />
+            Download video
+          </Button>
         </div>
+      </Dialog>
+    </div>
+  )
+}
+
+/**
+ * Rendered video preview: fits the export aspect inside 232×412 (9:16 at the
+ * design size), poster-style with a play button until the user starts it.
+ */
+function RenderedPreview({ src, aspect }: { src: string; aspect: number }) {
+  const ref = useRef<HTMLVideoElement>(null)
+  const [started, setStarted] = useState(false)
+  const maxW = 412
+  const maxH = 412
+  const width = Math.min(maxW, maxH * aspect)
+  const height = width / aspect
+  return (
+    <div className="relative self-center rounded-2xl overflow-hidden bg-black" style={{ width, height }}>
+      <video
+        ref={ref}
+        src={src}
+        controls={started}
+        playsInline
+        preload="metadata"
+        className="w-full h-full object-contain"
+      />
+      {!started && (
+        <button
+          type="button"
+          aria-label="Play rendered video"
+          onClick={() => {
+            setStarted(true)
+            ref.current?.play()
+          }}
+          className="absolute left-1/2 top-[72%] -translate-x-1/2 -translate-y-1/2 size-[52px] rounded-full bg-white/92 text-[#0D0D0D] flex items-center justify-center cursor-pointer hover:bg-white"
+        >
+          <Play className="size-5 ml-[3px] fill-current" />
+        </button>
       )}
     </div>
   )
