@@ -9,6 +9,7 @@ import {
   HookOverlay,
   annotateSubtitleKeywords,
   clearSubtitleKeywords,
+  replaceInSubtitles,
   DEFAULT_SUBTITLE_STYLE,
   type Subtitle,
   type SubtitleStyle,
@@ -17,8 +18,7 @@ import {
 } from "@/lib/subtitle-track"
 import { Download, Play, RotateCcw } from "lucide-react"
 import { EditorHeader } from "@/components/editor/EditorHeader"
-import { FloatingToolbar } from "@/components/editor/FloatingToolbar"
-import { TranscriptPanel } from "@/components/editor/panels/TranscriptPanel"
+import { TranscriptPanel, type TranscribeOptions } from "@/components/editor/panels/TranscriptPanel"
 import { StylePanel } from "@/components/editor/panels/StylePanel"
 import { TextPanel } from "@/components/editor/panels/TextPanel"
 import { OverlaysPanel } from "@/components/editor/panels/OverlaysPanel"
@@ -564,13 +564,24 @@ export default function EditorClient({ video: initialVideo, user }: EditorClient
     }
   }, [])
 
+  // Language/vocabulary from the Script panel, kept so "Try again" retries
+  // with the same options.
+  const transcribeOptsRef = useRef<TranscribeOptions | null>(null)
+
+  const startTranscription = (opts: TranscribeOptions) => {
+    transcribeOptsRef.current = opts
+    void transcribeVideo()
+  }
+
   const transcribeVideo = async () => {
     setFailedJob(null)
     setIsTranscribing(true)
     activeJobRef.current = "transcribe"
     try {
       const response = await fetch(`/api/videos/${video.id}/transcribe`, {
-        method: "POST"
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(transcribeOptsRef.current ?? {}),
       })
 
       if (!response.ok) {
@@ -682,6 +693,16 @@ export default function EditorClient({ video: initialVideo, user }: EditorClient
   const commitSubtitles = (updated: Subtitle[]) => {
     setVideo({ ...video, subtitles: updated })
     void saveSubtitles(updated)
+  }
+
+  // Transcript-wide find & replace (re-times only the replaced words).
+  const replaceAllInTranscript = (find: string, replace: string) => {
+    const { subtitles: updated, count } = replaceInSubtitles(video.subtitles ?? [], find, replace)
+    if (count > 0) {
+      commitSubtitles(updated)
+      toast.success(`Replaced ${count} ${count === 1 ? "match" : "matches"}`)
+    }
+    return count
   }
 
   // Insert a new 2s cue at the current playhead, then jump straight into editing.
@@ -1503,7 +1524,7 @@ export default function EditorClient({ video: initialVideo, user }: EditorClient
           displayTime={displayTime}
           keywordsActive={keywordsActive}
           isTranscribing={isTranscribing}
-          onTranscribe={transcribeVideo}
+          onTranscribe={startTranscription}
           onSelect={(sub) => seekToSubtitle(sub.start, sub.id)}
           onEdit={(sub) => {
             seekToSubtitle(sub.start, sub.id)
@@ -1518,6 +1539,7 @@ export default function EditorClient({ video: initialVideo, user }: EditorClient
           onAdd={addSubtitleAtPlayhead}
           onAutoHighlight={autoHighlightKeywords}
           onClearHighlights={clearKeywordHighlights}
+          onReplaceAll={replaceAllInTranscript}
         />
       </aside>
 
@@ -1525,7 +1547,7 @@ export default function EditorClient({ video: initialVideo, user }: EditorClient
       <main className="relative min-w-0 min-h-0 mb-3 rounded-[16px] bg-stage overflow-hidden">
         <div
           ref={stageRef}
-          className={`absolute inset-0 flex items-center justify-center px-6 pt-6 ${hasSubtitles && !isJobRunning ? "pb-[68px]" : "pb-6"}`}
+          className="absolute inset-0 flex items-center justify-center p-6"
         >
           {/* Preview frame — video content never changes with theme */}
           <div
@@ -1632,9 +1654,6 @@ export default function EditorClient({ video: initialVideo, user }: EditorClient
             {isJobRunning && <div className="absolute inset-0 z-30 bg-[rgba(13,13,13,0.62)]" />}
           </div>
         </div>
-
-        {/* Quick text controls, pinned to the bottom of the stage */}
-        {hasSubtitles && !isJobRunning && <FloatingToolbar style={style} onChange={commitStyle} />}
 
         {/* Long-running job dialog — render/transcription take minutes,
             so make the in-flight state impossible to miss. */}

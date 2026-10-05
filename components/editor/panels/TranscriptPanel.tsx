@@ -1,12 +1,27 @@
 "use client"
 
-import { useEffect, useRef } from "react"
-import { Check, Eraser, Loader2, Merge, Pencil, Plus, Scissors, Sparkles, Trash2, WandSparkles } from "lucide-react"
-import type { Subtitle } from "@/lib/subtitle-track"
+import { useEffect, useRef, useState } from "react"
+import { Check, ChevronDown, Eraser, Loader2, Merge, Pencil, Plus, Scissors, Search, Sparkles, Trash2, WandSparkles, X } from "lucide-react"
+import { countMatches, type Subtitle } from "@/lib/subtitle-track"
+import {
+  TRANSCRIPTION_LANGUAGES,
+  VOCABULARY_MAX_CHARS,
+  isTranscriptionLanguage,
+  type TranscriptionLanguage,
+} from "@/lib/transcription-options"
 import { Button, IconButton } from "@/components/ui/Button"
+import { Field, Input } from "@/components/ui/Field"
 import { Highlight } from "@/components/ui/Highlight"
 import { cn } from "@/lib/utils"
 import { formatShort, formatTimecode } from "../types"
+
+export interface TranscribeOptions {
+  language: TranscriptionLanguage
+  vocabulary: string
+}
+
+// Per-browser convenience: most users always transcribe in the same language.
+const LANGUAGE_STORAGE_KEY = "supertitle:transcribe-language"
 
 // Accepts "m:ss.cc", "ss.cc" or plain seconds.
 function parseTimecode(input: string): number {
@@ -41,6 +56,7 @@ export function TranscriptPanel({
   onAdd,
   onAutoHighlight,
   onClearHighlights,
+  onReplaceAll,
 }: {
   subtitles: Subtitle[]
   durationSeconds: number
@@ -52,7 +68,7 @@ export function TranscriptPanel({
   displayTime: number
   keywordsActive: boolean
   isTranscribing: boolean
-  onTranscribe: () => void
+  onTranscribe: (opts: TranscribeOptions) => void
   onSelect: (sub: Subtitle) => void
   onEdit: (sub: Subtitle) => void
   onStopEdit: () => void
@@ -64,9 +80,40 @@ export function TranscriptPanel({
   onAdd: () => void
   onAutoHighlight: () => void
   onClearHighlights: () => void
+  /** Replaces every match across the transcript; returns how many. */
+  onReplaceAll: (find: string, replace: string) => number
 }) {
   const focusId = selectedId ?? activeId
   const focusRef = useRef<HTMLDivElement>(null)
+
+  const [language, setLanguage] = useState<TranscriptionLanguage>("auto")
+  const [vocabulary, setVocabulary] = useState("")
+  const [findOpen, setFindOpen] = useState(false)
+  const [findText, setFindText] = useState("")
+  const [replaceText, setReplaceText] = useState("")
+  const matchCount = findOpen ? countMatches(subtitles, findText) : 0
+
+  // Restore the last language picked in this browser.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LANGUAGE_STORAGE_KEY)
+      if (isTranscriptionLanguage(saved)) setLanguage(saved)
+    } catch {}
+  }, [])
+
+  const pickLanguage = (value: string) => {
+    if (!isTranscriptionLanguage(value)) return
+    setLanguage(value)
+    try {
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, value)
+    } catch {}
+  }
+
+  const closeFind = () => {
+    setFindOpen(false)
+    setFindText("")
+    setReplaceText("")
+  }
 
   // Keep the block under the playhead (or the selected one) in view.
   useEffect(() => {
@@ -84,8 +131,63 @@ export function TranscriptPanel({
     <section className="flex flex-col h-full min-h-0 pt-2">
       <div className="flex items-baseline justify-between gap-3 pt-3 px-7 pb-4 flex-none">
         <h2 className="display text-[28px] tracking-[-0.02em] text-paper">Script</h2>
+        <span className="flex-1" />
         <span className="font-mono text-[12px] text-ink-3">{meta}</span>
+        {!empty && (
+          <IconButton
+            title="Find & replace"
+            active={findOpen}
+            onClick={() => (findOpen ? closeFind() : setFindOpen(true))}
+            className="self-center"
+          >
+            <Search className="size-3.5" />
+          </IconButton>
+        )}
       </div>
+
+      {findOpen && !empty && (
+        <form
+          className="flex flex-col gap-2 mx-4 mb-3 p-3 rounded-[12px] bg-surface flex-none"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (matchCount > 0) onReplaceAll(findText, replaceText)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") closeFind()
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <Input
+              inputSize="sm"
+              autoFocus
+              value={findText}
+              onChange={(e) => setFindText(e.target.value)}
+              placeholder="Find"
+              aria-label="Find"
+              className="bg-canvas"
+            />
+            <span className="w-[74px] flex-none text-right font-mono text-[12px] text-ink-3">
+              {findText.trim() ? `${matchCount} ${matchCount === 1 ? "match" : "matches"}` : ""}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              inputSize="sm"
+              value={replaceText}
+              onChange={(e) => setReplaceText(e.target.value)}
+              placeholder="Replace with"
+              aria-label="Replace with"
+              className="bg-canvas"
+            />
+            <Button type="submit" size="sm" className="h-[34px] flex-none text-[12.5px]" disabled={matchCount === 0}>
+              Replace all
+            </Button>
+            <IconButton title="Close (Esc)" size={34} onClick={closeFind}>
+              <X className="size-3.5" />
+            </IconButton>
+          </div>
+        </form>
+      )}
 
       {empty && isTranscribing ? (
         <>
@@ -116,7 +218,38 @@ export function TranscriptPanel({
           <p className="text-[15px] leading-normal text-ink-2">
             We transcribe the audio and split it into synced blocks. Then just review the text.
           </p>
-          <Button size="xl" className="self-start h-12 px-6 text-[15px]" onClick={onTranscribe} disabled={isTranscribing}>
+          <Field label="Spoken language">
+            <div className="relative">
+              <select
+                value={language}
+                onChange={(e) => pickLanguage(e.target.value)}
+                className="w-full h-[44px] appearance-none rounded-xl bg-surface pl-4 pr-10 text-[14px] text-paper outline-none focus:edge-accent cursor-pointer"
+              >
+                {TRANSCRIPTION_LANGUAGES.map((l) => (
+                  <option key={l.value} value={l.value}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="size-4 text-ink-3 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </Field>
+          <Field label="Names & terms" aside={<span className="text-ink-3">optional</span>}>
+            <Input
+              inputSize="md"
+              className="rounded-xl"
+              value={vocabulary}
+              onChange={(e) => setVocabulary(e.target.value)}
+              maxLength={VOCABULARY_MAX_CHARS}
+              placeholder="e.g. Supertitle, Hormozi, CAC, churn"
+            />
+          </Field>
+          <Button
+            size="xl"
+            className="self-start h-12 px-6 text-[15px]"
+            onClick={() => onTranscribe({ language, vocabulary })}
+            disabled={isTranscribing}
+          >
             {isTranscribing ? (
               <>
                 <Loader2 className="size-[17px] animate-spin" />

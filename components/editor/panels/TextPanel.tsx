@@ -202,6 +202,19 @@ export function TextPanel({
       {isWordGroup && (
         <>
           <PanelDivider />
+          <PanelSection label="Highlight" aside="Active word">
+            <Segmented<"word" | "fill">
+              size="sm"
+              value={style.highlightMode ?? "word"}
+              onChange={(v) => onChange({ highlightMode: v })}
+              options={[
+                { value: "word", label: "Word" },
+                { value: "fill", label: "Letter fill" },
+              ]}
+            />
+          </PanelSection>
+
+          <PanelDivider />
           <PanelSection label="Grouping">
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-semibold text-paper">Words per group</span>

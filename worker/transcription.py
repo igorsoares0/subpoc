@@ -2,13 +2,16 @@ import openai
 import httpx
 from config import get_settings
 from utils import download_video, extract_audio, cleanup_files, webhook_auth_headers
+from word_timing import refine_words_with_audio
 
 settings = get_settings()
 
 async def process_transcription(
     video_id: str,
     video_url: str,
-    webhook_url: str
+    webhook_url: str,
+    language: str | None = None,
+    vocabulary: str | None = None,
 ):
     """
     Processar transcrição do vídeo
@@ -36,13 +39,22 @@ async def process_transcription(
         print(f"[Transcription] Sending to Whisper API...")
         client = openai.OpenAI(api_key=settings.openai_api_key)
 
+        # Idioma omitido → Whisper detecta sozinho. O prompt com o vocabulário
+        # do usuário puxa a grafia de nomes próprios/marcas/jargões.
+        optional_params = {}
+        if language:
+            optional_params["language"] = language
+        if vocabulary:
+            optional_params["prompt"] = vocabulary
+        print(f"[Transcription] language={language or 'auto'}, vocabulary={'yes' if vocabulary else 'no'}")
+
         with open(audio_path, "rb") as audio_file:
             transcription = client.audio.transcriptions.create(
                 model="whisper-1",
                 file=audio_file,
                 response_format="verbose_json",
-                language="pt",  # Português
-                timestamp_granularities=["word", "segment"]
+                timestamp_granularities=["word", "segment"],
+                **optional_params,
             )
 
         # 4. Formatar resultado
@@ -85,23 +97,27 @@ async def process_transcription(
         # o highlight pulava direto para a seguinte.
         if subtitles and all_words:
             all_words = sorted(
-                all_words,
-                key=lambda w: w["start"] if isinstance(w, dict) else w.start,
+                (
+                    {
+                        "word": (w["word"] if isinstance(w, dict) else w.word).strip(),
+                        "start": float(w["start"] if isinstance(w, dict) else w.start),
+                        "end": float(w["end"] if isinstance(w, dict) else w.end),
+                    }
+                    for w in all_words
+                ),
+                key=lambda w: w["start"],
             )
+            # Corrige a deriva dos timestamps do whisper-1 contra o áudio
+            # (ver worker/word_timing.py). Fail-safe: erro → words originais.
+            all_words = refine_words_with_audio(all_words, audio_path)
+
             words_by_subtitle = [[] for _ in subtitles]
             si = 0
             for w in all_words:
-                w_start = w["start"] if isinstance(w, dict) else w.start
-                w_end = w["end"] if isinstance(w, dict) else w.end
-                w_word = w["word"] if isinstance(w, dict) else w.word
-                mid = (w_start + w_end) / 2.0
+                mid = (w["start"] + w["end"]) / 2.0
                 while si < len(subtitles) - 1 and mid >= subtitles[si + 1]["start"]:
                     si += 1
-                words_by_subtitle[si].append({
-                    "word": w_word.strip(),
-                    "start": w_start,
-                    "end": w_end
-                })
+                words_by_subtitle[si].append(w)
 
             for entry, segment_words in zip(subtitles, words_by_subtitle):
                 if segment_words:

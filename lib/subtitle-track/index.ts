@@ -27,6 +27,7 @@ export {
   clearSubtitleKeywords,
 } from "./keywords";
 export type { KeywordOptions } from "./keywords";
+export { countMatches, replaceInSubtitles } from "./replace";
 export {
   DEFAULT_SUBTITLE_STYLE,
   SUBTITLE_PRESETS,

@@ -6,10 +6,13 @@ import {
   type SegmentOptions,
 } from "./segments";
 import { normalizeWords } from "./normalize";
+import { fillProgress } from "./animation";
 
 export interface WordGroupDisplay {
   words: SubtitleWord[];
   activeIndex: number;
+  /** 0→1 letter-fill progress of the active word over its spoken duration. */
+  activeProgress: number;
 }
 
 /**
@@ -40,14 +43,19 @@ export function getWordGroupDisplay(
   const minGroupHold =
     options?.minGroupHold ?? DEFAULT_SEGMENT_OPTIONS.minGroupHold;
 
+  // Sorted the same way normalizeWords sorts, so indices into `sortedRaw`
+  // line up with segWords/dispWords — needed for the raw (spoken) duration of
+  // the active word, which the letter fill sweeps over.
+  const sortedRaw = [...rawWords].sort((a, b) => a.start - b.start);
+
   // Two normalize passes over the same word list (same order/count/starts, so
   // indices align): `segWords` keeps the raw MIN_WORD_DURATION floor and feeds
   // segmentation, so the readability tail can't shrink a gap and merge chunks;
   // `dispWords` carries the min-group-hold tail and drives the active-word
   // lookup, so a chunk's last word stays "active" through its hold and the
   // caption lingers into the trailing silence instead of blinking off.
-  const segWords = normalizeWords(rawWords, pauseGap);
-  const dispWords = normalizeWords(rawWords, pauseGap, minGroupHold);
+  const segWords = normalizeWords(sortedRaw, pauseGap);
+  const dispWords = normalizeWords(sortedRaw, pauseGap, minGroupHold);
 
   let activeWordIdx = -1;
   for (let i = 0; i < dispWords.length; i++) {
@@ -62,9 +70,20 @@ export function getWordGroupDisplay(
   const segment = findSegmentForWord(segments, activeWordIdx);
   if (!segment) return null;
 
+  // Fill sweeps over the spoken span only — not the display-extended end, or
+  // it would crawl through the trailing pause. Clamped to the next word's
+  // start so the fill completes before the highlight moves on.
+  const active = sortedRaw[activeWordIdx];
+  const next = sortedRaw[activeWordIdx + 1];
+  const spokenEnd = next ? Math.min(active.end, next.start) : active.end;
+
   return {
     words: segment.words,
     activeIndex: activeWordIdx - segment.firstIndex,
+    activeProgress: fillProgress(
+      currentTime - active.start,
+      spokenEnd - active.start,
+    ),
   };
 }
 

@@ -24,6 +24,7 @@ export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
   highlightBgOpacity: undefined,
   emphasisColor: undefined,
   displayMode: "sentence",
+  highlightMode: "word",
   wordsPerGroup: 3,
   maxCharsPerGroup: undefined,
   splitPauseGap: undefined,

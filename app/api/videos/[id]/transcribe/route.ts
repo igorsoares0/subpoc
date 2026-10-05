@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { resolveMediaUrl } from "@/lib/r2"
+import { isTranscriptionLanguage, normalizeVocabulary } from "@/lib/transcription-options"
 
 // POST - Send video to worker for transcription
 export async function POST(
@@ -19,6 +20,14 @@ export async function POST(
     }
 
     const { id } = await params
+
+    // Optional body: { language?: "auto" | ISO-639-1, vocabulary?: string }
+    const body = await req.json().catch(() => ({}))
+    const language =
+      isTranscriptionLanguage(body?.language) && body.language !== "auto"
+        ? body.language
+        : undefined
+    const vocabulary = normalizeVocabulary(body?.vocabulary)
 
     // Verify ownership
     const video = await prisma.videoProject.findUnique({
@@ -72,7 +81,9 @@ export async function POST(
       body: JSON.stringify({
         videoId: id,
         videoUrl: videoUrl,
-        webhookUrl: webhookUrl
+        webhookUrl: webhookUrl,
+        language,
+        vocabulary,
       })
     })
 

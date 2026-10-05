@@ -32,7 +32,8 @@ const STOPWORDS = new Set([
   "as", "by", "from", "up", "out", "about", "into", "over", "than", "too",
 ]);
 
-function normalize(word: string): string {
+/** Lowercased, accent- and punctuation-free form of a word, for list lookups. */
+export function normalizeToken(word: string): string {
   return word
     .toLowerCase()
     .normalize("NFD")
@@ -41,7 +42,7 @@ function normalize(word: string): string {
 }
 
 function isKeyword(word: string): boolean {
-  const n = normalize(word);
+  const n = normalizeToken(word);
   if (n.length === 0) return false;
   if (STOPWORDS.has(n)) return false;
   if (/\d/.test(n)) return true; // numbers are almost always meaningful

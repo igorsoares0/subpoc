@@ -9,6 +9,19 @@ import type { SubtitleStyle } from "./types";
 export const POP_DURATION = 0.12;
 export const BG_FADE_DURATION = 0.1;
 
+/** Letter-fill highlight (highlightMode "fill"): floor (seconds) for how long
+ * the karaoke sweep across one word takes, so near-zero Whisper durations
+ * don't snap the fill. Mirrored in worker/subtitle_renderer.py
+ * (_FILL_MIN_DURATION) to size the per-word settle window — keep in sync. */
+export const FILL_MIN_DURATION = 0.08;
+
+/** 0→1 linear sweep of the letter fill, `elapsed` seconds into a word whose
+ * spoken duration is `duration`. */
+export function fillProgress(elapsed: number, duration: number): number {
+  const dur = Math.max(duration, FILL_MIN_DURATION);
+  return Math.min(Math.max(elapsed / dur, 0), 1);
+}
+
 export function easeOutBack(t: number, strength = 1): number {
   const c1 = 1.70158 * strength;
   const c3 = c1 + 1;

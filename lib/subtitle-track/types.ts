@@ -36,6 +36,10 @@ export interface SubtitleStyle {
    * `emphasis`, independent of the time-based active-word highlight. */
   emphasisColor?: string;
   displayMode?: "sentence" | "word-group";
+  /** Word-group highlight: "word" swaps the active word's color at once;
+   * "fill" sweeps the highlight color across its letters while it is spoken
+   * (karaoke), keeping already-spoken words filled. Default: "word". */
+  highlightMode?: "word" | "fill";
   /** Auto-split (item 4): hard cap on words per chunk in word-group mode. */
   wordsPerGroup?: number;
   /** Auto-split: soft cap on characters per chunk. Falls back to a sane default. */

@@ -32,6 +32,10 @@ class TranscribeRequest(BaseModel):
     videoId: str
     videoUrl: str
     webhookUrl: str
+    # ISO-639-1 (ex.: "pt", "en"). None → Whisper detecta o idioma sozinho.
+    language: str | None = None
+    # Nomes/termos que aparecem no vídeo, passados como prompt pro Whisper.
+    vocabulary: str | None = None
 
 class RenderRequest(BaseModel):
     videoId: str
@@ -144,7 +148,9 @@ async def transcribe(
         process_transcription,
         request.videoId,
         request.videoUrl,
-        request.webhookUrl
+        request.webhookUrl,
+        request.language,
+        request.vocabulary,
     )
 
     return {

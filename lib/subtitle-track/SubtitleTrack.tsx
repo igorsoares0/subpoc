@@ -204,9 +204,12 @@ export function SubtitleTrack({
         ? "transparent"
         : hexToRgba(style.backgroundColor, style.backgroundOpacity);
 
+    const isFill = style.highlightMode === "fill";
+
     // Any highlightBg means the active word gets a colored background pill —
     // in that case outline competes visually with it, so suppress it group-wide.
-    const hasHighlightBg = !!style.highlightBg;
+    // Fill mode has no pill (highlightBg becomes the fill color instead).
+    const hasHighlightBg = !!style.highlightBg && !isFill;
     const scaledOutlineWidth = Math.max(style.outlineWidth * scaleFactor, 1);
     const groupStrokeEnabled =
       style.outline && style.backgroundOpacity <= 0 && !hasHighlightBg;
@@ -232,6 +235,8 @@ export function SubtitleTrack({
             fontSize: `${fontSize}px`,
             fontWeight: style.fontWeight ?? 700,
             backgroundColor: containerBg,
+            // Even out wrapped lines so no word is left alone on the last one.
+            textWrap: "balance",
           }}
         >
           {wordGroup.words.map((w, idx) => {
@@ -241,6 +246,54 @@ export function SubtitleTrack({
             let anim: WordAnimation = { bgProgress: 1 };
             if (animEnabled && isActive && activeWord) {
               anim = computeWordAnimation(animMode, currentTime - activeWord.start, animIntensity);
+            }
+
+            if (isFill) {
+              // Karaoke letter fill: a highlight-colored copy of the word is
+              // stacked on the base text and clipped from the right, so the
+              // color sweeps across the letters while the word is spoken.
+              // Two layers instead of background-clip:text, which fights the
+              // -webkit-text-stroke + paint-order outline (thins the glyphs).
+              const progress =
+                idx < wordGroup.activeIndex ? 1 : isActive ? wordGroup.activeProgress : 0;
+              const fillColor = style.highlightBg || style.highlightColor || "#FFD700";
+              const baseColor = w.emphasis ? style.emphasisColor || "#FFD700" : style.color;
+              return (
+                <Fragment key={idx}>
+                  <span
+                    style={{
+                      position: "relative",
+                      display: "inline-block",
+                      transform: isActive ? anim.transform : undefined,
+                      opacity: isActive ? anim.opacity : undefined,
+                      transformOrigin: animEnabled ? "center" : undefined,
+                    }}
+                  >
+                    <span style={{ ...groupStroke, color: baseColor }}>{wordText}</span>
+                    {progress > 0 && (
+                      <span
+                        aria-hidden
+                        style={{
+                          ...groupStroke,
+                          position: "absolute",
+                          inset: 0,
+                          whiteSpace: "nowrap",
+                          color: fillColor,
+                          // Negative top/left/bottom insets keep the outer
+                          // half of the stroke from being cut off.
+                          clipPath:
+                            progress < 1
+                              ? `inset(-0.5em ${(1 - progress) * 100}% -0.5em -0.5em)`
+                              : undefined,
+                        }}
+                      >
+                        {wordText}
+                      </span>
+                    )}
+                  </span>
+                  {idx < wordGroup.words.length - 1 ? " " : null}
+                </Fragment>
+              );
             }
 
             const baseHighlightOpacity = style.highlightBgOpacity ?? 0.95;
@@ -353,6 +406,8 @@ export function SubtitleTrack({
           fontSize: `${fontSize}px`,
           fontWeight: style.fontWeight ?? 700,
           textAlign: style.alignment as CSSProperties["textAlign"],
+          // Even out wrapped lines so no word is left alone on the last one.
+          textWrap: "balance",
           ...sentenceStroke,
         }}
       >

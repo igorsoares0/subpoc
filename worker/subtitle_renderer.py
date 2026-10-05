@@ -43,6 +43,35 @@ def _anim_settle_time(style: dict) -> float:
     return dur * 1.5
 
 
+# Mirror of FILL_MIN_DURATION in lib/subtitle-track/animation.ts — floor for
+# the letter-fill sweep of one word. Keep in sync.
+_FILL_MIN_DURATION = 0.08
+
+
+def _is_fill(style: dict) -> bool:
+    """Letter-fill highlight (karaoke): the DOM changes for the whole spoken
+    duration of every word, not just the entrance animation."""
+    s = style or {}
+    return s.get("displayMode") == "word-group" and s.get("highlightMode") == "fill"
+
+
+def _fill_durations(words: list[dict]) -> list[float]:
+    """
+    Per-word letter-fill sweep duration, in the same start-sorted order as
+    _normalize_word_intervals. Mirrors getWordGroupDisplay: the spoken span,
+    clamped to the next word's start, floored at _FILL_MIN_DURATION.
+    """
+    spans = sorted(
+        (float(w.get("start", 0)), float(w.get("end", 0))) for w in words
+    )
+    out: list[float] = []
+    for i, (start, end) in enumerate(spans):
+        if i + 1 < len(spans):
+            end = min(end, spans[i + 1][0])
+        out.append(max(end - start, _FILL_MIN_DURATION))
+    return out
+
+
 # Padding (CSS px) added around the measured union — covers the half of the
 # -webkit-text-stroke that paints outside the glyph box and antialiasing.
 _CLIP_PAD = 16
@@ -320,25 +349,34 @@ def _build_active_intervals(
     subtitles: list[dict],
     style: dict,
     trim_start: float,
-) -> list[tuple[float, float]]:
+) -> tuple[list[tuple[float, float]], list[float]]:
     """
-    Post-trim time intervals where *any* subtitle/word is active.
-    Used by the framewise renderer to skip empty frames.
+    Post-trim time intervals where *any* subtitle/word is active, plus a
+    parallel list with each interval's settle time: seconds after its start
+    until the DOM stops changing (entrance animation, and in letter-fill mode
+    the fill sweep across the word). Used by the framewise renderer to skip
+    empty frames and to reuse one settled PNG per interval.
     """
     display_mode = (style or {}).get("displayMode", "sentence")
-    intervals: list[tuple[float, float]] = []
+    anim_settle = _anim_settle_time(style)
+    entries: list[tuple[float, float, float]] = []
 
     if display_mode == "word-group":
+        words = _flat_words(subtitles)
         spans = _normalize_word_intervals(
-            _flat_words(subtitles),
+            words,
             _style_pause_gap(style),
             _style_min_group_hold(style),
         )
-        for start, end in spans:
+        fills = _fill_durations(words) if _is_fill(style) else [0.0] * len(spans)
+        for (start, end), fill in zip(spans, fills):
             s = start - trim_start
             e = end - trim_start
             if e > 0 and e > s:
-                intervals.append((max(0.0, s), e))
+                # A word that started before the trim point is already
+                # partway through its fill at s = 0.
+                settle = max(anim_settle, fill - max(0.0, -s))
+                entries.append((max(0.0, s), e, settle))
     else:
         for sub in subtitles:
             if not (sub.get("text") or "").strip():
@@ -346,10 +384,10 @@ def _build_active_intervals(
             s = float(sub.get("start", 0)) - trim_start
             e = float(sub.get("end", 0)) - trim_start
             if e > 0 and e > s:
-                intervals.append((max(0.0, s), e))
+                entries.append((max(0.0, s), e, anim_settle))
 
-    intervals.sort()
-    return intervals
+    entries.sort()
+    return [(s, e) for s, e, _ in entries], [st for _, _, st in entries]
 
 
 def _active_interval_index(
@@ -380,7 +418,8 @@ async def render_subtitles_framewise(
     native_width: int | None = None,
 ) -> tuple[list[tuple[float, float, str]], str, dict | None]:
     """
-    Frame-by-frame capture for animated modes (Submagic-style pop).
+    Frame-by-frame capture for animated modes (Submagic-style pop) and the
+    letter-fill highlight.
 
     Samples the /render/[id] DOM at every frame of the output video. Two kinds
     of frames skip the (expensive) screenshot: frames with no active subtitle
@@ -396,8 +435,7 @@ async def render_subtitles_framewise(
         out_dir = os.path.join(tempfile.gettempdir(), f"subs_{video_id}")
     os.makedirs(out_dir, exist_ok=True)
 
-    intervals = _build_active_intervals(subtitles, style, trim_start)
-    settle_time = _anim_settle_time(style)
+    intervals, settle_times = _build_active_intervals(subtitles, style, trim_start)
     frame_dt = 1.0 / video_fps
     total_frames = max(1, int(round(effective_duration * video_fps)))
 
@@ -441,7 +479,7 @@ async def render_subtitles_framewise(
                 idx = _active_interval_index(t_out, intervals)
                 settled = (
                     idx is not None
-                    and (t_out - intervals[idx][0]) >= settle_time
+                    and (t_out - intervals[idx][0]) >= settle_times[idx]
                 )
                 plan.append((t_out, idx, settled))
                 if idx is None:
@@ -504,7 +542,8 @@ async def render_subtitles_framewise(
                 f"[SubRender/frame] {captured} screenshots + {reused} settled "
                 f"reuses over {total_frames} frames @ {video_fps:.2f}fps "
                 f"in {time.perf_counter() - capture_start:.1f}s "
-                f"(settle window {settle_time:.2f}s)"
+                f"(max settle window {max(settle_times, default=0.0):.2f}s"
+                f"{', letter fill' if _is_fill(style) else ''})"
             )
         finally:
             await browser.close()
@@ -529,13 +568,14 @@ def render_subtitles_via_browser_sync(
     """
     Sync wrapper used by the CLI subprocess.
 
-    Routes to framewise capture for any per-word entrance animation (needs both
-    effective_duration and video_fps); otherwise uses the keyframe path.
+    Routes to framewise capture for any per-word entrance animation or the
+    letter-fill highlight (needs both effective_duration and video_fps);
+    otherwise uses the keyframe path.
     """
     animation_mode = (style or {}).get("animationMode", "none")
     is_animated = animation_mode not in (None, "", "none")
     use_framewise = (
-        is_animated
+        (is_animated or _is_fill(style))
         and effective_duration is not None
         and video_fps is not None
         and video_fps > 0
